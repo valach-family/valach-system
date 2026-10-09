@@ -16,6 +16,3343 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3258 — A SZERZŐDÉS-BŐVÍTÉS MINDEN KISZOLGÁLÓRA SZÓL, ÉS A NEM MÉRT NEM „NEM" (R186 §5)
+
+A kötelező böngészős kapu a **záró fejen** PIROS lett, és mind a két oka **a saját javításaim
+következménye** volt — nem a terméké, és nem a gépé. A kapu tehát pontosan azt tette, amiért
+kötelező (`D-VS-497`).
+
+**(1) A BEMUTATÓ CSONKJA IS KISZOLGÁLÓ** (`KUKA-477`). A `KUKA-472`/`475`/`476` javításai a LAPON új
+válasz-mezőket kezdtek olvasni: a meghívó-űrlap a `grantable_roles` készletből rajzol, a megvonás
+nyugtája a `revocation.changed` átmenetből zár. A bemutató lap UGYANAZT az `app.js`-t futtatja, csak
+a HTTP-határ mögött a `demo-adapter.mjs` csonkja áll — és a csonk a RÉGI választ adta. Következmény,
+MÉRVE: a `tour.inviteRevoke` a 13. lépésén, a `tour.reentry` a 3. lépésén **beragadt**, mind a két
+szélességen. Mostantól a csonk a mai szerződést adja (`grantable_roles` · `blocked_roles` ·
+`rights_alterable` · `reinvite_roles` · teljes `revocation` verdikt, az idempotens ismétléssel).
+**A SZABÁLY:** amikor a lap új mezőt kezd olvasni, a kérdés nem „a kiszolgáló adja-e", hanem
+**„MINDEN kiszolgáló adja-e"** — a bemutató a felhasználó ELSŐ élménye, és a határ zöldje nem a
+felület zöldje (`KUKA-227` · `KUKA-207`).
+
+**(2) A NEM MÉRT KÉSZLET NEM ÜRES KÉSZLET** (`KUKA-478`). A készlet-kapuk a `scopeMeta` két
+tömbjére zárnak, a kezdő alak viszont ÜRES tömböket tartalmazott — ugyanazt, amit egy MÉRT üres
+plafon ad. A segéd „készítsd elő a meghívást" folytatása pedig a lap-váltással EGY pillanatban
+nyitotta a panelt, tehát a lista válasza csak a rajzolás UTÁN érkezett meg. Egy **friss
+tulajdonos** — akinek a kiszolgáló két szerepet és négy adatkört ad (mérve) — azt a mondatot kapta,
+hogy nincs mit felkínálni. Mostantól a `scopeMeta` kimondja, hogy **mértünk-e**, és a panel **előbb
+mér, utána rajzol** (a futó mérést megvárja, másodikat nem indít). **A SZABÁLY:** egy mért készletre
+zárt kapunak **három** állapota van — mért és üres · mért és nem üres · **még nem mért** —, és a
+harmadikra nem nemleges válasz jár, hanem **mérés** (`KUKA-049` · `KUKA-209`).
+
+**ÉS AMIT EZ A KÉT LELET EGYÜTT MOND:** a „felkínálás = végigvihetőség" szabály bevezetése
+(`D-VS-3245`/`3246`/`3251`) **új hiba-osztályt is nyitott**: ahol eddig mindig volt gomb, ott most a
+felkínálás FELTÉTELE dönt — és a feltétel **minden** kiszolgálón és **minden** időpillanatban
+mérhető kell legyen. A két lelet nem a szabály ellen szól; a szabály **hatókörét** mondja ki.
+
+**HÁROM PRÓBA-OLDALI JAVÍTÁS IS KELLETT, ÉS EZT KIMONDOM** (`KUKA-237`): (a) az `R134-B2` a
+felfüggesztést a TÁROLÓBAN oldotta fel (fixtúra, HTTP-út nincs rá), a sor „újrahívható" jelzője
+viszont az R186 §5 óta a kiszolgáló MÉRT verdiktje — a lapnak tehát újra be kell kérnie a listát, és
+ezt most a FÜLVÁLTÁS valódi vezérlőjével teszi. (b) Az `R186-T4` a profilmenüből indított kilépés
+után a lap gombjára kattintott, miközben a nyitott lenyíló RÁTAKART — a próba most becsukja a menüt,
+ahogy a felhasználó. **Egyik sem termék-hiba**, és egyik javítás sem lazít a mérésen: a mért
+VISELKEDÉS ugyanaz maradt.
+
+**AMIT EZ A DÖNTÉS NEM ÁLLÍT:** nem állítja, hogy a bemutató csonkja ezzel teljesen szerződés-hű
+(ma is csak azt adja, amit a lap megkérdez — a teljes séma-paritás nevesített, nyitott tétel), és
+nem állítja, hogy a kapu minden ilyen eltérést elfog: a két történeten kívüli utakat a bejáró nem
+kattintja végig.
+
+---
+
+## D-VS-3257 — AZ IDEMPOTENS MŰVELET KÉT TÉNYT AD, ÉS A TARTALÉK-ÉRTÉK IS ÁLLÍTÁS (R186 §5)
+
+Két lelet, egy munkarendi tanulság-pár.
+
+**(1) A NYUGTA AZ ÁTMENETRŐL SZÓL, NEM A HÍVÁS SIKERÉRŐL** (`KUKA-475`). A megvonás üzletileg
+idempotens: ha egy **másik fül** a lap betöltése után már elvégezte, a mag `ok: true, changed: false`-ot
+ad. A lap mégis a puszta `ok`-ra zárta a bemutató lépését, és azt mondta, hogy **ez** a kérés szüntette
+meg a hozzáférést. Mostantól az átmenetet a mag **teljes verdiktjéből** olvassuk
+(`r.revocation.changed`), és változatlan állapotnál **nevezett** nyugta áll, mindhárom nyelven, a
+teendővel. A szomszéd utak már így működtek — a javítás hatóköre tehát a **hiba-osztály**: minden
+idempotens írás nyugtáját végig kell kérdezni (`KUKA-129` · `KUKA-039`).
+
+**(2) A TARTALÉK-ÉRTÉK IS ÁLLÍTÁS** (`KUKA-476`). A meghívó-űrlap adatkör-választéka üres plafon
+mellett egy **beégetett** `keszlet`/`arak` tartalékra esett — vagyis visszaállította pontosan azt a
+**hamis gombot**, amit a plafon-mérés megszüntetett. Mostantól az űrlap **mindkét** megmért készletre
+zár, és üres készletnél a nevezett mondat áll az űrlap helyén. A „nem tudom" nem „jó lesz"
+(`KUKA-049`).
+
+**ÉS AMIT MAGAMRÓL RÖGZÍTEK:** a `KUKA-476` tartalékát a `KUKA-472` javításakor **láttam**, és nem
+javítottam. **Amit egy javítás közben észreveszek, de nem javítok, azt nevezzem meg** — különben a
+következő kör leletévé válik. Ugyanígy a mérés: az `as88` első fixtúrája a lista **első** alkalmas
+sorát vette, az pedig a **tulajdonos maga** volt — a mérés a saját tagságát vonta meg, és a második
+hívás `409 not_a_member`-t adott. **A fixtúra maga is mérés alatt áll** (`KUKA-207`).
+
+Gépi jel: `npm run verify:app-findings-r154` (`as88` · `as89`) · `npm run verify:i18n` ·
+`npm run verify:kuka`.
+
+---
+
+## D-VS-3256 — A NYILVÁNOSSÁGBA MENŐ TISZTÍTÓT A BEMENET MINDEN ALAKJÁRA MEGMÉRJÜK (R186 §5)
+
+A fogyasztás-export út-tisztítója a **relatív** utat normalizálta (a `join` ezt magától megteszi), az
+**abszolút** utat viszont szó szerint adta a határ-ellenőrzésnek. Egy `<repó>/../customer/…` alak így
+**átment** a repó-határ kapuján, és a kiírt út a rejtett tartalék helyett egy repón **kívüli**,
+telepítési vagy **ügyfél**-könyvtár nevét vitte — abba a leltárba, ami a **repóba** kerül.
+
+**A DÖNTÉS:** a könyvtár-határ **kanonizált** úton dől el (`resolve` a tartalmazás-ellenőrzés
+**előtt**), **mindkét** bemeneti ágon. Egy tisztító, ami csak az egyik bemenetre igaz, **nem tisztító**
+(`KUKA-003` · `KUKA-039`).
+
+**ÉS A MÉRÉS A BEMENET FAJTÁIT KÉRDEZI, nem a kimenet alakját:** a `q9` sor egy repó- **és**
+HOME-határon kívülre mutató, **nem kanonikus** abszolút úttal futtatja a szerszámot, és azt méri, hogy
+a **könyvtárnév nem szivárog ki**; a `q10` ellenpár a forrásban rögzíti a sorrendet.
+
+**A KORLÁT KIMONDVA** (`KUKA-216`): ez **lexikális** kanonizálás, nem symlink-feloldás. Egy repón
+**belüli**, kifelé mutató jelképes lánc ezzel **nem** derül ki — a `realpath` fájlrendszer-hozzáférést
+és nem létező útra kivétel-kezelést kíván, ezért **nevezett, külön tétel**.
+
+Gépi jel: `npm run verify:app-findings-r154` (`q9` · `q10`) · `npm run verify:kuka`.
+
+---
+
+## D-VS-3255 — A HATÁSKÖR EGY NEVEZETT VERDIKT, ÉS MINDEN VEZÉRLŐ EBBŐL DÖNT (R186 §5)
+
+A `KUKA-469` a **bemutató** felkínálását kötötte a végrehajtható hatásköréhez. A **közönséges**
+felület négy megvonás-műveletének jelzője viszont változatlan maradt — pedig **mind a négy** írás-út
+`alter_right` hatáskört kíván, amit a tagság **akár `admin` szerepben sem** ad meg.
+
+**A DÖNTÉS:** a „megváltoztathatja-e a jogokat ebben a könyvben" **nem művelet-név, hanem tiszta
+verdikt**, és **minden** fogyasztója ebből dönt: a kiszolgáló **egyszer** kérdezi kérésenként
+(`KUKA-436`), a meghívó-lista `revocable` és a tag-lista `rights_alterable` mezője ezt viszi, a lap
+**mindkét** megvonás-gombot ebből rajzolja — hatáskör nélkül a **nevezett mondat** áll a gomb helyén,
+a teendővel együtt (`KUKA-201` · `KUKA-465`) —, és a mag `reinviteFeasibility` feloldója a hatáskört
+**első kapuként** kérdezi, pontosan ott, ahol az írás-út is.
+
+**ÉS A HATÓKÖRT A HIBA-OSZTÁLY ADTA, NEM A LELET HELYE** (`KUKA-418`): a külső fél **egy** jelzőt
+nevezett meg, a mérés viszont **mind a négy** írás-utat megkérdezte — a tagság-megvonás, az
+adatkör-megvonás és az újbóli meghívás ugyanezzel a hiánnyal állt. Ez a kör **negyedszer** mérte meg
+ugyanezt a leckét a saját javításaimon.
+
+Gépi jel: `npm run verify:app-findings-r154` (`as81`…`as85`, három ellenpárral) · `npm run verify:i18n`
+· `npm run verify:kuka`.
+
+---
+
+## D-VS-3254 — AMIT A KISZOLGÁLÓ MEGMÉRT, AZT A LAP NE TALÁLJA KI ÚJRA (R186 §5)
+
+A munkatárs-lista „újrahívható" jelzője **egy** szerepre (a tag mai szerepére) szólt, a panel viszont
+**minden ismert szerepet** felkínált. Egy delegált kezelőnél a plafonon **túli** választás
+`outside_basis_roles`-szal bukik — a `tour.reentry` közben **a megvonás után**, tehát kárt hagyva.
+
+**A DÖNTÉS:** az írásmentes feloldó válaszának **minden hasznos felét** el kell juttatni a
+fogyasztóhoz: a sor hordozza a **megmért** szerep-készletet (`reinvite_roles`), és a panel **csak
+ebből** választ — egy feloldó, egy készlet, egy felkínálás (`KUKA-003`). Ha a készlet nem érkezett meg,
+a tag **mai** szerepe az egyetlen választható: pontosan az, amire a jelző kimondta, hogy működik
+(`KUKA-049`: a „nem tudom" nem „jó lesz").
+
+**A HATÓKÖR KIMONDVA** (`KUKA-207`): a panel rajzolása böngésző-oldali, ezt a battéria **forrás-pinnel**
+méri (`as80`); a **legitim** utat a kötelező kapu `R132`/`R134` próbái mérik élőben, mert azok a
+panelen **választanak** szerepet. A szűk **szerep**-plafonú delegálás előállítására ma nincs API-út —
+ez a `KUKA-431` óta **nevezett** mérés-hiány, és itt is az marad.
+
+Gépi jel: `npm run verify:app-findings-r154` (`as79` · `as80`) · `npm run verify:kuka`.
+
+---
+
+## D-VS-3253 — A FÉL ŐR A LEGDRÁGÁBB: A FELKÍNÁLÁS A BEVÁLTÁS FELTÉTELÉT KÉRDEZI (R186 §5)
+
+A `KUKA-454`/`455`-ben a **bemutató** felkínálását már a **bizonyított csatornához** kötöttem — a
+**közönséges** munkatárs-lista útja ugyanazzal a hiánnyal maradt: a feloldó a cím **létét** mérte, a
+beváltás viszont bizonyított csatornát kíván. Egy importált vagy cserélt címnél a sor „újra meghívás"
+műveletét engedve rajzoltuk, az írás-út ki is állította a meghívót, a címzett pedig **soha nem tudta
+beváltani** — miközben a kezelő azt látta, hogy elküldte.
+
+**A DÖNTÉS:** a felkínálás feltétel-készlete a **beváltásig** megy, nem a legközelebbi kapuig, és a
+feltételt **ugyanabból** a feloldóból kérdezzük (`hasProvenChannel`). A nemleges válasz **nevezett**
+(`reentry_target_channel_unproven`), és mindhárom bekapcsolt nyelven megmondja a **teendőt** is
+(`KUKA-201` · `KUKA-465`).
+
+**ÉS AMIT EBBŐL A MUNKARENDRE RÖGZÍTÜNK:** ha egy szabály **két úton** igaz, a javítás hatóköre a
+**hiba-osztály**, nem a lelet helye (`KUKA-039` · `KUKA-418`). Ez a kör ezt most **harmadszor** mérte
+meg a saját javításaimon.
+
+Gépi jel: `npm run verify:app-findings-r154` (`as77` · `as78` ellenpár) · `npm run verify:i18n`.
+
+---
+
+## D-VS-3252 — AMI NEM TÖRTÉNT MEG, AZT NEM IS KEZDEMÉNYEZTÜK (R186 §5)
+
+A kilépés a művelet **előkészítésekor** beállítja a „saját kezdeményezés" jelét, és azt csak a
+következő frissítés törli. A meghiúsult kilépés ága — helyesen — belépve hagyja a felhasználót és
+visszatér, a jelölő viszont **bent maradt**. Ha közben egy **másik fül** kicseréli a kiszolgált
+személyt, a következő frissítés a változást **sajátnak** látja, és a lap **némán** átveszi az új
+nézetet: a „más ember lépett be" figyelmeztetés nem jelenik meg.
+
+**A DÖNTÉS:** a meghiúsult ág a jelölőt **visszaveszi**. A „saját kezdeményezés" jele a **megtörtént**
+műveletre szól, nem a megkísérteltre — amit a kiszolgáló nem igazolt, az a nézet-változás okaként sem
+számít. A **nemzedék-szám** emelése marad: a késői válasz továbbra sem rajzolhat (`KUKA-230`).
+
+**A SZABÁLY, AMIT EBBŐL RÖGZÍTÜNK:** egy **hiba-ág bevezetése a félbehagyott állapotot is örökli**. A
+„nem igazolt kimenet" helyes kezelése (a felhasználó marad, ahol van) nem elég: a művelet
+előkészítésekor beállított jelzéseket is vissza kell venni, különben a következő, **független**
+esemény hordozza a félbehagyott művelet okozatiságát.
+
+Gépi jel: `npm run verify:kuka` · **ÉLŐ TANÚ:** `npm run verify:browser-gate` → `R186-T4` (a kilépés
+500-ra cserélve, a másik fül MÁS embert léptet be, és az első fül következő művelete után a
+figyelmeztetésnek MEG KELL jelennie).
+
+---
+
+## D-VS-3251 — A PLAFON NEM HATÁSKÖR: A FELKÍNÁLÁS MINDEN LEGSZŰKEBB KAPUN ÁTMEGY (R186 §5)
+
+A két romboló történet előfeltétele a delegálási plafont kérdezte (`delegationCeilingOf`), a történet
+**első feladat-lépése** viszont MEGVONÁS — és a `revokeInvite`/`revokeMembership` **`alter_right`**
+hatáskört kíván, amit a tagság nem ad. Egy delegált `admin` kezelő így olyan bemutatót kapott, amit
+az írás-út `authority_not_established`-del utasít el.
+
+**A DÖNTÉS:** a felkínálás **ugyanazt a feloldót** kérdezi, amit az írás-út (`executableRightAt`,
+`operation: 'alter_right'`), **ugyanazokkal a bemenetekkel** (a kiszolgáló az írás-úton sem ad
+`credentials`-t), és **egyszer**, nem soronként (`KUKA-436`). Hatáskör nélkül **nincs cél**: a jelölő
+és a várt résztvevő is `null` — egy kapu, négy mezőre (`KUKA-003`).
+
+**ÉS AMIT EBBŐL A SZABÁLYBÓL RÖGZÍTÜNK:** a felkínálás feltétele a **legszűkebb későbbi kapu**, és a
+„legszűkebb" **nem** a legközelebbi réteg. A plafon és a hatáskör **két külön kérdés**. Ez a lecke
+ebben a körben **kilencedszer** jött elő (`KUKA-417` · `421` · `429` · `430` · `431` · `437` · `442` ·
+`454` · `455`), ezért a szabályt mondjuk ki, nem az esetet javítjuk.
+
+**A HATÓKÖR KIMONDVA:** a `tour.personalAccount` **szándékosan** kimarad — az nem megvonással
+kezdődő történet, tehát nem kér `alter_right`-ot.
+
+Gépi jel: `npm run verify:app-findings-r154` (`as75` · `as76` ellenpár) · `npm run verify:kuka`.
+
+---
+
+## D-VS-3250 — AMIT MEG TUDUNK NEVEZNI, AZT NE TALÁLGASSUK: A KÉRT CÉL ELŐNYT KAP (R186 §5)
+
+A `KUKA-456` óta az átkötést a **kiszolgáló saját cél-kötése** hitelesíti — ez helyes. A kiszolgáló
+viszont a könyv **globális** állapotából választott („a legfrissebben kiadott alkalmas"), a lap pedig
+a hitelesítőt **megnevezés nélkül** kérte el. A meghívó lejárata a kiadás pillanatából, fix ablakkal
+számol, tehát **két meghívó lejárata egyenlő lehet** (a bemutató-világban mindig az), és a
+holtversenyt a token dönti el: a kiszolgáló a **helyes művelet után is más sorra kötött**, a
+`taskDone` pedig a nem egyező `auth.ref` miatt elutasította a **tényleges** lépést.
+
+**A DÖNTÉS:** a kérés **megnevezheti** a célt (`story_ref`), és a kiszolgáló **arra** köt — **de csak
+az alkalmasak közül**. A megnevezett sor ugyanazon az alkalmassági szűrőn megy át, a könyv a kérés
+saját nézetéből jön, és nem alkalmas (vagy nem létező) megnevezés mellett a válasz **betűre a mai
+alapértelmezés**. A megnevezés tehát **nem felhatalmazás**, és nem is oracle (`KUKA-084`): a mező a
+ZÁRT mező-listán áll (`KUKA-236`), a kiszolgáló ellenőrzései változatlanok.
+
+**A SZABÁLY, AMIT EBBŐL RÖGZÍTÜNK:** a **determinisztikus sorrend nem azonosítás**. Egy reprodukálható
+rendezés attól még nem a MI sorunkat adja: amint a kapu azonosságot kér, a célt **meg kell nevezni**.
+
+**ÉS A CSONK UGYANAZT A SZABÁLYT FUTTATJA** (saját lelet a javítás mérésekor): a bemutató-adapter a
+legKORÁBBAN lejárót választotta, miközben a kiszolgáló a legfrissebbet — a lap és a próba így **más
+rendszert** mért volna (`KUKA-227` · `KUKA-207`).
+
+Gépi jel: `npm run verify:app-findings-r154` (`as73` · `as74` ellenpár) · `npm run verify:kuka` ·
+ÉLŐ tanú: `npm run verify:browser-gate` (`proof:demo-walk` · `R176-K1`/`K2`).
+
+---
+
+## D-VS-3249 — A NEVEZETT ÉRTÉK A HATÁRON IS NEVEZETT: EGY FELOLDÓ, MINDEN FOGYASZTÓRA (R186 §5)
+
+A `KUKA-460` bevezette, hogy a kötés-nyilatkozat **rekeszt** nevezhet meg (`STORY_SLOTS`). A
+HTTP-határ szerializálója viszont `=== true`-val mérte, tehát a `'invite_ref'` **szöveg** `false`-ként
+érkezett a böngészőbe — a nevezett rekesz **némán kikapcsolt**, és a fail-closed kapuk nem zártak,
+hanem **kinyíltak** (a kötés egyszerűen eltűnt).
+
+**A DÖNTÉS:** a rekesz-feloldó **egy helyen** áll és **exportált** (`storySlotOf`), és a **motor, a
+lap ÉS a HTTP-határ ugyanezt futtatja** (`KUKA-003` · `KUKA-039` · az `AVL-01` alakja). A határ a
+nyilatkozat **normalizált** alakját adja ki (`'ref'` · `'invite_ref'`), a nem ismert nyilatkozat
+`false` — zárt készlet, néma feloldás nélkül (`KUKA-236`).
+
+**ÉS A MÉRÉS A HATÁRT KÉRDEZI, nem a motort.** A motor saját sorai (`as54`/`as55`) zöldek voltak,
+mert a `taskDone`-t közvetlenül hívták — a lap mégis `false`-ot kapott. Ezért a mai jel a HATÁRON
+mér (`as70`), a két oldal egyezését **minden bemutató minden lépésén** összeveti (`as71`), és a
+**rögzített** bemutató-csomagot is ellenőrzi (`as72`) — a `true` alak ujjlenyomata ma nem állhat benne.
+
+Gépi jel: `npm run verify:app-findings-r154` (`as70` · `as71` · `as72`) · `npm run verify:kuka`.
+
+---
+
+## D-VS-3248 — EGY DÖNTÉS: EGY IDŐ — A FELVÉTEL ÉS A FELVÉTEL ELLENŐRZÉSE (R186 §5, SAJÁT LELET)
+
+Az ugyanebben a csomagban hozott `KUKA-464` helyes: a NEGATÍV kor is LEJÁRT, különben egy visszalépő
+fali óra egy valójában tétlen munkamenetet érvényesnek mutat. A felvétel útja viszont KÉT idő-leolvasást
+használt — a sor a tár saját `Date.now()`-jával született, a felvétel tényét a hívó egy KORÁBBAN
+leolvasott pillanatra kérdezte meg —, és átforduló millisekundumnál az ÚJ őr a FRISSEN született sorra
+tüzelt: a tár eldobta, a hívó pedig „a munkamenet-tár megtelt" 503-at adott egy ÜRES táron.
+
+**A DÖNTÉS:** a felvétel és a felvétel ELLENŐRZÉSE **egyetlen döntés, tehát egyetlen pillanatra esik**.
+A `newSession` harmadik paramétere a hívó ideje, és azt adja tovább a tárnak; a hívó ugyanezzel kérdez.
+Ez a `KUKA-314` szabályának kiterjesztése: nem „egy KÉRÉS — egy idő", hanem **egy DÖNTÉS — egy idő**.
+A `KUKA-464` óra-védelmét NEM lazítjuk (ellenpróba: a JÖVŐBELI bélyegű sor továbbra is lejárt).
+
+**ÉS AMIT EBBŐL A MUNKARENDRE RÖGZÍTÜNK: az ingadozó próba egy MÉRÉS, nem zaj.** A leletet a
+`verify:app-findings-r154` hatból egyszer bukó `(t3)` sora adta. Ha azt „flake"-ként zárom le, egy
+éles, felhasználót érintő hiba marad a kódban. A gyökér-okot kiszolgálót ÚJRAINDÍTÓ, 40 körös
+ellenpróbával mértem meg (7,5%), és a javítás után 80 körrel ellenőriztem (0%).
+
+**A JEL ÉLŐ ÉS DETERMINISZTIKUS, mert az ismétlés itt HAMIS ZÖLD lett volna** (`KUKA-215` · `KUKA-239`):
+200 kérés a battéria közös kiszolgálóján VALÓDI `at_capacity`-t mért (a közös plafon 40 munkamenet), és
+200 — majd 5000 — kérés saját, nagy plafonú kiszolgálón a HIBÁS alakon is zöld maradt (meleg kódúton a
+hamis 503 esélye MÉRVE 0,02% kérésenként). A kiszolgáló viszont EBBEN a folyamatban fut, tehát a fali
+óra leolvasása mérhetővé tehető: a LÉPTETETT óra (minden leolvasás +5 ms) biztosan két pillanatra tolná
+a döntést — a kivezetett alakon 503, a mai alakon 200.
+
+Gépi jel: `npm run verify:app-findings-r154` (`as66` · `as67` · `as68` · `as69`) · `npm run verify:kuka`
+(a kivezetett forrás-alak tiltott).
+
+---
+
+## D-VS-3247 — AMIKOR EGY BELSŐ KÓD FELHASZNÁLÓI REKESZBE KERÜL, A SZÓTÁR IS A JAVÍTÁS RÉSZE (R186 §5)
+
+A `KUKA-458` javítása helyes irányú volt: a munkatárs-lista mostantól az ÍRÁS-ÚT saját feloldóját
+kérdezi, és a nemleges válasz NEVE is onnan jön — így a sor a VALÓDI okot mondhatja. A javítás
+viszont **félig kész** volt: a mag BELSŐ ok-kódjai egy FELHASZNÁLÓI szöveg-rekeszbe kerültek, és a
+`reasonText` a nem ismert kulcsot NÉMÁN az általános mondatra ejti (`KUKA-238`).
+
+**A DÖNTÉS:** ahol egy belső ok-kód felhasználói szövegre fordul, ott a **szótár is a javítás része** —
+mind a bekapcsolt nyelveken, és a mondat a **TEENDŐT** is megnevezi (`KUKA-201`). Öt ok kapott így
+valódi mondatot (`reentry_undecidable_clock` · `reentry_time_undecidable` ·
+`delegation_ceiling_empty` · `parent_limit_undecidable` · `role_not_recognised`).
+
+**ÉS A JEL KÉT IRÁNYÚ, mert a hiányt forrás-minta nem tudja mérni:** az `as64` minden deklarált okra
+megkívánja a valódi mondatot minden nyelven; az `as65` a MAG három feloldójának **forrásából** szedi
+az okokat, és pirosra vált, ha olyan jön, ami a lefordított listán kívül van. Egy jövőbeli új ok tehát
+**nevezetten** bukik, nem némán esik általánosra.
+
+**ÉS AMI EBBŐL A FELÜLETEN MEGVÁLTOZOTT, KIMONDVA.** A `KUKA-458` óta egy felfüggesztett tagnál az
+„Újra meghívás" gomb **meg sem jelenik**: a sor helyette a NEVEZETT elakadás-mondatot rajzolja ki, a
+mag saját ok-kódjával, a felhasználó nyelvén. Ez **nem** a teendő elrejtése: a mondat ugyanazt az okot
+ÉS ugyanazt a folytatást viszi, csak nem kell hozzá megnyomni egy gombot, ami biztosan nemet mond. Az
+`R134-B2` próba ezt a mai viselkedést méri (a gomb hiányát és a német mondatot), a HTTP-elutasítás
+tartalmát (`reason` + `next_step`) pedig **közvetlen** végpont-hívással — tehát a nemleges válasz
+tartalma változatlanul mérve van (`KUKA-215`).
+
+Gépi jel: `npm run verify:app-findings-r154` (`as64` · `as65`) · `npm run verify:i18n` ·
+ÉLŐ tanú: `npm run verify:browser-gate` (`R134-B2`).
+
+---
+
+## D-VS-3246 — AZ ÚJ KAPU A LEGITIM UTAT IS MEGMÉRI, ÉS AZ ÉRTELMEZHETETLEN A BIZTONSÁGOSABB IRÁNYBA DŐL (R186 §5)
+
+A külső ellenőrző fél (chatgpt-codex) az `5faeb5a` és a `defddc1` fejen NÉGY további P2-t adott. Az
+első a SAJÁT, egy körrel korábbi javításomat mérte meg, a negyedik pedig **biztonsági** irány.
+
+**1. EGY ÚJ KAPU A LEGITIM UTAT IS MEGMÉRI** (`KUKA-461`). A `KUKA-456` átkötés-javítása AZONOSSÁGOT
+kért a kiszolgáló választásától — a választás SORRENDJE viszont változatlan maradt, és két függő
+meghívó mellett a régebbit adta vissza. **Amíg a cél-választás „valamelyik alkalmas" volt, a sorrend
+ízlés kérdése; amint a kapu azonosságot kér, a sorrend DÖNTÉSSÉ vált.** Ezért: a történet a
+LEGFRISSEBBEN kiadott alkalmas meghívóra kötődik. A `KUKA-456` védelme nem gyengült, és a maradékot
+(két, ugyanabban a milliszekundumban kiadott meghívó) NEVEZETTEN kimondom: ott a lépés fail-closed
+megáll, nem rossz célra köt.
+
+**2. HA EGY ÚTON TÖBB FELTÉTEL ÁLL, A FELKÍNÁLÁS MINDET KÉRI** (`KUKA-462`). A `KUKA-455` a CÍM
+létét kérte, a `KUKA-454` a csatorna BIZONYÍTÁSÁT — a kettő UGYANAZON az úton áll, tehát a
+visszatérés-jelöltnél is EGYÜTT kell állnia. Kilencedszer ugyanaz a lecke, most a saját javításom
+fölött.
+
+**3. AMI SOSEM VOLT, AZT NEM KELL IGAZOLNI** (`KUKA-463`). Egy óvatos nemleges válasz is lehet
+zsákutca: a `KUKA-439` javítása a ROTÁCIÓS bizonytalanságra szólt, de ráállt arra az esetre is, ahol
+bizonytalanság NINCS (tárolt munkamenet sosem jött létre) — és ott örök elakadás lett. **Ha egy
+nemleges válasz a bizonytalanságra szól, a bizonyosság esetét ki kell venni alóla.**
+
+**4. AZ ÉRTELMEZHETETLEN A BIZTONSÁGOSABB IRÁNYBA DŐL** (`KUKA-464`). Az idő-kivonás előjeles, és a
+határ-vizsgálatok egyik irányban némán engednek: visszafelé lépő óra mellett egy lejárt (vagy
+ellopott) süti érvényes maradt, és a `touch()` meg is újította. A negatív kor mostantól LEJÁRT. A
+monoton órára váltás NEVEZETT, külön tétel — a mai javítás a KÁRT zárja el, és ezt kimondja.
+
+**ÉS AMIT A JAVÍTÁS MAGA HOZOTT KI, A SAJÁT MÉRCÉIMBŐL:** az új elutasítási ok (`no_session_presented`)
+azonnal pirosra vitte az `(af2)` mércét — a végpont nevezett okainak MINDEN bekapcsolt nyelven valódi
+mondat kell (`KUKA-238`). Megírva mindháromra; a francia PRÓBA-csomag szándékosan részleges marad.
+Két további mércém a §5 szigorításaitól avult el (`as39` a kötés-nyilatkozat alakjától, `as28` a
+plafon HARMADIK fogyasztójától) — mindkettő a mai szabályhoz igazítva, hatókör-szűkítés nélkül.
+
+Gépi jel: `npm run verify:app-findings-r154` (`as56`–`as63`: négy élő mérés + négy ellenpár) ·
+`npm run verify:kuka` (a négy kivezetett alak tiltva) · `npm run verify:i18n`.
+
+---
+
+## D-VS-3245 — AMIT A FELÜLET AJÁNL, AZT AZ ÍRÁS-ÚTNAK EL IS KELL FOGADNIA (R186 §5)
+
+A külső ellenőrző fél (chatgpt-codex) az `e95e066` fejen HÁROM új P2-t adott, és mind a három
+ugyanaz az osztály, amit a `D-VS-3243` már egyszer kimondott — most **harmadik körben**, két új
+helyen és egy új alakban. Ezért a döntés nem eset-javítás, hanem a szabály KITERJESZTÉSE:
+
+1. **A FELKÍNÁLÁS FELTÉTELE A LEGSZŰKEBB KÉSŐBBI KAPU, NEM A LEGKÖZELEBBI** (`KUKA-458` · `459`).
+   Ha egy felület AJÁNL egy műveletet — gombbal vagy bemutatóval —, akkor az ajánlás feltétele a
+   későbbi ÍRÁS-ÚT **minden** előfeltétele, ugyanabból a feloldóból. Nem közelítés, nem másolat:
+   `reinviteFeasibility` a magban, és a nemleges válasz NEVE is az írás-útról jön.
+2. **AMI A TÖRTÉNET TARTALMÁN ÁLL, AZT A TÖRTÉNET DEKLARÁLJA** (`KUKA-459`). A `tour.reentry`
+   `story_scope`-ja mondja meg, melyik adatkör kiadásán fordul meg a tanulsága; a kiszolgáló ezt
+   méri a plafonhoz, és nyilatkozat nélkül ZÁR (`KUKA-236`).
+3. **EGY TÖRTÉNETNEK TÖBB CÉLJA IS LEHET** (`KUKA-460`). A szereplő és az általa kiállított jegy
+   két külön fogalom, tehát két külön rekesz (`STORY_SLOTS`: `ref` · `invite_ref`) — zárt
+   készletből, fail-closed, és az átadáson is átmenve.
+
+**A SÚLYOSSÁGI SORREND KIMONDVA:** a `KUKA-459` és a `KUKA-460` a drágább fajta, mert a
+megszakadás a **visszafordíthatatlan** lépés UTÁN jön (a tagság már megszűnt, illetve nem kívánt
+tagság keletkezhet). A `KUKA-458` a felületen látszó hamis ígéret.
+
+**ÉS AMIT EZ A DÖNTÉS NEM TESZ:** a hatást nem mozdítja el a magból. A `reinviteFeasibility` NEM
+lép a `reinviteMember` helyébe — az írás-út a maga teljes kapu-sorával (azonosság-kulcs, egyszeri
+hatás, atomi nyugta) változatlanul dönt. A feloldó csak azt mondja meg, érdemes-e felkínálni, és a
+két oldal EGYEZÉSÉT gépi jel méri.
+
+Gépi jel: `npm run verify:app-findings-r154` (`as50`–`as55`: három élő mérés + három ellenpár, köztük
+a sor és az írás-út indokának EGYEZÉSE) · `npm run verify:kuka` (a három kivezetett alak tiltva) ·
+ÉLŐ tanú: `npm run verify:browser-gate`.
+
+---
+
+## D-VS-3244 — A „FLAKE" NEM GYÖKÉR-OK: A BUKOTT KAPU-SORT ÖSSZEMÉRJÜK, NEM MINŐSÍTJÜK (R186 §5)
+
+A kötelező kapu `R176-K3` sora PIROS lett egy olyan futásban, ami a külső ellenőrző lánccal
+EGYIDŐBEN ment. **A döntés: ilyenkor sem „ingadozó próbát" írunk, hanem ÖSSZEMÉRJÜK** — ugyanaz a
+próba csendes gépen, majd a javítás után ismét TERHELT gépen.
+
+A mérés az okot is megnevezte, és az **a MÉRÉSBEN** volt, nem a termékben: a bemutató-indító próba
+egyetlen mintavételből (`count() === 0`) mondta ki, hogy „a súgó nem kínálja fel" — a súgó sorai
+viszont a kiszolgáló válaszából rajzolódnak ki. Mért hármas: terhelt gép + régi alak → **PIROS,
+4,2 s** · csendes gép + régi alak → **ZÖLD, 36,3 s** · terhelt gép + mai alak → **ZÖLD, 37,9 s**
+(`KUKA-457`).
+
+**ÉS AMI EBBŐL SZERVEZÉSI TANULSÁG:** a kötelező böngésző-kapu és a külső lánc EGYIDEJŰ futtatása
+nem ingyenes — a kapu a söprés 900 s-os türelmét is túllépte (903 s). A kapu ezért **ÖNÁLLÓAN,
+csendes gépen** fut, és a söprésben a „nem fejeződött be" NEM piros és NEM zöld: a verdiktet a külön
+futás adja (`KUKA-206`).
+
+Gépi jel: `npm run verify:kuka` (`KUKA-457`) · ÉLŐ tanú: `npm run verify:browser-gate`.
+
+---
+
+## D-VS-3243 — A FELKÍNÁLÁS ÉS AZ ÁTKÖTÉS A FOGYASZTÓ ÚT SAJÁT FELTÉTELÉT KÉRDEZI (R186 §5)
+
+A külső ellenőrző fél (chatgpt-codex) a `8fc1f40` fejen ÖT P2-t adott. Kettő már javítva volt
+(a bemutató-csomag cél-kötése — `KUKA-453` · a tutor-verifier — `e614a39`), három pedig UGYANAZT a
+hibát mondta három helyen: **a felkínálás és az átkötés KÖZELÍTŐ feltételt használt**, nem azt,
+amit a fogyasztó út ténylegesen kér.
+
+**A DÖNTÉS — EGY SZABÁLY, HÁROM HELYEN.** Ahol a felkínálás vagy az átkötés azt állítja, hogy egy
+út végigvihető, ott a feltétel NEM a mi közelítésünk, hanem a későbbi fogyasztó út SAJÁT,
+írás-mentes feloldója — ugyanaz a feloldó, nem egy másolat (`KUKA-003` · `KUKA-039` · `KUKA-207`):
+
+1. **A meghívó-jelölt** (`KUKA-454`): nem „azonosítható címzett", hanem **BIZONYÍTOTT CSATORNA**
+   (`hasProvenChannel`) — ezt kéri a megfigyelés, és a jelölő is ehhez kötött.
+2. **A visszatérés-jelölt** (`KUKA-455`): PONTOSAN EGY tárolt cím (`addressOfSubject`) — ezt kéri az
+   újbóli meghívás. A feloldó a magban maradt, csak MEGKÉRDEZHETŐ lett (`export`).
+3. **Az átkötés** (`KUKA-456`): a cél MINDKÉT felét igazolja, a KISZOLGÁLÓ saját kötéséből
+   (`auth.ref === ref` ÉS `auth.actor === run.story.actor`), különben NINCS teljesítés.
+
+**ÉS AMIT EZ A DÖNTÉS NEVEZETTEN NEM TESZ.** A hiányzó adatot NEM a legközelebbi válaszból kéri el:
+a meghívó-kiállítás válasza alany-azonosítót NEM kap, mert az fiók-létet eláruló jel lenne
+(`KUKA-084`). Ami kell, azt attól kérdezzük, aki a DÖNTÉST hozta — és csak akkor, ha a lépés
+átkötést deklarál.
+
+**A SÚLYOSSÁGI SORREND KIMONDVA:** a három közül a `KUKA-455` a legdrágább, mert ott a
+megszakadás a VISSZAFORDÍTHATATLAN (megvonó) lépés UTÁN jön: a bemutató nem „nem megy végig",
+hanem kárt hagy maga után.
+
+Gépi jel: `npm run verify:app-findings-r154` (`as44`–`as49`: három élő mérés + három ellenpár) ·
+`npm run verify:kuka` (a három kivezetett alak tiltva) · ÉLŐ tanú: `npm run verify:browser-gate`.
+
+---
+
+## D-VS-3242 — A BEMUTATÓ A CÉL-KÖTÉST A SAJÁT VILÁGÁBÓL SZÁMOLJA (R186 §5)
+
+A bemutató-lap háttere egy böngésző-oldali adapter, ami a végigvezetések listáját a VALÓDI
+szerverről RÖGZÍTETT csomagból adja (`demo-assistant.json`) — az alakot a fogyasztótól vesszük,
+nem emlékezetből (`KUKA-016`). Az R186 §2 óta ez a válasz a történet CÉL-KÖTÉSÉT is viszi
+(`story: {kind, ref, actor}`), és ezzel a rögzítés ALAKJA mellé egy VILÁG-KÖTÖTT ÉRTÉK is beköltözött.
+
+**A DÖNTÉS:** a rögzített csomag a SZERZŐDÉS ALAKJÁT viszi, a VILÁGHOZ KÖTÖTT AZONOSÍTÓKAT NEM —
+azokat minden kiszolgáló a SAJÁT állapotából adja meg, ugyanazzal a szabállyal, amit a szerver mér.
+A bemutató tehát a cel-kotést a `storyKotes` feloldoval számolja (a legkorábban lejáró, FIÓKKAL
+RENDELKEZŐ címzettű függő meghívó · a kérőn KÍVÜLI élő tag), és MINDKÉT listára (`tours` ·
+`resumable_tours`), mert a lap a definíciót a másodikból is feloldhatja.
+
+**MIÉRT NEM A KÖTÉS GYENGÍTÉSE A VÁLASZ.** A két átívelő történet kapui fail-closed zárnak
+(`KUKA-394`), tehát egy nem létező célra szóló kötés mellett a bemutató MEGÁLL — mérve a kivezetett
+alakkal: `proof:demo-walk --only inviteRevoke` PIROS, a megszakadás helye `s4/pending·blokkolt`. A
+bemutató felületenél a kötés KIKAPCSOLÁSA azt jelentette volna, hogy a bemutató ZOLD marad, miközben
+a termék saját őrét nem viszi végig — pontosan az a hamis zöld, amit a `KUKA-227` tilt.
+
+**ÉS EGY MÁSODIK KÁR IS MÉRVE LETT:** a rögzítő `--check` ága azt ígérte, hogy megmondja, elavult-e a
+csomag — de MINDEN futásnál ELAVULT-at mondott, változatlan forrás mellett is, mert a csomagban
+három világ-kötött azonosító-fajta állt (`served_book_id` · `served_subject_id` · a két lista
+cél-kötése). Két egymás utáni rögzítés TIZENKÉT soron tért el; a javítás után a két csomag
+bájtra azonos (`NAPRAKÉSZ`). Egy jel, ami mindig pirosat ad, nem jel (`KUKA-050`).
+
+Gépi jel: `npm run verify:kuka` (`KUKA-453` — a két kivezetett alak tiltva) · ÉLŐ tanú:
+`npm run verify:browser-gate` → `proof:demo-walk` · és `npm run demo:knowledge -- --check`.
+
+---
+
+## D-VS-3241 — A VÁLOGATOTT LÁNC-LISTA NEM SÖPRÉS (R186 §5)
+
+Az R186 §5 befejezési rendje közben MINDEN rövid `verify:*` láncot végigfuttattam, nem csak azokat,
+amiket a korábbi kör-jelentések „célzott regresszió" néven idéztek. Ettől két piros jött elő:
+
+1. **`verify:tutor` TUT05** — a mérce a `tourTaskDone('<feladat>')` alakot kereste szó szerint, az
+   R186 §2 óta viszont a nyugta JELÖLŐT is hoz (`tourTaskDone('<feladat>', { ref })`). A mérce
+   TÁRGYA változatlan (a lépést a LAP igazolja, nem a kattintás), ezért a sor ma a nyitó zárójelig
+   mér, és a második argumentumot nem írja elő (`KUKA-057`: megengedő szabály, nem felsorolás). Az
+   ellenpróba változatlanul tüzel (14/14).
+2. **`verify:app-findings-r144` (a3)** — ÖRÖKÖLT piros: `KUKA-452`. A sor azt állította, hogy a
+   `shell.assistant` nincs bemutatóval fedve, pedig az R166 §3 megépítette a `tour.assistant`
+   útmutatót. **MÉRVE KÉT FEJEN:** az átvett `167a70a` fejen is ugyanez a sor bukik (29/30), tehát
+   nem ennek a csomagnak a következménye — körökön át állt, és egyetlen kör-jelentés sem mondta ki.
+
+**A DÖNTÉS, AMI EBBŐL KÖVETKEZIK:** a kör-jelentés a SÖPRÉS eredményét idézi, nem egy kézzel
+válogatott lánc-listát. Ha egy lánc kimarad, az nem „zöld", hanem **nem mért** — és minél több kör
+idézi ugyanazt a listát, annál biztosabban marad láthatatlan a listán kívüli piros. Ez a `CLAUDE.md`
+már meglévő szabálya (*„Kör vége előtt TELJES söprés … A cél-verifier zöldje NEM elég"*); itt most
+MÉRT árat fizetett, ezért döntésként is kimondjuk.
+
+**Amit ez NEM állít:** nem a korábbi körök jelentéseit minősíti hamisnak — azok a megnevezett
+láncokról igazat mondtak. A hiba a HATÓKÖR elhallgatása volt, nem a számok.
+
+---
+
+## D-VS-3240 — A DARABOLÁS A MÉRT KÖLTSÉGHEZ IGAZODIK, ÉS A ZÖLD SZÁMNAK EGY OTTHONA VAN (R186 §3)
+
+Az R186 §3 nem keret-emelést kért, hanem MÉRÉST: *„Először célzottan mérd meg, melyik gyermekművelet
+tart ennyi ideig … Az ETIMEDOUT önmagában nem bizonyítja, hogy csak a gép gyenge."* A mérés egyetlen
+battéria-egység ismételt futtatása volt, és a költség-görbe ezt adta (egy egység faliórája):
+11 egység → 31 662 ms · **40 (a deklarált) → 13 271 ms** · 48 → 11 106 · 56 → 10 559 ·
+**64 → 9 728** · 80 → 8 762 · 160 → 7 885 ms.
+
+**AZ OK, KIMONDVA:** a deklarált 40-es bontás egysége a `mutate.mjs` SAJÁT, 12 000 ms-os
+költségvetése FÖLÖTT állt, ezért minden hívónál megszólalt a `unit_over_budget` jel, és az
+`adaptiveUnitPlan` finomított: 40 → 80 → 160 egység. A finomítás viszont a TELJES battériát
+futtatja újra (egységenként ~7 s fix indulási költség), tehát a létra ~41 percet kért a 30 perces
+program-kereten — és ÖT külső ellenőrző program `spawnSync … ETIMEDOUT`-tal, részletes eredmény
+NÉLKÜL halt meg. A lánc hét pirosából hat tehát IDŐ-okból keletkezett, TARTALMI verdikt nélkül, és
+**nem a gép gyengeségéből** (`KUKA-450`).
+
+**A JAVÍTÁS A DARABOLÁS, NEM A KERET:** 64 egység (mérve 9 728 ms, 19% tartalékkal a saját
+költségvetés és 35%-kal a külső 15 000 ms-os korlát alatt), tehát az ELSŐ kísérlet befér, és a
+finomító létra el sem indul. A 64 egyben a plafon, amit az adaptált külső programok elfogadnak —
+egy 80-as érték ott érvénytelen volna, és a program a saját 11-es padlójára esne vissza, vagyis a
+„javítás" rontott volna. MÉRT EREDMÉNY, VÁLTOZATLAN KORLÁTOKKAL: `r57a` 9/9 (21,1 perc) ·
+`r59a` 7/7 (19,6 perc) · `r79` 4/4 (19,7 perc) · `r81core` 15/15 (9,7 perc) · `r83core` 7/7
+(9,6 perc) — mind TARTALMI verdikttel, az `r57a` és az `r59a` még a VÁLTOZATLAN, 30 perces kereten.
+
+**AZ R186 §3 ENGEDÉLYEZTE 120 PERCES KERET EZÉRT TARTALÉK, NEM A JAVÍTÁS** — a mért maximum 21,1
+perc. Kimondva, mert a parancs is kimondta: *„Ez plafon, nem futásidő-becslés."* A 15 000 ms-os
+külső egység-korlát és a 12 000 ms-os saját költségvetés VÁLTOZATLAN (`KUKA-091`), és egyetlen
+program szövegéhez sem nyúltunk (`KUKA-054`).
+
+**A KÉT EREDETI PROGRAM (`r57` · `r59`) PIROS MARAD, NEVEZETT OKKAL** — és ezen a kereten nem is
+múlik: az `r57` kilenc esetéből NÉGY zöld (`T03 · T04 · E01 · E04`), HÁROM a program **pre-basis
+fixtúra-világán** bukik (`T01 · T02 · T05` → `invite_without_basis` · `no_declared_basis`: a
+rendszer R63/R88 óta rögzített felhatalmazási alapot kíván), KETTŐ pedig le sem futott
+(`E02 · E03` → a programon BELÜLI 15 000 ms-os gyermek-korlát, mert az eredeti a teljes battériát
+EGY gyermekben futtatja). Az `r59` részletes eredményt sem ír (kilépés 1, 15,8 s) — ugyanaz a belső
+korlát. A deklarált helyettesek UGYANAZT a kilenc, illetve hét esetet mérik (a `case-manifest`
+mondja ki, nem én), és zöldek — ez az R186 §3 által kért igazolás arra, hogy a helyettes az
+eredeti követelményt is méri.
+
+**ÉS A MÉRÉS KÖZBEN EGY SAJÁT HIBA IS ELŐJÖTT** (`KUKA-451`): a futtató a zöld esetek számát
+kivonással állította elő (`present − failed`), a hiányzó eset viszont KÉTSZER számított — az `r57`
+sora `2/9`-et írt, miközben négy eset zöld, és a jelentés 4/9-et mondott ugyanarról. A zöld szám
+mostantól az eset-szemléből jön (`auditCases` → `green`), a futtató csak kiírja; a verdikt nem
+mozdult. Mért pár: a régi alakkal `2/9`, a maival `4/9`, UGYANAZZAL az ELTÉRÉS verdikttel.
+
+Gépi jel: `npm run verify:unit-admission` (UAD08) · `npm run verify:external-checks`.
+
+---
+
+## D-VS-3239 — A TÖRTÉNET CÉLJÁNAK ÉS RÉSZTVEVŐJÉNEK KÖTÉSE (R186 §2)
+
+Az R186 §2 **döntött**: épüljön meg a történet konkrét céljának kötése — és **nevezetten elvetette**
+a felkínálás szűkítését (*„A kizárólag MINDEN tag alkalmas esetben történő felkínálást nem fogadom
+el végleges megoldásként: egy nem érintett, alkalmatlan tag ne tegye elérhetetlenné a legitim
+bemutatót."*). A négy réteg módosítása szűken e két történethez engedélyezett volt.
+
+**A LELET HÁROM FELE, EGY JAVÍTÁSKÉNT.** A `storyDataFacts` LOGIKAI tényt adott: van olyan függő
+meghívó, ami visszavonható, a plafonon belül van és levele is megérkezett — MELYIK, azt nem. A
+`tour.inviteRevoke` lépései az ÁLTALÁNOS meghívó-táblára mutattak, a visszavonás BÁRMELYIK sikerre
+készre könyvelte a feladatot, a levél-fogadó MINDEN levelet kilistázott. Két függő meghívó mellett a
+néző az egyiket vonta vissza, a bemutató a MÁSIK, még élő levelet nyitotta meg — és azt állította
+róla, hogy a visszavont meghívó. A visszatérés-történet ugyanígy futhatott egy MÁSIK, nem alkalmas
+tagon. A személy-váltó lépés pedig BÁRMELY másik belépett embert elfogadta (`KUKA-447` · `KUKA-448`).
+
+**A NÉGY RÉTEG.** (1) A kiszolgáló KIVÁLASZTJA a célt rendezett lekérdezésből, és átadja a stabil
+hivatkozását (`pending_invite_ref` · `pending_invite_actor` · `other_member_id`); a tény továbbra is
+EGY alkalmas célt kér (`find`, nem `every`), a címzettnek viszont azonosíthatónak kell lennie —
+hetedszer ugyanaz a lecke, a felkínálás a végigvihetőség állítása. (2) A HTTP-határ hozza a
+cél-kötést (`story: {kind, ref, actor}`) és a négy új lépés-deklarációt. (3) A lépés-regiszter
+KIMONDJA, kit vár a váltás (`switch_to`) és mi kötött a célhoz (`story_bound` · `story_ref` ·
+`story_rebind`). (4) A futás őrzi a kezdő alanyt és a kötést; a kapu a VÁRT résztvevőhöz mér, a
+kötött lépés csak a választott célon teljesül, a levél-lépés a választott meghívó KÉPERNYŐJÉT kéri
+(`storyTargetMismatch` nevezett állapot, három nyelven), és a történet saját választási lépése
+átköti a célt az általa létrehozott ÚJ meghívóra — tehát a **visszavonás, a levél ÉS az elfogadás
+ugyanarra a meghívóra** szól. Minden réteg fail-closed.
+
+**ÉS A HARMADIK SZEMÉLY MÁR NEM FOGYASZTJA EL AZ ÁTADÁST** (`KUKA-449`, saját lelet): a kapu
+szigorítása csak a kérés felét teljesítette. Az ürítés a visszaírás ELEJÉN állt, tehát egy harmadik
+ember belépése a rekeszt akkor is elvitte, ha a kapu a váltást elutasította — a védelem pont azt a
+futást veszítette el, amit megvédett. Ma a rekesz csak akkor ürül, ha EZ az ember folytathatja.
+
+**AMIT EZ NEM ÁLLÍT.** Nem jogosultsági javítás: a visszavonás, a tagság-megvonás és a jogadás
+szerver-oldali ellenőrzése VÁLTOZATLAN, a bemutató állapota nem jogosultság. A hivatkozás a token
+sha256-lenyomatának első tíz jegye — a token nem állítható vissza belőle, és az átadás nem visz
+meghívó-jegyet, titkot, e-mailt vagy üzleti adatot. A felkínálás köre nem szűkült.
+
+Gépi jel: `verify:browser-gate` — `R186-T1` (két meghívó: egy MÁS meghívó visszavonása NEM
+teljesíti a lépést, a választotté igen) · `R186-T2` (alkalmas ÉS alkalmatlan tag együtt: a legitim
+bemutató elérhető marad — ez az ellenpróba az ELVETETT megoldásra) · `R186-T3` (harmadik személy
+téves belépése: nincs váltás, a rekesz megmarad, és utána a helyes személy folytat) ·
+`R176-K1…K8` (a teljes befejezés, a 390 px és az újratöltés az átadás közben) ·
+`verify:app-findings-r154` (as39).
+
+---
+
+## D-VS-3238 — A BEJÁRÁS A HASZNÁLHATÓSÁGOT MÉRI, NEM A BUBORÉKOT (R186 §1)
+
+Az R186 §1 két dolgot kért: hogy a teljes bejárásként számolt történetnél a VALÓDI művelet után
+minden későbbi lépést is mérjünk, és hogy CÉLZOTT ELLENPRÓBA bizonyítsa: az első feladat UTÁNI
+hibát a mérés észleli. A bejáró ezért megkapta a valódi művelet elvégzésének útját (`perform`) — a
+továbblépés FELTÉTELE a lap saját igazolása (`data-state="done"`, amit kizárólag a szerver által
+nyugtázott `taskDone` ad meg), tehát egy lefutott, de nem teljesült művelet NEVEZETT bukás, nem
+csendes továbblépés.
+
+**ÉS AZ ELLENPRÓBA MEGÍRÁSA HÁROM VALÓDI MÉRÉSI HIBÁT BUKTATOTT KI** — ez a döntés lényege, nem a
+képesség. (1) A bejáró egy lépést KÉT jelből ítélt meg (lépés-cím · nevezett megszakítás), a lépés
+CÉLJÁT soha nem kérdezte meg; a `targetPending` állapotú lépés ezért teljesítésnek olvasódott, és az
+UTOLSÓ lépésnél nincs „Tovább”, ami a várakozást felfedte volna. MÉRVE: a feladat utáni, vezérelten
+láthatatlan cél mellett a mérés `6/6 OK`-ot adott, a `tour.logout` utolsó lépése pedig `2/2 OK`-ot
+kapott a KÖTELEZŐ kapuban, miközben a `logout` a csukott profil-lenyílóban állt (`KUKA-444`).
+(2) A feltáró vezérlőt a LÉTEZÉSHEZ kötöttem, nem a láthatósághoz — ugyanaz a lecke, amit a modul
+feje a kattintó ágon már kivezetett (`KUKA-237`), egy sorral arrébb változatlanul (`KUKA-445`).
+(3) A megszakadt bejárás is a regiszter teljes lépésszámát adta vissza elértként (`KUKA-446`).
+
+**A JAVÍTÁS IRÁNYA NEM AZ ŐR LAZÍTÁSA** (`KUKA-091`): a lépés akkor teljes, ha a CÉLJA LÁTHATÓ, és a
+kérdést ugyanúgy tesszük fel, ahogy a motor (`targetOf` → `isShown`). A kimondott kivétel az
+igazoltan elvégzett lépés. Ahol a feltárást a regiszter SZÁNDÉKOSAN nem tudja megnevezni
+(`member-open-<alany>` — minden fióknál más, `KUKA-225`), ott a HÍVÓ adja oda (`reveal`), nem az
+általános járó találja ki (`KUKA-003`). MÉRVE egy egytagú vállalkozásban: a tagok lapja a SAJÁT sort
+is kirajzolja, és a sor megnyitása után a cél látható — tehát a `tour.grant` és a
+`tour.scopeLifecycle` FELKÍNÁLÁSA helyes volt, csak a bejáróm nem jutott el odáig; a régi, lazább
+mérés ezt `TASK-IG`-nek könyvelte, amit a minta-kapu őre tolerál, vagyis a hiány ELFEDVE állt.
+
+**Amit ez NEM állít:** a korábban jelentett kapu-zöldek nem mind voltak túlállítva — a `tour.logout`
+hamis zöldje MÉRT eset, a többi útmutatóé nem változott. És ez a döntés a MÉRŐT javítja, nem a
+terméket: a `tour.logout` felülete, a felkínálás és a jogosultsági döntések érintetlenek.
+
+Gépi jel: `verify:browser-gate` (`R166-U6` a pozitív pár: a bejárás elvégzi a feladatot és a feladat
+UTÁNI lépést is méri, `6/6` · `R166-U7` az ELLENPRÓBA: a feladat utáni, vezérelten láthatatlan cél
+PIROSAT ad · `R166-U2` a `tour.logout` valódi végigjárása) · `verify:app-findings-r154` (as38).
+
+---
+
+## D-VS-3237 — A BEJÁRÁS VERDIKTJE EGY OTTHONBÓL JÖN, ÉS A MÉRT SZÁMOT ÍRJA KI (R176, külső P2)
+
+A közös útmutató-bejáró a felhasználó műveletére váró lépésen szándékosan megáll, és a megállást
+nevezetten vissza is adja. A pótolt útmutatók próba-lapja viszont csak a hibákat olvasta ki, és
+minden más esetben a REGISZTER lépésszámát jelentette teljes bejárásként — a verdikt a mérés
+hatókörán túl mutatott, a kötelező böngészős kapu mellett zölden. A minta-kapu őre ugyanezt a
+visszatérést már három kimenetre választotta szét: a két hívó elcsúszott. Mostantól a verdikt
+(`walkOutcome`) és a jelentés-sor (`walkReport`) a bejáró közös otthonában áll, mind a négy hívó
+azt kérdezi, és a kiírt szám a MÉRÉSBŐL jön, nem a regiszterből.
+
+**A HATÓKÖR KIMONDVA:** a lelet LAPPANGÓ volt — a pótolt tizenkettő közül ma egyetlen lépés sem
+deklarál feladatot, tehát hamis zöld a mai fejen nem keletkezett; a javítás a csapdát zárja be.
+**Amit ez NEM állít:** a korábban jelentett kapu-zöldek nem voltak túlállítva, és ez a döntés nem
+a termék-kódot érinti, hanem a mérő saját verdiktjét. `KUKA-443` · gépi jel:
+`verify:browser-gate` (`R166-U5`, mért visszacsúszás: a régi alakkal PIROS) ·
+`verify:app-findings-r154` (as37; `ar9` átkötve a bejáró mai otthonára).
+
+---
+
+## D-VS-3236 — AZ INDULÓ ADAT A VISSZATÉRÉSI KIZÁRÁSOKAT IS KÉRDEZI (R176, külső P2)
+
+A visszatérés-történet a másik tagot a harmadik lépésen megszünteti, a negyediken pedig ÚJRA
+meghívja. A hatályos tagság viszont nem jelenti, hogy az újbóli meghívás is lehetséges: egy élő
+felfüggesztés vagy alkalmazandó kitiltás mellett a `reinviteMember` nevezetten elutasít. Mostantól
+az induló adat UGYANAZT az írásmentes feloldót kérdezi, amit az írás-út (`reentryExclusionsAt`,
+`closed: null` — a lezáráshoz kötött ágak a lépés saját megvonásából születnének, tehát előre
+nem ismerhetők). ÉLŐ HTTP-MÉRÉSBEN igazolva. `KUKA-442` · gépi jel: `verify:kuka` ·
+`verify:app-findings-r154` (as35–as36).
+
+---
+
+## D-VS-3235 — A FIÓK-VÁLTÁS CÉLJA A FUTÁS KEZDŐ KÖNYVE (R176, külső P2)
+
+A fiók-tengelyes kapu csak azt kérte, hogy a könyv MÁS legyen és az alany ugyanaz — aki több cégben
+tag, az tehát egy IDEGEN céget választva is „teljesítette" a lépést, és a bemutató ott folytatódott.
+A cél viszont deriválható, és ezt MÉRJÜK: mind a négy fiók-váltó lépés a CÉG fiókjába vezet vissza,
+abba, amelyikben a bemutató indult. A futás ezért külön őrzi a kezdő könyvet (`origin_book`), a
+rekesz átviszi, és a kapu AHHOZ mér; nyilatkozat nélkül ZÁR. A SZEMÉLY-tengelyre ugyanez NEM
+deriválható — az a lelet nevezetten NYITVA van (a jelentés 7.5 pontja). `KUKA-441` · gépi jel:
+`verify:kuka` · `verify:app-findings-r154` (as31–as33).
+
+---
+
+## D-VS-3234 — A RAJZOLÁST VISELKEDÉSSEL ŐRIZZÜK, NEM SZÁMOLÁSSAL (R176, külső P2)
+
+A héj értesítő-sorának sablon-szövege pontosvesszővel zárult, és az alatta álló összefűző sor
+ÖNÁLLÓ, előjeles kifejezés lett — a generált jelölő ELDOBÓDOTT, tehát aki a héjban lépett ki,
+és a kérés hibára futott, SEMMIT nem látott. A saját pinem átengedte, mert a hívások SZÁMÁT
+mérte: halott kód mellett is igaz volt. Mostantól a jel NYELVTANI (a pontosvesszős alak TILOS), és
+az érdemi őr a VISELKEDÉS-mérés (`R166-M9`). `KUKA-440` · gépi jel: `verify:kuka` ·
+`verify:app-findings-r154` (as34) · `verify:browser-gate` → `R166-M9`.
+
+---
+
+## D-VS-3233 — A ROTÁLT MUNKAMENETRE A VISSZALÉPÉS NEVEZETTEN ELAKAD (R176, külső P2)
+
+A `POST /api/invites/pending/forget` `ok: true`-t adott, ha a munkamenet nem volt a tárban — azzal az
+indoklással, hogy „akkor nincs is sora". A belépés viszont ROTÁLJA az azonosítót, és a függő
+szándékot ÁTVISZI a friss sorra: ha egy másik fülben belépnek a kérés kiszolgálása közben, a
+szándék ÉL és folytatható — a lap mégis elvette a jegyet és a címsort. Mostantól `409
+session_gone`, ugyanabban az alakban, mint a `POST /api/invites/pending` ugyanezen ága; a lap
+viselkedése változatlan (a képernyő marad, a mondat nevezett, a jegy megmarad). ÉLŐ HTTP-VERSENYBEN
+MÉRVE. `KUKA-439` · gépi jel: `verify:kuka` · `verify:app-findings-r154` (as29–as30).
+
+---
+
+## D-VS-3232 — A NÉVTELEN RÉSBEN AZ ÁTADÁS MEGMARAD (R176, külső P2)
+
+A két szereplő között van egy névtelen állapot (az első kilépett, a második még nem lépett be). Az
+átívelő történetek csak belépve látszanak, tehát egy ottani újratöltés SIKERES kérést és ÜRES
+listát ad — az előző alak ezt „nincs ilyen bemutató"-nak vette, és az átadást VÉGLEG elvitte.
+Mostantól: belépés nélkül a kérdés fel sem tehető, a rekesz MARAD, és megszakítást sem írunk. A
+BELÉPETT nézőnél az ág változatlan. `KUKA-438` · gépi jel: `verify:kuka` · élő tanú:
+`verify:browser-gate` → `R176-K8`.
+
+---
+
+## D-VS-3231 — A TÖRTÉNET ELŐFELTÉTELE IS A SZEREP-PLAFONT KÉRDEZI (R176, külső P2)
+
+A `D-VS-3225` a visszavonás-GOMBOT kötötte a delegált plafonhoz; a gombra MUTATÓ történet
+felkínálását nem. Egy szűkebb plafonú kezelőnél tehát a plafonon túli ajánlat `pending_invite`-ot
+adott, a `tour.inviteRevoke` felkínálódott — és az `invite.revoked` feladat sosem teljesülhetett.
+Mostantól az induló adat UGYANAZT az írásmentes feloldót kérdezi (`delegationCeilingOf`), egyszer.
+`KUKA-437` · gépi jel: `verify:kuka` · `verify:app-findings-r154` (as28).
+
+---
+
+## D-VS-3230 — A DRÁGA INDULÓ ADAT CSAK A KAPUK MÖGÖTT SZÁMOLÓDIK (R176, külső P2)
+
+A `storyDataFacts` minden `/api/assistant/*` kérésnél lefutott — a súgó megnyitásánál kétszer —, és a
+tagokon SORONKÉNT kérdezte a `membershipAsOf`-ot. A két drága tényt kizárólag demó-jelhez ÉS
+fejlesztői felülethez kötött történet kérdezi, tehát a kihagyás a kapura nézve nem ad mérhető
+különbséget — csak kevesebb munkát. A tagok kérdése korai kilépéssel megy (a kérdés a LÉTEZÉS,
+nem a darabszám). A FELTEVÉST IS MÉRJÜK: ha egy jövőbeli bemutató drága tényt kérne demó-jel
+nélkül, a mérce pirosra vált (`KUKA-238` osztálya). `KUKA-436` · gépi jel: `verify:kuka` ·
+`verify:app-findings-r154` (as27 · u6).
+
+---
+
+## D-VS-3229 — A VISSZAKÖTÉSI ENGEDÉLY EGYSZER HASZNÁLHATÓ JEGY (R176, külső P2)
+
+A futás új nézethez kötése abból következtetett okozatisságra, hogy az előző lépés feladathoz
+kötött és `done` — az pedig MARADÓ állapot. Mostantól az engedély EGYSZER használható jegy, és
+csak az a feladat adja ki, amelynek igazolt sikere a nézetet is elmozdítja — MÉRVE pontosan kettő
+(`invite.redeemed` · `workspace.created`). **A reachabilitást kimondom:** a kárt felhasználói úton
+nem tudtam előállítani (a `refreshMe` előbb fut és lezárja a futást) — a szabály ettől nem lesz
+helyes, és a szigorítás mérten semmit nem vesz el: a legitim eset (`tour.inviteRevoke` `s17`,
+`invite.redeemed`) a zárt készletben van. `KUKA-435` · gépi jel: `verify:kuka` ·
+`verify:app-findings-r154` (as25–as26).
+
+---
+
+## D-VS-3228 — A KIJELENTKEZÉS IS CSAK IGAZOLT VÁLASZ UTÁN ÜRÍT (R176, külső P2)
+
+A `doLogout` eldobta az `api()` visszatérését, tehát a kimenet ismerete NÉLKÜL mondta ki, hogy
+kiléptünk: a kiszolgáló munkamenete élhetett tovább, a meghívó jegyét pedig — az EGYETLEN azonnali
+utat vissza a meghíváshoz — egy MÚLÓ hiba visszafordíthatatlanul elvitte. Mostantól a választ
+MEGMÉRJÜK: nem igazolt kimenetnél semmit nem ürítünk, a képernyő marad, a jegy marad, és a mondat
+NEM azt állítja, hogy a kilépés meghiúsult, hanem hogy NEM ELDÖNTHETŐ (`KUKA-220`). A hatókört a
+hiba-osztály adta, nem a lelet sorszáma (`KUKA-418`): a `KUKA-422` ugyanezt a visszalépésen javította,
+a szomszédját nem. `KUKA-434` · gépi jel: `verify:kuka` · `verify:app-findings-r154` (as23–as24) ·
+ÉLŐ tanú: `test:e2e` → `R166-M7`.
+
+---
+
+## D-VS-3227 — A KILÉPÉS ÁTADÁSI HATÁRA CSAK A SZEMÉLY-TENGELY, ÉS A DÖNTÉS MEGHÍVHATÓ (R176, külső P2)
+
+A kilépés minden váltás-lépésen átadta a futó bemutatót — a fiók-tengelyeseken is, ahol a történet
+fiókváltást kér, nem kilépést. A következő belépő így ugyanabban a fülben megkapta az előző ember
+haladását. A kilépés a SZEMÉLYT váltja, tehát csak a `subject` tengelyen átadás — és a döntés a lap
+zárt függvényéből a bemutató-szabályok közé került (`handoverBoundaryOk`), mert amit próba nem tud
+MEGHÍVNI, azt bizalomból hisszük (`KUKA-207`). A NEM kilépéses váltás határa változatlan.
+`KUKA-433` · gépi jel: `verify:kuka` · `verify:app-findings-r154` (as20–as22) · `proof:demo-walk` (h1h).
+
+---
+
+## D-VS-3226 — A VÁLTÁS A PÁR EGYIK FELÉT MOZGATJA, A MÁSIKAT HELYBEN TARTJA (R176, külső P2)
+
+A `KUKA-423` után a kapu a deklarált tengelyt kérte, de CSAK azt: a fiók-tengelyen elég volt, hogy a
+könyv más lett. Egy MÁSIK EMBER belépése viszont a könyvet is megváltoztatja (a belépő a saját
+személyes körében landol), tehát a kilépés + más ember belépése is „teljesített”-nek számított: a
+futás a ROSSZ emberhez kötődött át. A fiók-ág mostantól a pár MINDKÉT felét egy feltételben
+kérdezi. A két tengely NEM tükrös, és ez mért tény: személy-váltásnál a könyv JOGGAL más lesz.
+`KUKA-432` · gépi jel: `verify:kuka` · `verify:app-findings-r154` (as17–as19) · `proof:demo-walk`
+(h1f–h1g).
+
+---
+
+## D-VS-3225 — AMIT A FELÜLET FELKÍNÁL, AZT A KISZOLGÁLÓNAK EL IS KELL TUDNIA VÉGEZNI (R176, külső P2)
+
+A meghívó-lista `revocable` jelzője csak a függő állapotot kérdezte, a visszavonás viszont a
+**szerep-plafont** is méri — egy szűkebb plafonú, delegált kezelő így `admin` ajánlatra is
+visszavonás-gombot kapott, amit a kiszolgáló biztosan elutasít. A jelző mostantól UGYANAZT az
+írásmentes feloldót kérdezi, amit az írás-út. **Nevesített mérés-hiány:** a szerep-tengely
+szűkítésére ma nincs API-út, ezért a szűk plafonú eset forrás-pin, az élő ellenpár a teljes plafon.
+Tanulság: **KUKA-431**.
+
+---
+
+## D-VS-3224 — EGY ÚTMUTATÓ SZÖVEGE ÁLLÍTÁS A RENDSZERRŐL (R176, külső P2)
+
+A személyes fiók útmutatója minden belépettnek felkínálódott, és azt mondja, hogy a fiók már létezik
+és kiválasztható — egy meg nem erősített címnél viszont nincs személyes kör, tehát nincs mit
+választani. Az útmutató mostantól kimondja az induló adatát (`own_personal_book`), a kiszolgáló pedig
+a tárból méri. Tanulság: **KUKA-430**.
+
+---
+
+## D-VS-3223 — AZ ELŐFELTÉTELT MINDEN TÁROLÓBÓL MEG KELL KÉRDEZNI, AMIT A LÉPÉSEK HASZNÁLNAK (R176, külső P2)
+
+A függő meghívó tényét a tár sorából számoltam — a történet viszont a meghívó **levelét** is
+megnyitja, a fejlesztői fogadó pedig memóriában él. Újraindítás után a sor megvan, a levél nem, és a
+felkínált történet az `invite-observe` lépésen megszakadt. A tény mostantól a levelet is megkívánja.
+Tanulság: **KUKA-429**.
+
+---
+
+## D-VS-3222 — EGY LISTA KIEGÉSZÍTÉSÉHEZ MINDEN KÉRDEZŐJÉT MEG KELL KERESNI (R176, külső P2)
+
+A visszaállás megkapta a folytathatók listáját, az átszövegezés nem — egy átívelő, visszaállított
+futás nyelvváltáskor `notAvailable`-lel elveszett. Mostantól egy feloldó (`tourDefOf`), két fogyasztó.
+Tanulság: **KUKA-428**.
+
+---
+
+## D-VS-3221 — EGY KIMONDOTT RÖVIDÍTÉS IS ELTAKAR (R176, saját lelet a tengely-javítás után)
+
+A bemutató-lap csonkja a belépést a **tagság** fiókjába vitte, a valódi kiszolgáló viszont a
+**személyes** körbe — ez kimondott rövidítés volt a kódban. A `D-VS-3217` tengely-szigorítása után
+hűségesre állítottam, és akkor derült ki, hogy a `tour.reentry` történetéből **két fiókváltó lépés
+hiányzik** (`s12b` · `s15b`): a visszaváltás után a jogadás, illetve a készlet képernyői a cég
+fiókjában élnek. A hiányt két takarás rejtette: a csonk rövidítése és a **saját próbám** néma
+kényelme (az akció-térképében elvégezte a fiókváltást). Mindhárom javítva — a lépések a történetbe, a
+csonk hűségesre, a próba a saját lépéséhez. Tanulság: **KUKA-427**.
+
+---
+
+## D-VS-3220 — VISSZAFORDÍTHATATLANT CSAK IGAZOLT VÁLASZ UTÁN (R176, külső P2)
+
+A bemutató-visszaállás ELŐBB elvette a tárolt haladást, és csak UTÁNA kérdezte meg a kiszolgálót —
+egy múló hálózati hiba így **véglegesen** elvitte a haladást, mert az újrapróbálkozásnak már nem volt
+mit visszaállítania. Mostantól belenézünk, megmérjük a választ, és csak SIKER után ürítünk; a
+„kiszolgáló ma nem adja" viszont nem múló hiba, ott ürítünk. Élő tanú: `R176-K7` harmadik őre (503
+mellett a rekesz marad, feloldás után a bemutató visszaáll). Tanulság: **KUKA-426**.
+
+---
+
+## D-VS-3219 — AMI INDEX SZERINT ÁLL VISSZA, ANNAK A DEFINÍCIÓ AZONOSSÁGÁT IS IGAZOLNI KELL (R176, külső P2)
+
+Az átadás a lépés-indexet és a lépés-állapotokat vitte, a bemutató **verzióját** nem — egy új kiadás
+ugyanannyi lépés mellett átírhatja a célokat és a feladatokat, és az index szerinti visszaírás
+kész-nek jelölhet meg nem történt feladatot. A rekesz mostantól hordozza és a visszaállás összeveti a
+verziót. Tanulság: **KUKA-425**.
+
+---
+
+## D-VS-3218 — EGY ÁTMENET SZABÁLYÁT AZ ÁTMENETRE KELL FELTENNI, NEM AZ ÁLLAPOTRA (R176, külső P2)
+
+A `D-VS-3214`-es javításom az átadást a futás helyzetéhez kötötte (`run.at >= elsoValtas`), ami a
+történet elejét kizárta, a közepét nem: egy közönséges kilépés — például a levél-fogadó lépésén —
+továbbra is átadott. Mostantól **kilépésnél csak a váltás-lépés jogosít**; minden más nézet-váltás
+(belépés · fiókváltás · az elfogadás utáni frissítés) változatlan. Élő tanú: `R176-K7` első őre.
+Tanulság: **KUKA-424**.
+
+---
+
+## D-VS-3217 — A VÁLTÁS TENGELYÉT A LÉPÉS MONDJA KI (R176, külső P2)
+
+Az `actorSwitchReady` `(subject || book)` alakja minden nézet-változást minden váltásnak elfogadott:
+egy **személy**-váltó lépésen elég volt fiókot váltani — tehát ugyanaz a fiókkezelő mehetett tovább a
+**meghívott** lépésein —, és fordítva, egy **fiók**-váltó lépésen egy belépés-csere teljesítette. A
+tengelyt mostantól a lépés deklarálja (`switch_axis`, zárt készlet: `subject` · `book`), a kapu csak
+azt fogadja el, nyilatkozat nélkül zár, és a mező a **határon** is átmegy (`KUKA-394`). Tanulság:
+**KUKA-423**.
+
+---
+
+## D-VS-3216 — EGY ÍRÁS UTÁN A KÉPERNYŐ CSAK AZT ÁLLÍTHATJA, AMIT A VÁLASZ IGAZOL (R176, külső P2)
+
+A meghívó-visszalépés a `POST /api/invites/pending/forget` válaszát **eldobta**, és a böngésző
+állapotát feltétel nélkül ürítette. Hálózati hiba vagy 5xx esetén a lap tehát **teljesítést
+állított**: azt mondta, hogy a felhasználó elhagyta a meghívót, miközben a tárolt folytatás a
+kiszolgálón maradt, és egy későbbi belépés visszavitte rá. Mostantól a három kimenet külön mondat
+(`ok` · `refused` · `network` · `uncertain` — az utolsónak saját szövege van mindhárom
+termék-nyelven), és a böngésző állapota **csak igazolt `ok` után** ürül. Élő tanú: `R166-M6` —
+elvágott kérés mellett a képernyő marad, a mondat nevezett, a gomb újra megnyomható. Tanulság:
+**KUKA-422**.
+
+---
+
+## D-VS-3215 — AZ ÚJ KAPU TÉNYÉT A FOGYASZTÓ KANONIKUS FELOLDÓJÁVAL SZÁMOLJUK (R176, külső P2)
+
+A `D-VS-3211`-ben bevezetett induló adat (`other_member`) tényét nyers sor-feltétellel számoltam
+(`revoked_at IS NULL`), a tagok lapja viszont a `membershipAsOf` kétidős feloldóból vezeti le a
+hatályosságot. Egy **megszüntetett** tagság mellett a felkínálás így igaz lett, a történet pedig a
+harmadik lépésén megszakadt volna — vagyis a `D-VS-3211` saját indoka (a felkínálás a
+végigvihetőségről szól) sérült a saját új kapumban. Mostantól ugyanazt a döntést kérdezzük, amit a
+lap. Élő mérés: `as11` — hatályos taggal felkínálódik, a megszüntetés után eltűnik. Tanulság:
+**KUKA-421**.
+
+---
+
+## D-VS-3214 — AZ ÁTADÁS FELTÉTELE NEM AZ, HOGY A TÖRTÉNET „TUD" ÁTADNI, HANEM AZ, HOGY ÉPPEN ÁTAD (R176, külső P2)
+
+A `saveTourHandover` egyetlen feltétele az volt, hogy a futó történetben **van-e valahol** váltás-lépés
+— ez viszont a történet MINDEN pillanatára igaz, tehát nem feltétel. Egy közönséges kijelentkezés így
+a történet elején is átadást mentett, és a következő ember ugyanabban a fülben **visszakapta az előző
+ember haladását**. A határ mostantól mérhető: az átadás attól a pillanattól él, amikor a futás
+**elérte az első váltás-lépését** (a meghívás elfogadása is ide esik). Ellenpár: `R176-K6` — átívelő
+történet, váltás-határ előtti kilépés, **üres** átadás-rekesz. Tanulság: **KUKA-420**.
+
+---
+
+## D-VS-3213 — A „LÁTSZIK" KÉRDÉST A BÖNGÉSZŐ DÖNTI EL, NEM HEURISZTIKA (R176, külső P2)
+
+A bemutató-motor egyetlen láthatóság-szava (`isShown`) heurisztikával döntött, és egy **csukott
+lenyíló** megcsalta: a tartalom megtartja a layout-keretét. MÉRVE a csukott profilmenü
+kijelentkezésén: `rects=1 · box=258×42 · visibility=visible`, miközben a böngésző hiteles válasza
+`checkVisibility() = false`. Következmény: a bemutató egy **láthatatlan** gombra küldte a nézőt
+(`KUKA-335` tünete, új ajtón). Mostantól a kérdést az `Element.checkVisibility` dönti el (a
+heurisztika csak tartalék), a **csukott lenyíló nyitója FELTÁRÓ**, és a mondat is a valóságot
+követi: előbb „nyisd meg a kiemelt gombbal", csak azután „válts át vele". A próba pedig a
+**váltás-lépésen** soha nem nyitja ki a lenyílót maga — épp ez rejtette el a hibát. Tanulság:
+**KUKA-419**.
+
+---
+
+## D-VS-3212 — EGY ELLENŐRZÉS HATÓKÖRE LEGYEN PONTOSAN OLYAN NAGY, MINT A FOGYASZTÓJÁÉ (R176, külső P2)
+
+A `KUKA-415`-es javításom a kérdést helyre tette („van-e benne idegen azonosító"), a **hatókörét**
+viszont a régi alakból örökölte: csak az első 50 nem üres sort nézte, miközben az exportáló **minden
+sort** feldolgoz és `sessionId` szerint nem szűr. Egy összefűzött átirat tehát némán átment, ha az
+idegen azonosító később állt. A mérce mostantól minden sort megnéz, a diagnosztika a **vizsgált**
+sorok számát írja ki, és a jel **viselkedés**: gyártott átirat (60 tiszta sor + egy idegen a végén),
+mért kilépési kód, ellenpárral. Tanulság: **KUKA-418**.
+
+---
+
+## D-VS-3211 — A FELKÍNÁLÁS FELTÉTELE A TÖRTÉNET INDULÓ ADATA IS, ÉS A FOLYTATÁS EZT NEM KÉRI EL (R176 §1)
+
+**A leletet a KÖTELEZŐ kapu mérte, nem a gondolkodásom.** Az R176 §1-ben a szereplő-váltó vezérlőt a
+VALÓDI héj kijelentkezésére horgonyoztam — ettől a két átívelő történet (`tour.inviteRevoke` ·
+`tour.reentry`) a héjban is felkínálódott. A `verify:browser-gate` ekkor **három korábban zöld
+helyzetet pirosra váltott**: egy MINTAADAT NÉLKÜLI vállalkozásban a visszavonás a 4. lépésen (nincs
+FÜGGŐ meghívás), a visszatérés a 2.-on (nincs MÁSIK tag) megszakadt. A felkínálás **maga** volt a
+hibás állítás.
+
+**A DÖNTÉS.** A regiszter kimondja a történet INDULÓ adatát (`requires_story_data`, zárt készlet:
+`pending_invite` · `other_member`), a kiszolgáló a TÁRBÓL méri (`storyDataFacts`), a kapu nyilatkozat
+nélkül ZÁRVA, és a határ átadja a mezőt a lapnak. **A FOLYTATÁS viszont nem kéri el:** ami már
+elindult, annak az induló feltétele már nem feltétel — a visszavonás története KÖZBEN váltják be a
+függő meghívást, a meghívott pedig a saját személyes körében áll, ahol egyik tény sem igaz. Ezért a
+folytatás-feloldó a `folytatas` jelzővel hívja a kaput; a zárt lista ettől sem lazul.
+
+**Ez a két irány EGY döntés:** ha csak az elsőt építettem volna meg, a felkínálás javítása elvette
+volna a folytatás javítását — pontosan azt a folytatásvesztést, amit az R176 §1 javítani kért.
+
+Gépi jel: `verify:kuka` (öt pozitív minta + a tiltott RÉGI indok a két lapon) ·
+`verify:app-findings-r154` (as9 · as10 · u1 · u2 · u7 · u8). **Élő tanú:** `verify:browser-gate` →
+`R166-MK2` · `R91-03` · `R93-01` · `R176-K1/K2/K3`. A tanulság a regiszterben: **KUKA-417**.
+
+**ÉS A SZÖVEG IS A VALÓSÁGOT KÖVETI:** két lap a RÉGI indokot írta le („a héjban nincs váltó
+vezérlő"); mindkettő a MÉRT induló adatból vezeti le az elvárást, és az ellenpár ugyanabban a
+próbában áll (nincs függő meghívás → a visszavonás nem jár; van tag → az újbóli belépés jár).
+
+---
+
+## D-VS-3210 — AMI A KÉPERNYŐN NYITVA MARAD, AZ IS NÉZETHEZ KÖTÖTT ÁLLAPOT (R176 §1, saját lelet 390 px-en)
+
+**A VALÓDI két szereplős bejárás 390 px-es futásán mértem.** A fejléc három lenyílóját
+(fiókválasztó · profilmenü · ☰ menü) eddig a `go()` csukta be minden oldalváltáskor — a **személy
+váltása** viszont nem: a kilépés és a következő ember belépése csak az ADATOT ürítette. A `details`
+elemek a sablonban állnak, a rajzolás pedig csak a belsejüket írja újra, tehát az `open` tulajdonság
+**átjött a kilépésen ÉS a következő belépésen**.
+
+**A kár MÉRVE, nem sejtve** (`KUKA-215`): az `elementFromPoint` a fiókválasztó nyitójának közepén
+`div#profile-menu`-t adott — vagyis a következő ember **rá sem tudott kattintani** arra a vezérlőre,
+amire az útmutató éppen mutatott, és a 19 lépéses történet **11/19-nél megállt egy ÉP felületen**.
+Asztali nézetben ugyanez csak egy kósza nyitott menü, ezért a hiba a keskeny bejárásig láthatatlan
+volt.
+
+**A DÖNTÉS:** a zárásnak **EGY otthona** van (`closeHeaderOverlays()`), és **onnan megy, ahol minden
+nézethez kötött tár ürül** (`resetViewCaches()` — `KUKA-218`). A három korábbi, kézi pont ugyanezt a
+függvényt hívja (`KUKA-003` · `KUKA-039`). Gépi jel: `verify:kuka` (négy pozitív minta + a tiltott
+kézi alak) · `verify:app-findings-r154` (as7 · as8). **Élő tanú:** `verify:browser-gate` →
+`R176-K3` — 19 lépés 390 px-en, valódi kilépéssel és belépéssel, a váltás határán újraindítással.
+
+**ÉS A PRÓBA IS A KESKENY UTAT JÁRJA:** a közös `gotoPage` segéd a menüpontra kattintott, pedig
+390 px-en a menü a ☰ mögött van — a gomb a lapon ott volt (`aria-current="page"`), de nem látható,
+és a kattintás 15 s után lejárt. A ☰ nyitása a **segédbe** került, nem a hívókba.
+
+**AMIT EZ A DÖNTÉS NEM ÁLLÍT:** a bemutató-motor harmadik állapotának (`navIntentFulfilled`)
+sorrendjét először hibának gondoltam, majd **megmértem**: a `revealerOf` pontosan akkor ad `null`-t,
+amikor az `aria-current="page"` áll, tehát a két feltétel **kizárja egymást**, és a sorrend semmit
+nem változtat. A módosítást visszaállítottam — holt kódot hamis lelettel nem szállítunk
+(`KUKA-050`). A tanulság a regiszterben: **KUKA-416**.
+
+---
+
+## D-VS-3209 — EGY ŐR ADDIG ÁLTALÁNOS, AMEDDIG A HATÓKÖRE ÉR, ÉS A HALMAZT A TILTOTT ELEMRE KÉRDEZZÜK (R166, három külső P2)
+
+**MIND A HÁROM LELET A SAJÁT, EBBEN A KÖRBEN ÉPÍTETT JAVÍTÁSAIM FELETT**, és mind a három arról
+szól, hogy a javításom **őre** volt szűkebb, mint a szabály, amit őrizni kellett volna. Javítva, mért
+visszacsúszás-próbával.
+
+**(1) A rejtés séma-készlete beírt névsorból jött** (`KUKA-414` első fele). A `pgUrlShape` zárt listája
+a `socket:` sémát **befogadja**, a `cliEnvFor` pedig a `socket://u:jelszó@gazdagép/út?db=x` címből
+**valódi `PGPASSWORD`-öt** állít a gyermeknek — a rejtés sémái viszont kézzel írt listából jöttek, és
+a `socket:` nem volt köztük. **MÉRVE: a cím betűre változatlanul ment át a rejtésen**, a jelszóval
+együtt. Mostantól a készlet a `PG_URL_SHAPES` kulcsaiból épül, és **szándékosan többet takar**, mint
+amit a feloldó elfogad: a rejtés soha nem szűkebb a befogadásnál.
+
+**(2) Az „általános" őröm egy függvényre volt általános** (`KUKA-414` második fele). Az `aq8`
+a minta-függő horgonyokat a lap forrásából vezette le — de csak a `tablePage()`-ből, és csak **betű
+szerinti** egyezéssel. A `stockCardPage()` és a `movementsPage()` ugyanúgy korán tér vissza az üres
+állapottal; a `sample-document`/`-full`/`sample-supplier` horgony pedig **dinamikusan** születik
+(`data-testid="sample-${kulcs}"`) egy olyan segédben, amit a tábla-lap a korai visszatérés **után**
+hív. **Négy további útmutató** maradt deklaráció nélkül, a zöld őr mellett. A javítás kettős: a
+letapogató minden üres-állapotos lap-függvényt és a régióból hívott segédeket is olvassa, **és amit a
+forrás betű szerint nem mutat meg, azt VISELKEDÉS méri** — élő böngészőben, a minta nélküli
+vállalkozásban mindaz, amit a kiszolgáló felkínál, végigvihető.
+
+**(3) A mérce azt kérdezte, hogy a kért azonosító megvan-e — nem azt, hogy más is** (`KUKA-415`). Egy
+összefűzött átirat (a kért **és** egy idegen azonosító) így átment, az exportáló pedig `sessionId`
+szerint nem szűr: a másik munkamenet fogyasztása **némán a kért nevére** került. Mostantól a kérdés a
+**tiltott** elemre szól: van-e benne idegen.
+
+**ÉS NÉGY MEGLÉVŐ PINT IGAZÍTANI KELLETT — EGYIKET SEM GYENGÍTVE:**
+· `aq5` a **mai, erősebb** alakot állítja, és a régit kifejezetten **tiltja**;
+· `aq6`/`aq7` kapuzott készlete a **regiszterből** jön, nem három leírt névből (`KUKA-045`);
+· `al2` jelenete megkapta a **minta tényét** — az a csoport a készlet-jog kapuját méri, nem a mintáét;
+· `ap9` és a `KUKA-404`/`KUKA-407` gépi jele a **mai otthonra** mutat (a bejáró közös modulba került).
+
+**Gépi jel:** `npm run verify:app-findings-r154` — **AR csoport** (ar1–ar8) · `npm run verify:kuka` ·
+`npm run verify:browser-gate` (**R166-MK0…MK2**, a viselkedés-őr) · `npm run verify:fogyasztas-meres`.
+**Visszacsúszás-próba mérve, mind a háromra:** a séma-készletet visszaírva az `ar1`+`ar2` **piros**; a
+régi átirat-mércét visszatéve az `aq5`+`ar4` **piros**, és a vegyes átirat **0-val átmegy**; egy
+deklarációt kivéve az `ar6` **piros**; a letapogatót egy függvényre szűkítve az `aq8`+`ar7` **piros**.
+
+**KUKA-414** · **KUKA-415**
+
+---
+
+## D-VS-3208 — EGY HATÁR CSAK A SAJÁT NYELVTANÁBAN HATÁR, ÉS AZ ELŐFELTÉTELT A DARAB DEKLARÁLJA (R166, négy külső P2)
+
+**A NÉGY LELET MIND A SAJÁT, EBBEN A KÖRBEN ÉPÍTETT MUNKÁMBAN**, és kettő **közvetlenül egy korábbi
+javításom következménye**. Mind a négy javítva, mért visszacsúszás-próbával.
+
+**(1) Shell-nyelvtant alkalmaztam egy URL-re** (`KUKA-410`). A `KUKA-404` javításom a kapcsolati cím
+végét a shell-szó letapogatójával kereste — abban a `&` és a `;` elválasztó. Egy URL-ben viszont
+**legálisak**, tehát a rejtés a jelszó közepén megállt, és a maradék meg a gazdagép a naplóba került.
+**A javításom nyitott új szivárgást.** Mostantól az elválasztó-készlet a **hívótól** jön: a cím
+csak a **fehér szóközig** tart, a kulcs=érték alak marad a shell határán.
+
+**(2) A mérés saját „idegen" adatbázisa nem volt a takarítási listán** (`KUKA-411`). Minden
+**megszakított** futás ott hagyta — a `KUKA-403` javítása után a gyerek leállítása és a forrás
+takarítása megvolt, ez mégis maradt. Az „idegen" itt **szerep, nem tulajdon**: a gyerek szemszögéből
+idegen, a szülő szemszögéből saját.
+
+**(3) A fájlnév-egyezés kihagyta a tartalom-ellenőrzést** (`KUKA-412`). Egy átmásolt átirat, aminek a
+neve véletlenül a kért munkameneté, átment akkor is, ha a sorai **kimondottan** más azonosítót
+hordoztak — a leltár más munkamenet fogyasztását címkézte a kértnek. Mostantól **három állapot**: az
+erős jel ellentmondása elakadás, a hiánya engedi a fájlnevet.
+
+**(4) A tábla-útmutatók minden céges tagnak felkínálódtak** (`KUKA-413`). A bemutató-mintából kettő
+van, tehát a **harmadik** vállalkozásban a lap az üres állapotot rajzolja, és a lépés-célok soha nem
+jönnek létre. **Harmadszor ugyanez az osztály egy körön belül** — és ez a szám a tanulság: ezért jött
+**általános őr**, a horgony-készletet a lap forrásából vezetve le, nem egy negyedik egyedi kapu.
+
+**ÉS HÁROM MEGLÉVŐ PINT IGAZÍTANI KELLETT — EGYIKET SEM GYENGÍTVE:**
+· `r8` a **pontosabb** mondatot állítja (a kilépés-kód és a nevezett elakadás követelménye változatlan);
+· `u6` mintája **pontos** lett (a `ctx.demo` részszóként az új, KÜLÖN jelet is megfogta — és most
+  mindkét jel hatóköre külön mérve);
+· `ah1` céges kontextusa megkapta a minta **tényét**, amit a sor mindig is feltételezett.
+
+**ÉS EGY LYUK A SAJÁT PINEMBEN, KIMONDVA:** az `aq3` első alakja a **kikommentelt** sort is
+elfogadta, tehát a javítás visszavétele **nem buktatta volna meg** (`KUKA-239`). Sor-kezdetre kötve
+javítva, és ellenpróbával mérve, hogy a `//`-val kezdődő sor **pirosra vált**.
+
+**Gépi jel:** `npm run verify:app-findings-r154` — **AQ csoport** (aq1–aq8) · `npm run verify:kuka` ·
+`npm run proof:pg-restore-safety` · `npm run verify:browser-gate`. **Visszacsúszás-próba mérve, mind
+a négyre:** a javításokat visszavéve **öt pin piros** (`r8` · `aq1` · `aq5` · `aq6` · `aq8`), és a
+pin-lyuk javítása után a kikommentelt sorra az **`aq3` is**.
+
+**KUKA-410** · **KUKA-411** · **KUKA-412** · **KUKA-413**
+
+---
+
+## D-VS-3207 — A JAVÍTÁS HATÓKÖRÉT A HIBA-OSZTÁLY ADJA, ÉS A PRÓBA A SAJÁT SZAVÁT IS MEGHALLGATJA (R166, öt külső P2)
+
+**AZ ÖT LELET HÁROM OSZTÁLYT MUTAT**, és mind az öt javítva, mért visszacsúszás-próbával.
+
+**(1) A szomszéd passzus ugyanazon a téves feltevésen állt** (`KUKA-404`). A `KUKA-395` megdöntötte,
+hogy „az idézőjel a titok határa" — de én csak azt a passzust írtam át, amire a lelet mutatott. A
+kapcsolati cím elrejtése ugyanabban a fájlban, néhány sorral lentebb, karakter-kizárásos mintával
+zárt: egy aposztrófos jelszónál a napló a jelszó **maradékát** és a **gazdagép** nevét hordozta.
+Mostantól a cím is **szavakra bontva**, a szó határáig rejtve — és a hasznos szöveg megmarad.
+
+**(2) A próba a saját kimondott hiányát nem számolta be a verdiktbe** (`KUKA-406`), és a **saját
+takarítását a verdikt után** futtatta (`KUKA-405`). Mindkettő ugyanaz: a lánc ZÖLDET írhatott,
+miközben maga mondta ki, hogy valamit nem mért, illetve hogy a saját adatbázisait nem sikerült
+eldobni. Mostantól **három verdikt** van (bizonyítva · **nem teljes** · lelet), és a takarítás a
+verdikt **előtt** fut, mért lépésként — mindkét pg-próbában.
+
+**(3) A nemleges ág romot hagyott, a bemutató pedig elnavigált a saját céljától**
+(`KUKA-408` · `KUKA-407`). A telt tárból jövő `503` nem vette vissza a törölt munkamenetet és a
+hozzá kötött meghívó-szándékot — a jegy a normál úton csak a szerveren él, tehát a meghívás **némán
+elveszett**. A `tour.logout` közbülső lépése navigált, a navigáció bezárta a profil-menüt, és a
+kijelentkezés horgonya **csak ott** létezik. **És a saját bejáróm nem fogta meg**: a kiemelt
+vezérlőt csak akkor nyomta meg, ha a cél még nem létezett — vagyis egy olyan utat mért, amin
+felhasználó nem megy végig.
+
+**A KÉT TANULSÁG, AMI TÚLMUTAT A LELETEKEN:**
+· **A javítás hatókörét a hiba-osztály adja, nem a lelet sorszáma** — ha egy feltevés megdőlt, a
+  szomszéd passzust is meg kell kérdezni.
+· **Amit egy kiemelés felkínál, azt a mérésnek is meg kell nyomnia** — különben a zöld csak a
+  türelmünket méri.
+
+**Gépi jel:** `npm run verify:app-findings-r154` — **AP csoport** (ap1–ap9) · `npm run verify:kuka` ·
+`npm run proof:pg-restore-safety` (49 lépés, az `Y.` új) · `npm run proof:pg-intent` ·
+`npm run verify:browser-gate` (a kattintó bejáróval). **Visszacsúszás-próba mérve, mind az ötre:**
+a javításokat visszavéve **hat pin piros** (`ap1` · `ap4` · `ap5` · `ap6` · `ap8` · `ap9`).
+
+**Amit ez NEM állít:** a telt tár **élő, böngészős** előállítása nincs a kapuban (kimondva); a
+megszakítás-kezelő versenyét a forrásból mérjük, nem élő jelből.
+
+**KUKA-404** · **KUKA-405** · **KUKA-406** · **KUKA-407** · **KUKA-408**
+
+---
+
+## D-VS-3206 — A DÖNTÉST ÉS A HATÁST KÜLÖN KELL TUDNI MEGHÍVNI, ÉS A BIZONYTALAN BEMENET NEM A MEGENGEDŐ ÁG (R166, négy külső P2)
+
+**A NÉGY LELET EGY OSZTÁLYT MUTAT:** egy bizonytalan vagy más sémájú bemenetet, illetve egy hatásos
+feloldót a kód a **kényelmes** ágra fordított. Mind a négy javítva, mért visszacsúszás-próbával.
+
+**(1) A jog-kérdésre kiadást hívtam** (`KUKA-400`). Az R166 §3-ban a felkínálás kapuja a
+`readSample()`-t hívta — annak a sikeres ága `disclose()`-t hajt végre. A súgó megnyitása (`GET
+/api/assistant/status`, deklaráltan `mutates: false`) így **minden alkalommal** olyan kiadási
+leltár-sort írt, ami szerint védett adat kiadásra került. **Mérve: három kérés három sor.** Egy
+kiadási leltár, amibe a súgó megnyitása is bekerül, használhatatlan. A javítás: a kérdés **hatás
+nélküli** alakja a **magban, a kiadó mellett** (`commandResultReadable`) — ugyanaz a két döntés,
+ugyanazon az egy óraolvasáson, `disclose` nélkül. Nem a hívónál, mert ott két szabály keletkezne
+egy kérdésre.
+
+**(2) A bukott ellenőrző kérdés „nincs ott"-ra fordult** (`KUKA-401`). Az „eltakarítva" állítások
+attól is átmentek, hogy az ellenőrző kérés maga nem futott le. Mostantól három állapot, és a
+hiány–jelenlét **két külön, fail-closed** kérdés: az ismeretlen **mindkettőt** megbuktatja, és a sor
+kimondja az okot.
+
+**(3) A feloldót csak az átirányításba kötöttem be, az indulásba nem** (`KUKA-402`). Az R166/P1
+javításom a `socket:` sémát mind a négy cél-feloldóban rendbe tette, a két pg-próba **induló**
+kérdése viszont tovább csupaszította az utat „adatbázis-névvé" — vagyis a helyi-kapu által
+**befogadott** cím-alakon mindkét próba el sem indult. A bekötés listáját a szabály **régi**
+olvasóiból vezettem le (`KUKA-227` osztálya).
+
+**(4) A megszakítás takarított, de a leváló gyereknek nem szólt** (`KUKA-403`). A gyerek a szülő
+kilépése után is futtathatta a `pg_dump`/`pg_restore`-t, versenyben a takarítással — a kezelő tehát
+a saját mérésének az állítását tudta aláírni. Mostantól kötött sorrend: előbb a **folyamatcsoport**
+áll le, utána a takarítás.
+
+**Gépi jel:** `npm run verify:app-findings-r154` — **AN csoport** (an1–an3) és **AO csoport**
+(ao1–ao8) · `npm run verify:kuka` · `npm run proof:pg-restore-safety` · `npm run proof:pg-intent`.
+**Élő tanú:** mindkét pg-lánc **`socket:` címmel végigfut** (10 állítás / 0 eltérés, illetve 48/48).
+**Visszacsúszás-próba mérve, mind a négyre:** a javításokat visszavéve **öt pin piros**
+(`an1` · `an3` · `ao6` · `ao7` · `ao8`).
+
+**Amit ez NEM állít:** a mérés a feloldókra, a határ-végpontra és a próba-láncokra áll. Üzleti
+folyamatról, felhős üzemről és a PG 18-ról ebből nem következik állítás.
+
+**KUKA-400** · **KUKA-401** · **KUKA-402** · **KUKA-403**
+
+---
+
+## D-VS-3205 — A KAPCSOLÓ-OLVASÁSNAK EGY OTTHONA VAN, ÉS EGY PIN-AZONOSÍTÓ EGY MÉRÉSRE MUTAT (R166, külső review P2 + saját lelet)
+
+**A DÖNTÉS KÉT RÉSZE.**
+
+**(1) A kapcsoló-olvasás EGY feloldó, és a bekapcsolás CSAK a pontos `1`.** A külső átolvasás (Codex,
+P2) kimutatta, hogy a `VS_KEEP_RESTORE_TARGET` a PUSZTA igaz-értéken állt (`if (process.env.X)`),
+ezért a kikapcsolásnak szánt `VS_KEEP_RESTORE_TARGET=0` vagy `=false` **bekapcsolta** a megtartást —
+futásonként egy maradék adatbázis a kiszolgálón, pontosan azért, amiért a futtató ki akarta kapcsolni.
+
+**És a szabály már megvolt.** Pontosan ezt a hibát javította az R164 a `VS_SAFETY_ALLOW_REMOTE`
+kapcsolón — de a HELYSZÍNEN javította, nem szabályként. A testvér-kapcsoló így a régi alakban maradt.
+Mostantól **egy feloldó** (`explicitSwitch`, a cél-döntések otthonában), mindkét fogyasztó ezt hívja,
+és a beállított-de-nem-`1` érték **nevezetten nem felismert** — a néma tartalék-ág elrejtené az
+elírást (KUKA-238). A takarító sor ezt kiírja, tehát a futtató látja, hogy a kapcsolóját figyelmen
+kívül hagytuk.
+
+**Amit ez NEM állít:** a mérés a feloldóra és a takarító ágra áll. Hogy a korábbi futások hagytak-e
+maradékot az operátor kiszolgálóján, arról ebből nem következik állítás — a maradék-jelentés
+megnevezi őket, de eldobni SOHA nem dobjuk el (nem a mi tulajdonunk).
+
+**(2) Egy pin-azonosító EGY mérésre mutat.** A javítás közben kiderült, hogy ebben a körben
+**háromszor** adtam ütköző csoport-előtagot a söprés-battériában (`ac` · `ae` · `ag` — mind a három
+ÉLT már az F164-es pinekben), és a harmadikat csak a visszacsúszás-próba kimenete buktatta le. A
+hivatkozás ilyenkor NÉMÁN kétértelmű: a jelentés és a KUKA-jegy `ag1`-re mutat, a battéria viszont
+két KÜLÖN mérésben futtat `ag1`-et. A négy R166-os csoport átnevezve (`aj` · `ak` · `al` · `ai`),
+a hivatkozások a regiszterben, az őr-otthonban, az archívumban és a jelentésben igazítva.
+
+**A mérce PONTOS, nem csak szigorú** (KUKA-216): az azonosító ismétlődése önmagában nem hiba — a
+`(b1)` háromszor fut egy hurokban, UGYANABBAN a mérésben, három bemenettel, és a neve megnevezi,
+melyikről van szó. A hiba a **két külön mérés közti** ütközés. Ezt méri az új őr, és csak ezt.
+
+**Gépi jel:** `npm run verify:app-findings-r154` — **AI csoport** (ai1–ai5: a kapcsoló mindkét
+irányban, az üres és a nem felismert érték, az ellenpár a testvér-kapcsolóra) és **AM csoport**
+(am1–am4: a kétlaki azonosító, a beültetett ellenpár, a kötött alak, a szó szerinti név-egyezés) ·
+`npm run verify:kuka` · `npm run proof:pg-durability`. **Visszacsúszás-próba mérve:** a puszta
+igaz-értékes olvasás visszatételére **három pin piros** (köztük a testvér-kapcsolóé — ez bizonyítja,
+hogy tényleg EGY otthon); az ütközés visszatételére az **am1 piros**.
+
+**KUKA-398** · **KUKA-399**
+
+---
+
+## D-VS-3204 — AMIT NEM LEHET VÉGIGVINNI, AZT NEM KÍNÁLJUK FEL — ÉS A „VISSZA" A SZERVERIG MEGY (R166, három P2)
+
+> **Hatály:** V3 — a meghívó-folytatás és az útmutatók felkínálása. **V2-módosítás nem történt.**
+
+**Dátum:** 2026-10-07 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 R166 (a kód-review HÁROM
+P2-je a `3747c12` fejen, mind az ebben a körben épített SAJÁT munkám felett) · **KUKA-396 · 397**
+
+**A döntés — három tétel.**
+
+1. **A MEGHÍVÓ ELHAGYÁSA A SZERVERIG MEGY.** A visszalépés a **tárolt** folytatást is elviszi:
+   `forgetIntent` a magban (ahol a sort írjuk és olvassuk — egy otthon) és egy **nevezett** út, amin
+   a felhasználó kimondja (`POST /api/invites/pending/forget`, **törzs nélkül**: jegyet nem fogad el,
+   tehát más munkamenet folytatását nem lehet vele elvinni). A sorrend kimondott: **előbb a tárolt
+   állapot, utána a böngészőé**.
+2. **A FELKÍNÁLÁS AZ ÉLŐ FELTÉTELHEZ KÖTÖTT.** `requires_dev_hozzáférés` helyett a tények:
+   **`dev_mailbox`** (a `devSurface` kapcsolóból) és **`stock_access`** (a **mag** válaszából a
+   minta-készlet olvasására — ugyanaz a döntés, amit a lap kapuja tükröz). Az útmutató **deklarálja**
+   a feltételét (`requires_dev_mailbox` · `requires_stock_access`), a kapu a deklarációt kérdezi, és
+   a mezők a **határon is** átmennek.
+3. **A KAPUT MINDKÉT IRÁNYBAN MÉRJÜK** (`KUKA-091`): zárva nem kínál, nyitva igen — és egy ellenpár
+   kimondja, hogy a két kapu **csak a sajátjait** zárja (a többi 18 útmutató készlete betűre
+   változatlan).
+
+**Miért — és ez mind a saját munkám feletti lelet.**
+
+| lelet | a kár, mérve |
+|---|---|
+| a „vissza" csak a böngészőt ürítette | aki **kimondottan** elhagyta a meghívót, majd belépett, azt a tárolt folytatás **visszavitte** ugyanarra a meghívóra. A saját lapom (`M1`) **zöld** volt rá, mert csak a böngésző állapotát és a címsort mérte |
+| a megerősítés és a Próbaüzenetek útmutatója | telepített környezetben a `devSurface` hamis → a `/dev/mailbox` **404**, a `mailbox` cél nem létezik → a második lépésen nevezett megszakítás |
+| a két készlet-nézet útmutatója | kiadott `keszlet` adatkör nélkül a lap a **megtagadó** panelt rajzolja a tábla helyett → azonnali megszakítás. **És a bevezető szövegébe magam írtam be, hogy engedélyhez kötött — egy felirat viszont nem kapu** (`KUKA-221`) |
+
+A második és a harmadik pontosan a **`KUKA-391`**, amit **ebben a körben idéztem** — és három körön
+belül másodszor buktam el ugyanazon: a feltételt a környezet jeléből vagy a tagságból vezettem le,
+pedig a kérdés az, hogy a **cél ott van-e a lapon**.
+
+**A bizonyíték.** `verify:app-findings-r154` **259/259** — az új **AL csoport** (`al1`–`al4`) a két
+kaput **mindkét** irányban, az ellenpárral és a deklaráció kétirányú mérésével; az **`s11`** őr
+(az állapotot **kötő** utak kimondott leltára) pedig **elkapta** az új végpontot, mielőtt a csomag
+lezárult — ezért van. Élő tanú: `tests/e2e/v3app-r166-invite-leave.spec.mjs` **M6** — a visszalépés
+utáni belépés **nem visz vissza**, és az **ellenpár**: visszalépés **nélkül** a folytatás továbbra is
+megmarad (a `KUKA-297` ígérete nem veszett el). **Visszacsúszás-próba mérve, mind a háromra:** a két
+kaput kivéve `al1`+`al2` piros; a törlő hívást kivéve az `M6` piros. `verify:kuka` **877/877**.
+
+**Amit ez NEM állít.** Nem állítja, hogy minden útmutató minden környezetben végigvihető: azt
+állítja, hogy ahol nem, ott **nem is kínálódik fel** — és a kizárás **nevezett**, nem néma
+megszakadás.
+
+---
+
+## D-VS-3203 — A TITOK VÉGÉT A SHELL-SZÓ HATÁRA ADJA (R166, külső review P2)
+
+> **Hatály:** V3 — a mentési/visszatöltési szerszámlánc titok-tisztítója
+> (`tools/lib/vs_pg_target.mjs`). **V2-módosítás nem történt.**
+
+**Dátum:** 2026-10-07 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 R166 (a biztonsági
+átolvasás P2-je, `#discussion_r4207550936`) · **KUKA-395**
+
+**A döntés.** A jelszó-érték végét **nem** az első záró idézőjel adja, hanem a **shell-szó** határa:
+a `shellWordEnd` letapogató az értéket egy szóként fogyasztja (aposztróf-idézett szakasz ·
+idézőjel-idézett szakasz `\x` escape-ekkel · escape-elt karakter · sima karakter), amíg idézeten
+**kívüli** szóköz, `&` vagy `;` nem jön. A három korábbi minta helyére **egy** szabály lép. A
+**záratlan** idézet a sor végéig tart.
+
+**Miért — és ez a saját javításom feletti lelet.** Az `R164` köre (`KUKA-371`) azt javította, hogy az
+idézett érték egyáltalán eltűnjön; a határt viszont az első záró idézőjelnél húztam meg. A shell
+máshol húzza: egy **aposztrófot tartalmazó** jelszót `'pa'\''ss'` alakban ír ki, és azt **egy szónak**
+olvassa. Mérve, javítás előtt:
+
+| bemenet | RÉGI kimenet |
+|---|---|
+| `PGPASSWORD='pa'\''ss' psql` | `PGPASSWORD=«elrejtve»''ss' psql` — a **maradék kiszivárgott** |
+| `PGPASSWORD='nyitva marad a sor vegeig` | **változatlan** — a *teljes* jelszó a naplóba |
+
+Ez a `KUKA-203` osztálya a legrosszabb alakjában: a fél-tisztító **bizalmat ad**, miközben
+szivárog — és épp a próba-naplókba, amiket bizonyítékként commitolunk.
+
+**A bizonyíték.** `verify:app-findings-r154` **AK csoport (ak1–ak7)**, a söprésben: a glued aposztróf ·
+az escape-elt idézőjel · a záratlan idézet · **és az ellenpárok a jogos esetekre** (a három megszokott
+alak pontosan háromszor rejtőzik el, a titokmentes szöveg változatlan, a `;` utáni nem-titkos mező
+megmarad, és a kapcsolati címmel együtt is helyes). A battéria **255/255**. **Visszacsúszás-próba
+mérve:** a három régi minta visszaállítására **három pin piros**, köztük a záratlan idézet.
+`proof:pg-restore-safety` **48/48** (E9e), `proof:pg-intent` **10/0 eltérés**,
+`proof:pg-durability` **13/13** — mind valódi PostgreSQL 16.15-en. `verify:kuka` **870/870**.
+
+**És a `KUKA-371` gépi jele a mai otthonra igazítva:** a jele egy kommentsorra mutatott, amit a
+javítás elvitt. A szabály nem változott (az idézett érték teljesen eltűnik), csak **erősebb** lett,
+ezért a minta mostantól a `shellWordEnd` letapogatóra áll — a védő erő megmarad: ha a letapogató
+eltűnik, a jel piros.
+
+**Amit ez NEM állít.** Nem teljes shell-elemző, és nem állítja, hogy minden naplózó út át van
+vizsgálva: ez a feloldó a pg-láncok gyermek-diagnosztikáját tisztítja, és a hatóköre ennyi.
+
+---
+
+## D-VS-3202 — A TIZENKILENC PÓTOLHATÓ LEFEDÉSI HIÁNY LEZÁRVA, ÉS AZ ELFOGADÁSI CÉL KÜLÖN MÉRVE (R166 §3)
+
+> **Hatály:** V3 — a tudás-regiszter, a felület útmutatói és a lefedési őr. **V2-módosítás nem történt.**
+
+**Dátum:** 2026-10-07 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 R166 §3 · **KUKA-394**
+
+**A döntés — négy tétel.**
+
+1. **A TIZENKÉT MŰKÖDŐ FUNKCIÓ SAJÁT, BEJÁRHATÓ ÚTMUTATÓT KAP** (`tour.verify` · `login` · `resend` ·
+   `logout` · `personalAccount` · `documents` · `partners` · `assistant` · `products` · `stockcard` ·
+   `movements` · `outbox`), a `shell.profile` pedig **kimondott közös utat** (`tour.language/s1`) —
+   eddig ezt csak a `tour_note` prózája állította, tehát a gép nem mérte. A hét **lap-hiány** ezekkel
+   szűnt meg, és mindegyik olyan lépésen áll, ami a **lapra** mutat, nem egy minden lapon ott álló
+   héj-horgonyon: az volt a hamis zöld, amit az R164 épp megszüntetett.
+2. **AZ ELFOGADÁSI CÉL KÜLÖN ÁLLÍTÁS, ÉS AZ EREDETI ŐR VÁLTOZATLAN.** Az R166 §3 célja szó szerint
+   „pótolható hiány 0; osztályozatlan 0" — ezt az **`LT2`** méri, és **ZÖLD**: *pótolható 0 ·
+   osztályozatlan 0*. A `LT` (teljes hiány-halmaz) **PIROS marad** az egyetlen megmaradó soron
+   (`page:personal`), és a szövegén egy karaktert sem változtattunk — különben a zöld a mérés
+   lazításából jönne, nem a munkából.
+3. **A `personal.ownMatters` MARAD NEVESÍTETT FEJLESZTÉSI RÉS** — a Saját ügyek listája mint
+   *képesség* nem létezik, tehát nem „megírható leírás" kérdése. A regiszter ezt nevesíti, az `LC2`
+   pedig megköveteli, hogy a hiányzó üzleti képességet kimondja.
+4. **A BEJÁRHATÓSÁG ÉLŐ TANÚT KAP.** A regiszter zöldje nem bejárhatóság: a
+   `tests/e2e/v3app-r166-utmutatok.spec.mjs` mind a tizenkét útmutatót **végigkattintja** a valódi
+   felületen (U0 a szövegek három nyelven · U1 a belépés előttiek · U2 a belépettek · U3 **390 px**),
+   és a **nevezett megszakítást bukásnak** veszi, nem „nincs is baj"-nak.
+
+**Miért kellett ez az élő tanú — NÉGY VALÓDI HIBA, amit csak a böngésző hozott ki.** A statikus őrök
+(lefedési leltár · tanító-őr · nyelvi őr) **mind zöldek** voltak, miközben:
+
+| lelet | mérve |
+|---|---|
+| a belépés előtti útmutató **mindig a regisztrációs lapra** vitt (a cél az egyetlen akkori ilyen útmutatóból volt általánosítva) | a „mutasd meg, hogyan lépek be" a **regisztrációs űrlapon** ért véget — `KUKA-394` |
+| a `tour.resend` célja **másik képernyőn** volt | azonnali nevezett megszakítás (`KUKA-232` osztálya) |
+| a `tour.logout` a **céges térben nem létező** `nav-security` menüpontra állt | a Belépés és biztonság csak a **személyes** menüben van; az út a **profil-menűn** megy |
+| a `tour.assistant` feltáró-lánca **pontatlan** volt | a kérdés-mezőt nem a súgó megnyitása tárja fel, hanem a **Kérdezz fül** |
+
+**És két kisebb, ugyanebben a körben javítva:** a megerősítő levél újraküldéséhez vezető gombnak
+**nem volt fogantyúja** (`auth-resend-open` — `KUKA-011`: hol kattint?), és a `tour.outbox`
+feltárója nem korábbi lépés célja volt — ezt a **`verify:tutor` fogta meg**, nem én.
+
+**Gépi jel.** `verify:lefedes` **17 ZÖLD / 1 PIROS** (a `LT` a nevesített fejlesztési résen) ·
+`LT2` **ZÖLD** · `verify:tutor` **94/94** (két új állítással: a zárt listás `auth_view`, és hogy a
+nézet-nevek a felület forrásában is megvannak) · `verify:i18n` **49/49** (a 12 útmutató szövege
+**mind a három bekapcsolt nyelven**: 809 → 821 kulcs) · `verify:assistant` **55/55** ·
+`app:selfcheck` **57/57** · `verify:kuka` **867/867**.
+
+**Amit ez NEM állít.** Nem állítja, hogy a lefedési őr zöld — **nem az**, és az ok nevesítve áll.
+Nem állítja, hogy minden funkciónak SAJÁT útmutatója van: a közös út továbbra is elfogadható, de
+**csak kimondva és valódi lépéssel** (a `shell.profile` így áll). És nem állítja, hogy a két
+engedélyhez kötött nézet (`stockcard` · `movements`) jogot ad a felhasználó helyett: az útmutató
+ott a jogadás útjára mutat, és a lap kimondja, ha nincs kiadva az adatkör.
+
+---
+
+## D-VS-3201 — A KAPCSOLATI CÍM SÉMÁJA ZÁRT LISTA, ÉS A KÉT FOGYASZTÓ ELTÉRÉSE MEGÁLLÁS (R166/P1)
+
+> **Hatály:** V3 — a visszatöltési/mentési szerszámlánc (`tools/lib/vs_pg_target.mjs`). **V2-módosítás
+> nem történt, és nincs rá engedély.**
+
+**Dátum:** 2026-10-07 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 R166 (a nyolcadik review-kör
+nyitott P1-je, `#discussion_r4207213198`) · **KUKA-393**
+
+**A döntés — három tétel.**
+
+1. **A SÉMA ZÁRT LISTÁN ÁLL, EGY OTTHONBAN.** A `PG_URL_SHAPES` + `pgUrlShape` adja meg, hol áll az
+   adatbázis és hol a gazdagép: `postgres:` és `postgresql:` → **hálózati** (az ÚT az adatbázis),
+   `socket:` → **socket** (az ÚT a socket-KÖNYVTÁR, az adatbázist a `?db=` nevezi meg). Mind a négy
+   feloldó — `effectiveDatabase` · `withDatabase` · `effectiveHost` · és rajtuk keresztül a
+   `cliEnvFor` — **erre ágazik**, nem a saját feltevésére. Ami nincs a listán, az **nevezett
+   megállás**, nem tipp (`KUKA-236`).
+2. **AHOL A KÉT FOGYASZTÓ MÁST OLVAS, A NÉV NEM MEGÁLLAPÍTHATÓ.** A lánc **két** klienst futtat:
+   node-postgres a kódban, libpq a `pg_dump`/`psql` gyermekben. A hálózati sémán a `?dbname=`-et a
+   libpq **veszi**, a node-postgres pedig az utat írja a `database`-re **feltétel nélkül** — ezért a
+   feloldó a két olvasatot **összeveti**, és eltérésnél **megáll**. Nincs „helyes érték", ahol a lánc
+   végén `DROP DATABASE` áll (`KUKA-049` · `KUKA-203`).
+3. **A `socket:` CÍMET A CLI-GYERMEK SOHA NEM KAPJA MEG KAPCSOLATI SZTRINGKÉNT** — a libpq ezt az
+   URI-t nem értelmezi. A gyermek a `cliEnvFor` **környezetét** kapja: `PGHOST` a socket-könyvtár,
+   `PGDATABASE` a megnevezett cél.
+
+**Miért — és mi volt a KÁR.** A lelet szövege a `postgres://…?db=…` felülírást állította. A kitűzött
+könyvtáron (`pg-connection-string` **2.14.1**) **megmérve ez az eset nem áll elő**: a hálózati sémán
+az út feltétel nélkül győz, mind a négy mért cím `original`-t adott. **A mechanizmus viszont létezik,
+csak a `socket:` sémán** — és ott a kár **néma** volt:
+
+| | RÉGI alak | ÚJ alak |
+|---|---|---|
+| `effectiveDatabase('socket:/var/run/postgresql?db=eles')` | **`var/run/postgresql`** (az ÚT!) | **`eles`** |
+| `sameDatabase(…, 'eles')` → a biztonsági kapu | **ÁTENGED** → `DROP DATABASE "eles"` a **valódi** adatbázison | **MEGÁLL** |
+| `withDatabase(…, friss_cél)` | az **ÚTAT** írja át (a socket-könyvtárat rontja el), a `?db=` **érintetlen** → az átirányítás nem irányít át | az **ÚT érintetlen**, a `?db=` kapja a nevet |
+
+**A LELETET NEM ZÁRTAM LE „NEM REPRODUKÁLHATÓ" CÍMEN.** A mért tény az, hogy a *leírt* eset nem áll
+elő a kitűzött könyvtáron — a *mechanizmus* viszont valódi, és a safety-kritikus feloldóban nyitva
+volt. Egy lelet leírt esetének megdőlése nem a lelet megdőlése.
+
+**A bizonyíték — és az ellenpár a KÁRRA, nem a listára.**
+
+- **`verify:app-findings-r154` AJ csoport (aj1–aj8), a söprésben:** a zárt lista · a név · a kapu · az
+  átirányítás · a fail-closed dobás ismeretlen sémán · a hálózati divergencia · a gazdagép · a
+  CLI-környezet. A battéria **250/250 PASS**.
+- **`proof:pg-restore-safety` E10a–E10e, VALÓDI kiszolgálón, Unix-socketen:** a régi alak kapcsolata
+  nem a friss célra ment · az új alak **a friss célra** ment · az **eredeti adatbázis érintetlen**
+  (0 nyom) · a nyom **a friss célban** áll · és a CLI-környezet a socket-könyvtárat kapja. A lánc
+  **48/48** (korábban 43/43). A socket-könyvtár a **kiszolgálótól** jött
+  (`SHOW unix_socket_directories`), nem tippből; ha a kiszolgáló nem hallgat Unix-socketen, a lépés
+  **NEM MÉRT** — nevezetten, nem néma zöldként (`KUKA-093` · `KUKA-363`).
+- **VISSZACSÚSZÁS-PRÓBA MÉRVE:** a séma-sort és a divergencia-blokkot visszaállítva a battéria **11
+  pinje piros**, köztük az `aj3` — a kapu újra átengedte volna a valódi adatbázis eldobását.
+- A három pg-lánc **újramérve** az új feloldóval: `proof:pg-intent` **10 állítás / 0 eltérés** ·
+  `proof:pg-restore-safety` **48/48** · `proof:pg-durability` **13/13**, valódi PostgreSQL **16.15**-en.
+
+**A SAJÁT PINJEIM NÉGY ÁLLÍTÁSÁT ÁT KELLETT ÍRNI, ÉS EZT KIMONDOM.** Az `r5` · `w1` · `y2` · `aa2` a
+`?dbname=` **libpq-olvasatát** állította eldöntött névnek (`F158-01` · `F158-16` · `F158-22` körei).
+Ez **fél igazság volt**: a másik fogyasztó ugyanazt a címet máshogy olvassa. A négy pin ma az
+**eltérést** állítja, tehát **erősebb** — a leletek eredeti kára (a cím félreolvasott neve átengedte a
+kaput) ezzel **mindkét** névre zárva. A `KUKA-326` gépi jele is a mai alakra igazítva (a `dbname`
+törlése háromkulcsos hurokban áll; a védő erő megmarad: a kulcslista eltűnése piros).
+
+**Amit ez NEM állít.** Nem a libpq teljes utánzata, és nem PostgreSQL 18-kompatibilitás. A kliens
+által elfogadott két alakot (`socket://u@/út` pót-gazdagéppel, és a perjellel kezdődő
+„gazdagép SZÓKÖZ adatbázis") a feloldó **szándékosan nem** utánozza le: ott nevezetten megáll — a
+második értelmezési szabály a második hibalehetőség lenne.
+
+---
+
+## D-VS-3200 — A SZEMÉLYES TÉR LAP-LISTÁJA A KLIENS TELJES SZABÁLYÁBÓL JÖN, NEM A MENÜBŐL (R164 review, P2)
+
+**A döntés.** A személyes körben elérhető lapok listája (`PERSONAL_SCREENS`) a **mindig elérhető lapok**
+(`ALWAYS_AVAILABLE_SCREENS` — a kliens `pageAvailable` feloldójának első sora: `overview` · `new` ·
+`profile` · `security`) és a **személyes menü** lapjainak **uniója**. A „mindig elérhető" listát a
+próba a kliens **fájljából** olvassa ki, tehát nem lehet elhinni, csak mérni.
+
+**Miért.** A `D-VS-3198` javításban a listát a személyes MENÜ lapjaival egyeztettem. A `new` lap
+viszont nem menüpont: a fiókváltó `ws-add` gombja nyitja. Így az `account.add_business` súgója, a
+`prepare.business` művelete és a `tour.addBusiness` bemutató **eltűnt a személyes körből** — pontosan
+ott, ahol az ember az **első** vállalkozását létrehozza. A kár tehát nem elméleti: a legfontosabb
+kezdő utat rejtettem el.
+
+**És a mérés is rossz volt.** A saját ellenpárom (`ah2`) a MENÜVEL egyeztetett, tehát a hibás listát
+**helyesnek mérte**. Egy javítás ellenpárja nem az lehet, amiből a javítást levezettem: a **kár** felé
+kell mérni. Az új `ah5` ezt teszi — a személyes körben a vállalkozás-létrehozás elérhető, a
+`tour.addBusiness` felkínálódik és a `prepare.business` engedélyezett, miközben a könyv-hatókörű
+`members` továbbra sem elérhető.
+
+**Gépi jel.** `npm run verify:app-findings-r154` (ah2 az unió · ah4 a kliens fájljából mért lista ·
+ah5 a kár ellenpárja) · `npm run verify:kuka` (KUKA-392).
+
+---
+
+## D-VS-3199 — AMIT NEM LEHET VÉGIGVINNI, AZT NEM KÍNÁLJUK FEL: A BEMUTATÓ A FELÜLET VEZÉRLŐJÉHEZ KÖTÖTT (R164 review, P2)
+
+**A döntés.** A szereplő-váltó végigvezetéseket (`tour.inviteRevoke` · `tour.reentry`) **nem a
+kiszolgáló környezete** kapuzza, hanem a **betöltött felület**: a kérés megnevezi a felületét (zárt
+lista: `app` · `demo`), a kiszolgáló pedig a lap **fájljából MÉRI** a horgonyokat
+(`data-testid` · `data-tour-anchor`), és a bemutató **saját** `switch_actor` lépéseinek célját kéri
+tőle. Nyilatkozat nélkül, nem ismert névre, hiányzó horgonyra: **zárva**.
+
+**Miért.** A `VS_DEMO` környezet-jel nem mondja meg, hogy a lapon van-e „váltás a másik nézetére"
+vezérlő. A böngészős próbapad a **valódi** alkalmazás-héjat futtatja bemutató-környezetben, ahol ilyen
+vezérlő nincs — a kiszolgáló mégis felkínálta a két végigvezetést, és azok a váltó lépésen
+megszakadtak. A próba pedig éppen ezt a megszakadást írta elő **elvárt** eredménynek, tehát a kötelező
+böngésző-kapu zöldje a hibás felkínálást igazolta.
+
+**Mi lett a bizonyíték.** A két történetet a bemutató **lapján** visszük végig (`proof:demo-walk`, a
+kötelező kapu része), és az a lap a **valódi** kiszolgálótól kapja a listát (`demo:knowledge`,
+`surface=demo`) — amit tehát a termék a bemutató-felületnek felkínál, azt ott végig is viszik. A héj
+próbája a három **valódi** műveletet (meghívó visszavonása · tag eltávolítása · visszahívás) bemutató
+nélkül, a nyugtáikkal együtt mérve tartja meg: a hiba-elkapó erő nem csökkent.
+
+**Amit ez NEM állít.** A kérés megnevezheti a felületét, de **képességet nem állíthat magáról**: a
+horgony-készlet mérésből születik. Egy hamis felület-megnevezés így legfeljebb magának kínál végig nem
+vihető bemutatót — jogot nem ad, jogosultsági kaput nem kerül meg (mérve: `U` csoport, u3–u5).
+
+**Gépi jel.** `npm run verify:app-findings-r154` (U csoport: u1 · u2 · u6–u9) ·
+`npm run verify:browser-gate` (a héj próbája a KIZÁRÁST méri, a bemutató lapja a VÉGIGVITELT) ·
+`npm run verify:kuka` (KUKA-391).
+
+---
+
+## D-VS-3198 — A SZEMÉLYES TÉR ZÁRT LAP-LISTÁBÓL DÖNT, ÉS A LAPOT MINDKÉT MEZŐRŐL OLVASSA (R164 review, P2)
+
+**A döntés.** A személyes térben elérhető képességet **zárt lap-lista** dönti el
+(`PERSONAL_SCREENS`, a tudás-regiszterben, a személyes menü mellett), és a feloldó a lapot
+**mindkét** deklarált mezőről olvassa: `item.screen ?? item.page`. Ami nincs a listán, az a személyes
+térben nem elérhető — hacsak nevezetten nem kivétel (`personal_space_ok`).
+
+**Miért.** Az alapértelmezett személyes térben a `book_id` és a `member` is áll, tehát a
+`scope: 'book'` nem zár. A szűrő `item.page`-et olvasott, a három új útmutató viszont `screen`-t
+deklarál, és a `shell` csoport sem volt tiltott — így a `tour.warehouses` · `tour.processes` ·
+`tour.accountSettings` a személyes térben is felkínálódott, pedig a személyes menü egyik lapjukat sem
+tartalmazza. A csoport-nevek tiltásán álló szűrő tehát **nyitva hagyta az új alakot**.
+
+**Gépi jel.** `npm run verify:app-findings-r154` (AH csoport: ah1 a két tér, ah2 a lista-azonosság a
+menüvel, ah3 a nevezett kivétel ellenpárja) · `npm run verify:kuka` (KUKA-390).
+
+---
+
+## D-VS-3197 — AMI TÖRÖL, AZ ÍRÁS: A LEJÁRAT OLVASÁSI KAPUJA IS KÖVETI AZ INDEXET (R164 review, P2)
+
+**A döntés.** Ha a függő folytatás feloldója **nem ad** folytatást, a munkamenet azonosítója kikerül a
+védett-indexből — akár nem is volt sora, akár a feloldó most dobta el a lejártat.
+
+**Miért.** A feloldó olvasáskor is **kapu**: a lejárt sort nem adja vissza, és el is dobja. Ez a
+törlés eddig nem jutott el az indexhez: rövid türelmi idő vagy óra-ugrás mellett az index **bízható**
+maradt egy **elavult** azonosítóval, és elég ilyen munkamenet után a „csupa védett" rövidre zárás új
+folytatásokat utasított volna el, pedig volt nem védett áldozat.
+
+**A legszűkebb igaz állítás.** Nem kellett a magot új visszajelzéssel bővíteni: a „nincs folytatás"
+mindkét esetben igaz, és az index-törlés nem létező bejegyzésre is biztonságos.
+
+**Gépi jel.** `npm run verify:app-findings-r154` (al2 — fejlesztői órával, várakozás nélkül) ·
+`npm run verify:kuka` (KUKA-389).
+
+---
+
+## D-VS-3196 — A KILÉPÉS IS BEJELENT, TEHÁT A TÁROLÓ-SOR SEM MARAD OTT (R164 review, P2)
+
+**A döntés.** A munkamenet-tár publikus törlése — amit a **kilépés** használ — a **bejelentés** útján
+megy: a sort a várólistára teszi és azonnal bejelenti, tehát a hívó ugyanazt a takarítást futtatja rá,
+mint a kiszorításra. A tár továbbra sem ismeri a táblákat.
+
+**Miért.** A kiszorítás bejelentett, a kilépés nem — így az adatbázis-sor **elérhetetlenül** ott
+maradt a teljes türelmi időre. A `folytatás → kilépés` ismétlése **hitelesítés nélkül** halmozott
+adatbázis-állapotot, miközben a munkamenet-tár **üres** maradt: a tár plafonja fogalmilag sem fogta
+meg. Ez a `D-VS-3186` hiányzó fele — ott a **memória** könyvelését vittem egy helyre, a **tároló**
+oldala külön maradt.
+
+**Gépi jel.** `npm run verify:app-findings-r154` (al1 — a határon mérve) · `npm run verify:kuka`
+(KUKA-388).
+
+---
+
+## D-VS-3195 — A SÉRTETLENSÉG MINDEN TÁBLÁRA MÉRVE, ÉS AZ ÁLLÍTÁS A PONTOS ALAKJÁBAN (R164 review, P2)
+
+**A döntés.** A forrás pillanatképe **minden** `public` séma-táblát visz, a teljes sor szövegével, és a
+tábla-lista maga is összevetésre kerül. Az állítás a pontos alakjában szól: amit mérünk, az az
+**eltűnés** — és a **módosítás is eltűnésként** jelenik meg, mert a sor szövege megváltozik.
+
+**Miért.** A `D-VS-3188` a mérce **alakját** javította (tartalmazás helyett három osztály), a
+**hatókörét** nem: a kép csak két táblát vitt, miközben a gyermek előkészítése hitelesítőt,
+azonosítót, csatorna-igazolást, tagságot és engedélyt is ír. Egy nem szánt törlés a többi táblában
+**zölden** maradt volna.
+
+**Miért így mérjük.** Így nem kell tudnunk, melyik az elsődleges kulcs: a teljes sor szövege minden
+táblán egyformán működik. A hozzáadást (a gyermek előkészítése) kimondjuk és a mért mértékhez kötjük.
+
+**Gépi jel.** `npm run proof:pg-restore-safety` (E2 · E2c · E6d — a kiírt sor megmondja, hány táblát
+mértünk) · `npm run verify:kuka` (KUKA-387).
+
+---
+
+## D-VS-3194 — A BIZTONSÁGI LÁNC A SAJÁT FORRÁSÁN DOLGOZIK (R164 review, P2)
+
+**A döntés.** A `proof:pg-restore-safety` **saját, friss** forrás-adatbázist hoz létre, a repó
+migrációs eszközével építi fel, a gyermekeket erre állítja, és a végén eldobja. A megadott
+`DATABASE_URL` innentől a **kiszolgálót** jelöli, nem a forrást — a megadott adatbázist a lánc **nem
+írja**.
+
+**Miért.** A lánc minden esete elindítja a tartóssági próbát, aminek az előkészítése fiókot regisztrál
+és vállalkozást hoz létre a forrásban. A helyi kapu csak azt mondta ki, hogy a kiszolgáló **helyi** —
+a helyi viszont nem jelenti az **eldobhatót**: egy mindennapi fejlesztői adatbázis maradandó sorokat
+kapott volna, pedig a lánc szerződése épp a sértetlenség. Két külön kérdést mostam össze: **hol** fut
+és **mit** szabad elrontani.
+
+**A tulajdon itt is a létrehozás.** Ugyanaz az `acquireFreshTarget` hurok dönt, mint a célnál: már
+létező adatbázist nem veszünk át, névütközésre új nevet generálunk. A takarítás kilépésre **és** jelre
+is fut, és ami marad, azt nevezetten kiírjuk.
+
+**Gépi jel.** `npm run proof:pg-restore-safety` (a futás a saját forrást nevezetten kiírja és eldobja) ·
+`npm run verify:kuka` (KUKA-386).
+
+---
+
+## D-VS-3193 — A MEGŐRZÉS VÁLASZÁT MEGMÉRJÜK, ÉS A KUDARCOT KIMONDJUK (R164 review, P2)
+
+**A döntés.** A meghívó-képernyő megmérte a folytatás-megőrzés válaszát, és ha az elutasítás, a lap
+**kimondja** — a szöveg a nyelvcsomagból jön, és megnevezi a **működő** folytatást (lépj be először,
+majd nyisd meg újra a hivatkozást).
+
+**Miért.** A szerver helyesen utasítja el a megőrzést telt tár (503) vagy nézet-váltás (409) esetén,
+nevezett indokkal. A lap viszont a választ **eldobta**: a felhasználó elindult a megerősítő levéllel,
+a jegy egyetlen példánya a kliens memóriájában maradt, és a belépés után a folytatás **csendben
+eltűnt**. Egy nevezett elutasítás annyit ér, amennyit a hívó elolvas belőle.
+
+**És a mondat valódi.** A `refusalText` a nem talált kulcsra a generikus mondatot adná, ezért minden
+bekapcsolt nyelvre **mérjük**, hogy a két ok kulcsa megvan és **nem** egyezik a generikussal
+(KUKA-238). A végponton **tényleg** csak ez a két ok áll — ezt is mérjük, tehát egy új, le nem
+fordított ok azonnal pirosra vált.
+
+**Amit ez NEM mér, kimondva.** A telt tár **böngészős** előállítása nincs a kapuban: a kliens-ág
+javítása a forrás-mintán és a szótár-mérésen áll, nem egy élő 503-as képernyőn (KUKA-207).
+
+**Gépi jel.** `npm run verify:app-findings-r154` (AF: af1 · af2) · `npm run verify:i18n` ·
+`npm run verify:kuka` (KUKA-385).
+
+---
+
+## D-VS-3192 — A HIÁNY-OSZTÁLYOZÁS A GÉPI ARTEFAKTUMBAN ÁLL (R164 review, P2)
+
+**A döntés.** A lefedési leltár gépi JSON-ja viszi a `gap_classes` blokkot: a három osztály
+darabszámát és teljes listáját, kulccsal és indokkal. Az önpróba pedig a **kiírt fájlt** olvassa
+vissza (LC4), nem a memóriában lévő objektumot.
+
+**Miért.** A kettéosztás eddig kizárólag az önpróba konzol-állításaiban létezett, a `--json` út pedig
+a nyomtatás **előtt** kilép. Ami nincs a fájlban, az a következő körben **nem létezik** — ebben a
+repóban a memória a repó.
+
+**Gépi jel.** `npm run verify:lefedes` (LC4) · `npm run verify:kuka` (KUKA-384).
+
+---
+
+## D-VS-3191 — A MEGHÍVÓ-JEGYET A CÍMSORRÓL IS ELVISSZÜK (R164 review, P2)
+
+**A döntés.** Egy közös elfelejtő (`forgetInvite`) viszi el a belső jegyet **és** a címsor-paramétert,
+és **mindkét** ág ezt hívja: a kilépés és a sikeres beváltás is. Csak a meghívó paramétert visszük el
+— a többi (például a nyelvválasztás) a címsorban marad.
+
+**Miért.** A kilépés a belső jegyet ürítette, a címsort nem: egy frissítés — vagy ugyanannak a
+történet-bejegyzésnek az újbóli megnyitása **más ember** által — újra beolvasta a jegyet, és a felület
+visszatért az előző ember meghívó-folyamatára. A címsor is állapot.
+
+**Amit ez NEM mér, kimondva.** A **kilépés** ágát böngészőben nem mérjük: a meghívó-képernyőn ma
+nincs kilépés-vezérlő (a profil-menü ott nem rajzolódik ki), tehát a felületen **nincs út**, amin a
+jegy a címsorban állva kilépés érné. A böngészős kapu a **beváltás** ágán méri a közös elfelejtőt; a
+kilépés ágát az **egy otthon** viszi, nem egy második, külön mért kódrészlet (KUKA-207).
+
+**Gépi jel.** `npm run verify:browser-gate` (a beváltás után a címsorban nincs jegy) ·
+`npm run verify:kuka` (KUKA-383).
+
+---
+
+## D-VS-3190 — A KORLÁTOZOTT PÁSZTA KULCS-KURZORON HALAD (R164 review, P2)
+
+**A döntés.** A nem kanonikus sorok pásztája **kulcs-kurzorral** megy: minden pászta a kurzor utáni
+sorokkal folytatja, és ha a köteg nem lett tele, a kurzor visszaáll az elejére. A kurzor az időbélyeg
+és a munkamenet-azonosító **párja** — egy csak időbélyeg-alapú kurzor az egyező sorokat átlépné.
+
+**Miért.** A rendezés önmagában **nem** ad előrehaladást: egy friss, érvényes eltolásos időbélyeg
+számmal kezdődik, egy romlott érték betűvel, tehát mögé kerül. Korlátnyi friss sor mögött a romlott
+sor határtalanul ott maradt. A `D-VS-3180` tehát **szűkül**: a sorrend szükséges, de nem elégséges.
+
+**Gépi jel.** `npm run verify:app-findings-r154` (ak6, ellenpárral) · `npm run verify:kuka` (KUKA-382).
+
+---
+
+## D-VS-3189 — A FUTTATÓ KÖLTSÉGVETÉS-TÚLLÉPÉSE KÜLÖN JEL (R164 review, P2)
+
+**A döntés.** A mutációs futtató **stabil gépi jelet** ír ki, ha egy egység a saját költségvetését
+lépte túl, és az adaptív daraboló ezt a jelet a gyermek kimenetéből **maga** olvassa ki — tehát
+finomít rá. A **tartalmi** bukás viszont nem indít finomítást.
+
+**Miért.** A nem nulla kilépésnek két független oka lehet (idő vagy tartalom). A terv eddig csak a
+külső időtúllépésre finomított, tehát a saját költségvetés túllépését „beleférésnek" olvasta — és a
+lánc tartalmi bukásként adta tovább azt, amit a finomítás oldott volna meg.
+
+**Gépi jel.** `npm run verify:app-findings-r154` (ak5, ellenpárral) · `npm run verify:kuka` (KUKA-381).
+
+---
+
+## D-VS-3188 — A FORRÁS VÁLTOZATLANSÁGA HÁROM OSZTÁLYON DŐL EL (R164 review, P1)
+
+**A döntés.** A forrás pillanatképe a **teljes sor-tartalmat** viszi, és az összevetés három osztályt
+ad: **eltűnt · megváltozott · jött**. Az állítás az első kettőre szól; a harmadikat (a próba saját
+előkészítése) **kimondjuk** és a mért mértékhez **kötjük**. A pillanatkép minden futás **előtt** újra
+készül.
+
+**Miért.** A korábbi mérés tartalmazás-vizsgálat volt: bármennyi új sort elfogadott, a megváltozott
+sort pedig egyáltalán nem látta — miközben minden futás tényleg írt a forrásba. Egy biztonsági
+bizonyíték nem állíthat többet, mint amit mér.
+
+**Gépi jel.** `npm run proof:pg-restore-safety` (E2 · E2c · E6d) · `npm run verify:kuka` (KUKA-380).
+
+---
+
+## D-VS-3187 — A PARANCSSORI KLIENSEK KÖRNYEZETE EGY OTTHONBÓL JÖN (R164 review, 2× P2)
+
+**A döntés.** Egy feloldó (`cliEnvFor`) állítja össze a `psql`/`pg_dump`/`pg_restore` környezetét,
+**ugyanazzal a gazdagép-feloldóval**, amit a helyi kapu használ — és ha a tényleges gazdagép nem
+eldönthető, **nem ad környezetet**: a hívó megáll.
+
+**Miért.** A két pg-próba egymás másolatát jelentő feloldóval a cím **autoritás**-gazdagépéből
+épített, tehát a `?host=` felülírást eldobta. A kaput ugyanebben a csomagban javítottam, a tényleges
+végrehajtást nem — a bizonyíték így nem arra a klaszterre szólt, amit mértünk.
+
+**Gépi jel.** `npm run verify:app-findings-r154` (ak2 · ak3) · `npm run verify:kuka` (KUKA-379).
+
+---
+
+## D-VS-3186 — A SOR-ELTÁVOLÍTÁS KÖNYVELÉSE EGY HELYEN ÁLL (R164 review, P1)
+
+**A döntés.** A munkamenet-tárban egy könyvelő (`forget`) viszi el a névtelen számlálót, a
+védett-indexet és a térkép-sort — és a **kilépés** útja is ezt hívja, nem saját másolatot.
+
+**Miért.** A kiszorítás leszedte a védett-indexet, a kilépés nem. A folytatás–kilépés ismétlése így a
+tár plafonján **kívül** növelte a memóriát, és az elavult azonosítók végül azt is elhitették a
+rövidre zárással, hogy a tár csupa védett sorral telt: egy új munkamenet felvétele elutasításra
+futott. Ez a `D-VS-3182` növekményes indexének hiányzó fele.
+
+**Gépi jel.** `npm run verify:app-findings-r154` (ak4) · `npm run verify:kuka` (KUKA-378).
+
+---
+
+## D-VS-3185 — CSAK AZ ABSZOLÚT ÚT SOCKET (R164 review, P1)
+
+**A döntés.** A destruktív pg-próbák helyi-kapuja a nevesített helyi gazdagépeket és az **abszolút,
+perjellel kezdődő** utat fogadja el helyinek. A ponttal kezdődő érték **nem** socket.
+
+**Miért.** A PostgreSQL kizárólag az abszolút path-szerű gazdagépet kezeli Unix-socketként; minden
+más hálózati gazdagép-név. Egy `?host=.belso.pelda.hu` alakú, a telepítési környezetben feloldódó cím
+így átment a kapun — a kimondott felülírás nélkül, oda, ahol a próba ír és töröl.
+
+**Amit ez NEM állít.** Nem mértem meg élő távoli kiszolgálón: a mérés a kapu **döntésére** szól
+(ak1), nem egy valódi távoli kapcsolatra. Ezt szándékosan nem is próbáltam ki.
+
+**Gépi jel.** `npm run verify:app-findings-r154` (ak1) · `npm run verify:kuka` (KUKA-377).
+
+---
+
+## D-VS-3184 — A LÁTOGATÓ CÍMÉT HORDOZÓ FEJLÉCET A TELEPÍTÉS DEKLARÁLJA (R164, külső review, P1)
+
+**A döntés.** A bízott proxy mögött a látogató címét **deklarált** fejlécből olvassuk
+(`VS_APP_CLIENT_IP_HEADER`). Deklaráció nélkül a történelmi sorrend áll
+(`x-forwarded-for` → `x-real-ip`), de a feloldás **alapja** ilyenkor kimondottan *kikövetkeztetett*,
+nem *deklarált*. Ha egyetlen cím-fejléc sem jön, a kéréskorlát kulcsa **nevezetten nem** látogató-cím
+(`proxy-cim-nelkul:` előtag, `decided: false`), és a szolgáltatás **egyszer** kimondja, mit kell
+beállítani.
+
+**Miért.** Eddig kizárólag az `X-Forwarded-For` számított, és ha az nem jött, a **proxy**
+kapcsolat-címe lett a kulcs. Olyan szolgáltatónál, amelyik más fejlécben adja a címet (a reviewer a
+Railway dokumentációját idézi: `X-Real-IP`), ez azt jelentette, hogy **minden látogató ugyanabba a
+kosárba** került — tehát szerény összforgalom is kizárta az **egész** szolgáltatást. A kéréskorlát
+nem a találgatót fogta meg, hanem a felhasználókat.
+
+**Miért a telepítés dönt.** Mert a konfiguráció az egyetlen, amit a **kérés nem tud hamisítani**. Egy
+fejléc-nevet kitalálni a kérésből lehet; a telepítés állítását nem.
+
+**Amit ez NEM állít.** Nem mértem meg a Railway tényleges fejlécét — a környezet hálózati szabálya a
+szolgáltató dokumentációjának letöltését nem engedi (mérve: `curl: (56) CONNECT tunnel failed,
+response 403`), ezért a `x-real-ip` itt a **reviewer idézete**,
+nem a saját mérésem. Ezért nem is égetem be: a sorrend tartalék, a döntés a deklaráción áll.
+
+**Gépi jel.** `npm run verify:app-findings-r154` (AD: ad1–ad9, köztük a **kár ellenpárja**: a javítás
+előtti feloldó két külön látogatót ugyanarra a kulcsra vitt) · `npm run verify:kuka` (KUKA-376).
+
+---
+
+## D-VS-3183 — AZ ÁLLÍTÁS NEVEZZE MEG AZ UTAT, ÉS AZ IDŐ-BUKÁS NEM TARTALMI ZÖLD (R164/3, saját lelet)
+
+**A döntés.** Ahol két külön kódág **ugyanabba az összegbe** dolgozik, ott az állítás ne az összeget
+mérje, hanem az **utat**. A függő szándék takarításának próbája (`P-K03-intent-expiry`) ezért mostantól
+kimondja, hogy a csak a **fejében** kanonikus romlott sor az **értelmező** ágon tűnik el
+(`odd_rows = 1` és `odd_purged = 1`), nem a szövegesen — a puszta „eltűnt" (`purged = 1`) ezt nem
+mondta meg, mert mindkét ág ugyanabba a számba számol.
+
+**Miért.** A battéria **saját, deklarált** M222 mutációja (a kanonikus alak-minta farkát `%`-ra
+engedi) **túlélt**: a próba zöld maradt rajta. A mutált alakon egy romlott sor, aminek csak a feje
+kanonikus, a szöveges ágra kerül, az időablakon belülre esik — tehát **soha nem törlődik** —, és az
+értelmező ág sem látja, mert az a nem kanonikus sorokat kéri. A sor **örökéletű és láthatatlan**:
+egyetlen jelentésben sem jelenik meg.
+
+**És a mérés rendje.** A túlélést mind a négy külső-ellenőrző lánc jelezte, de a lánc az **időkorláton**
+bukott el a tartalom kimondása **előtt**, a söprés pedig „nem fejeződött be"-ként sorolta. Ezért: a
+nem-nulla kilépés **okát** (idő vagy tartalom) ki kell mondani, mert a „nem futott le" csendben
+„nincs is baj"-ra fordul (KUKA-093). A/B összevetés a korábbi `4a308da` fejen ugyancsak `SURVIVED`-et
+adott — tehát **örökölt, méretlen** állapot, nem a mostani javítások regressziója.
+
+**Amit ez NEM állít.** Nem állítja, hogy a takarítás kódja hibás volt: a hossz-kötött alak-minta
+mindvégig a helyes alakban állt. Azt állítja, hogy **nem volt megmérve**, és hogy egy méretlen
+állítás nem véd.
+
+**Gépi jel.** `npm run verify:v3ref` (az M222 mutáció `CAUGHT`) · `npm run verify:kuka` (KUKA-375:
+három pozitív és egy tiltó minta) · `npm run verify:external-checks` (r79/U04 · r59a/P01 · r81core ·
+r83core pozitív ellenpárjai).
+
+---
+
+## D-VS-3182 — A VÉDETT NÉVTELEN SOROK NYILVÁNTARTÁSA A TÁRBAN ÁLL, NÖVEKMÉNYESEN (R164, külső review, P1)
+
+**A döntés.** A munkamenet-tár maga tartja nyilván, mely **névtelen** sorok hordoznak szerver-oldali
+folytatást — a tényleges írások pillanatában (`markIntent` · `clearIntent`). A felvétel döntése így
+**O(1)**: ha a beszúrt soron kívül nincs nem védett névtelen sor, a beszúrt az egyetlen elvehető —
+nincs adatbázis-kérdés és nincs rendezés.
+
+**Miért.** Az F154-17-es rövidre zárás csak `anonOthers === 0` mellett állt. A támodó **hitelesítés
+nélkül** tölthette tele a tárat védett névtelen sorokkal, és onnantól minden kérés kifizettette a
+teljes védett-lista kérdést és a teljes térkép rendezését — hogy a végén mégis csak a beszúrt sort
+dobjuk el. MÉRVE (a reviewer): 20 000 védett sor mellett 100 felvétel ~2 s. **Ötödször ugyanaz a
+hibaosztály ebben a csomagban:** a védelem költsége a támadással nő (KUKA-290).
+
+**És a bizalom kimondott, a képesség deklarált.** A halmazos takarítás nem nevezi meg, mit törölt —
+ilyenkor az index **nem bízható**, és a felvétel a régi, adatbázist kérdező úton megy (ami
+visszaállítja a bizalmat). A tárat közvetlenül használó hívó pedig **nem** kapja meg az indexet
+(`intentIndex: false` az alapérték): saját lelet, mert az első alakom „bízhatónak" vette az ÜRES
+indexet, és három battéria-állítás azonnal pirosra ment.
+
+**MÉRVE (a jel a HÍVÁS-SZÁM, nem az óra — KUKA-344):** 200 védett sorral telt táron 50 felvétel
+**nulla** védett-lista kérdést futtat; bejelentő nélkül ugyanaz a forgalom **50** kérdést; mind a 200
+védett sor **túléli**; és a halmazos takarítás után a következő felvétel **megkérdezi** a listát.
+Gépi jel: `verify:kuka` (KUKA-374) · `verify:app-findings-r154` (AC: aj1–aj4).
+
+---
+
+## D-VS-3174 — A HELYI-KAPU A TÉNYLEGES GAZDAGÉPRE ÁLL (R164, külső review, P1)
+
+**A döntés.** A destruktív láncok „csak helyi kiszolgálón fut" kapuja a **tényleges** gazdagépet oldja
+fel, a kliens sorrendjével (`effectiveHost`: `?host=` → a cím autoritása → `PGHOST`), és a kapu ebből
+dönt (`localOnlyVerdict`). Ahol a feloldás **nem eldönthető** — `?service=`/`PGSERVICE`,
+`?hostaddr=`/`PGHOSTADDR`, vesszős több-gazdagép, vagy semmi nem nevez meg —, a kapu **zár**.
+
+**Miért.** A régi alak a cím AUTORITÁS-gazdagépét olvasta, a `node-postgres` viszont a `?host=`
+paramétert felülírónak kezeli. MÉRVE: `postgres://u@localhost/db?host=production.example` → a régi
+kapu átengedte, a mai a `production.example` gazdagépet nevezi meg és **zár**.
+
+**Amit ez NEM állít.** Nem teljes libpq-feloldás. Gépi jel: `verify:kuka` (KUKA-366) ·
+`verify:app-findings-r154` (AB: ab8) · `proof:pg-restore-safety`.
+
+---
+
+## D-VS-3175 — A VISSZATÖLTÉS CSAK NULLA KILÉPÉS MELLETT SIKER (R164, külső review, P1)
+
+**A döntés.** `restoreOutcome` **csak** nulla kilépési kód mellett ad `ok: true`. A figyelmeztetés nem
+buktat, a kilépési kód igen; a hiba-sorok számolása megmarad, mert nulla kód mellett is buktat.
+
+**Miért.** A `pg_restore` diagnosztikája lehet **üres** vagy **más nyelvű**, és a PostgreSQL a
+visszatöltést az SQL-hibák **után** is folytatja, a hibák számát a végén jelenti — a nem nulla kilépés
+tehát épp a hiba jele. A részleges tartalmi visszaolvasás ezt nem pótolja (KUKA-216).
+
+**Ez SZŰKÍTI a D-VS-3167-et:** a „nevezetten tolerált nem nulla kilépés" ága **megszűnt**. Gépi jel:
+`verify:kuka` (KUKA-367) · `verify:app-findings-r154` (ab6) · `proof:pg-restore-safety` (E4e · E9b).
+
+---
+
+## D-VS-3176 — AMI ÍR VAGY TÖRÖL, AZ ELDOBHATÓ KÖRNYEZETET ÉS SAJÁT CÉLT KÉR (R164, külső review, P1)
+
+**A döntés.** A `proof:pg-intent` lánc két kapun megy át: **helyi és eldobható** kiszolgáló
+(`localOnlyVerdict`), és **saját, friss adatbázis**, amit a futás létrehoz, a séma a repó saját
+migrációs eszközével megy be, és a végén a futás eldobja — jelre és a kilépési horgon is.
+
+**Miért.** A lánc minden állítás elején korlátlan `DELETE FROM pending_intent`-et futtatott a
+megadott adatbázisban. Staging vagy éles cím mellett egy rutin párhuzam-ellenőrzés **minden**
+felhasználó függő folytatását törölte volna. Ugyanazt a hibát írtam meg máshol, amit a visszatöltési
+kapuban órákkal korábban javítottam (KUKA-227).
+
+**MÉRVE:** a lánc a saját friss adatbázisában 10 állításon **0 eltérést** ad. Gépi jel:
+`verify:kuka` (KUKA-368) · `proof:pg-intent`.
+
+---
+
+## D-VS-3177 — A BIZTONSÁGI FELÜLÍRÁS PONTOS ÉRTÉKET KÉR (R164, külső review, P1)
+
+**A döntés.** A `VS_SAFETY_ALLOW_REMOTE` **csak** a pontos, trimmelt `1` értékre nyitja a helyi kaput.
+Minden más érték — `0` · `false` · bármi — nem felülírás.
+
+**Miért.** A régi alak a felülírás **létezését** kérdezte meg. Minden nem üres sztring igaz értékű,
+tehát a szándék szerint **kikapcsolt** felülírás (`=0`) kapcsolta ki a védelmet — pont annál, aki
+kimondottan ki akarta kapcsolni. Gépi jel: `verify:kuka` (KUKA-369) · `verify:app-findings-r154` (ab8).
+
+---
+
+## D-VS-3178 — AMI „MINDENT" MÉR, ANNAK A LISTÁJA A NÉPESSÉGBŐL JÖN (R164, külső review, P1)
+
+**A döntés.** A böngészős próba három új útmutatója a **tényleges** bejárásba és a **várt
+verdikt-halmazba** is bekerült; a mondatot („minden deklarált bemutató végig lett járva") a
+halmaz-egyenlőség tartja igazzá, nem a kézi darabszám.
+
+**Miért.** A szám kézi pin volt (`toBe(11)`), a bejárási listák pedig az új útmutatókat nem
+tartalmazták — a szám átírása önmagában **hamis zöld** lett volna. Gépi jel: `verify:kuka`
+(KUKA-370) · `verify:browser-gate` → `test:e2e`.
+
+---
+
+## D-VS-3179 — A TITOK-TISZTÍTÓ AZ IDÉZETT ALAKOT IS VISZI (R164, külső review, P2)
+
+**A döntés.** Három alak, egy helyen: aposztróf-idézett · idézőjel-idézett · idézet nélküli. Az
+idézett alaknál a záró idézőjelig megyünk, tehát a belső szóköz is eltűnik; a kulcs-nevek listája
+bővült (`PGPASSWORD` · `PGPASSFILE` · `password` · `passwd` · `pwd`).
+
+**Miért.** A régi érték-osztály **kizárta** az idézőjelet, ezért a megszokott `PGPASSWORD='top secret'`
+alakra egyáltalán nem illett. Gépi jel: `verify:kuka` (KUKA-371) · `verify:app-findings-r154` (ab9).
+
+---
+
+## D-VS-3180 — A KORLÁTOZOTT PÁSZTA RENDEZETT, ÉS A RÉSZLEGESSÉG KIMONDOTT (R164, külső review, P2)
+
+**A döntés.** A nem kanonikus időbélyegű sorok vizsgálata `ORDER BY created_at ASC` szerint megy
+(a legrégebbi és a nem értelmezhető sorok előre), a korlát megmarad, és a válasz **kimondja**, ha a
+köteg tele volt (`odd_capped`).
+
+**Miért.** Rendezés nélkül a `LIMIT` ugyanazt a köteget adhatta: friss, érvényes sorok előtt a
+romlott vagy lejárt sorok **soha** nem kerültek sorra.
+
+**Amit ez NEM állít.** Nem garantál egyetlen pásztán teljes takarítást — azt állítja, hogy minden
+romlott sor **véges** számú pászta után sorra kerül, és a részlegességet kimondjuk. Gépi jel:
+`verify:kuka` (KUKA-372) · `verify:v3ref` · `proof:pg-intent` (i7–i9).
+
+---
+
+## D-VS-3181 — AZ ELŐTAG-EGYEZÉS NEM KÖNYVTÁR-TARTALMAZÁS (R164, külső review, P2)
+
+**A döntés.** Egy út csak akkor van egy könyvtáron belül, ha **azonos** vele, vagy a könyvtár + `/`
+előtaggal kezdődik (`belul`). A repó-gyökér és a HOME ág ugyanezt a feloldót hívja, a hiba-ágak is.
+
+**Miért.** A HOME-felismerés puszta szöveg-kezdetet vizsgált: `/home/user` HOME mellett a
+`/home/user-customer/private/run.jsonl` út „HOME-on belülinek" számított, és egy telepítési vagy
+**ügyfél**-könyvtár neve kikerült a naplóba. Gépi jel: `verify:kuka` (KUKA-373) ·
+`verify:app-findings-r154` (N csoport).
+
+---
+
+## D-VS-3173 — AZ EGYEDI AZONOSÍTÓ SAJÁT SZÁMLÁLÓT KÉR (R164/4)
+
+**A döntés.** Az olvashatóvá tett lapokon a fejezet-azonosító **saját, monoton számlálóból** jön
+(`headingSeq`), nem a tartalomjegyzék hosszából. A tartalomjegyzék továbbra is csak a két felső
+szintet listázza — a két fogalom szétválasztva.
+
+**Miért.** Az azonosító `sz-${toc.length + 1}` volt, a tartalomjegyzék viszont csak a 2. szintig nő.
+MÉRVE az R164-es jelentés lapján: **öt ismétlődő azonosító** 25 fejezetre, és a tartalomjegyzék
+kattintása az ELSŐ egyezésre vitt — egy alfejezetre, nem a megnevezett fejezetre. Az operátor EZT a
+lapot olvassa (KUKA-079), tehát ez a lap funkciójának elvesztése, nem szépséghiba.
+
+**Amit kimondok.** Az ismétlődő azonosítót a `verify:doc-html` ma **nem** kérdezi meg — a
+visszacsúszást a `verify:kuka` tiltó mintája fogja meg (KUKA-365). A hiba nem őrön derült ki, hanem
+azon, hogy a feltöltés előtt **átolvastam** az operátornak szánt lapot.
+
+---
+
+## D-VS-3169 — A LEFEDÉST KIZÁRÓLAGOS JEL MÉRI, ÉS A HÉJ VEZÉRLŐI NEM AZONOSÍTANAK LAPOT (R164/3)
+
+**A döntés.** A lefedési őrben egy HORGONY csak akkor azonosít lapot, ha más lap funkciói **nem**
+deklarálják; a héj vezérlői (profil-menü · kijelentkezés · fiókválasztó · súgó-nyitó · menü-kapcsoló ·
+levél-nyitó) pedig **kimondottan kivett halmaz** (`SHELL_ANCHORS`). A menüpont (`nav-<lap>`) és a
+bemutató kimondott lapja változatlanul azonosít.
+
+**Miért.** A `list-rows`/`list-search` horgonyt öt lap funkciói deklarálják. MÉRVE: egy új raktár-útmutató
+lépése a termékek, a partnerek, a bizonylatok és az `outbox` lapját is „bejártnak" minősítette.
+
+**És amit ez visszamenőleg javít.** Az R158 jelentésemben a „10 lap (gépi) kontra 11 lap (kézi)" eltérést
+úgy zártam le, hogy „az ŐR száma az irányadó". A mérés megmutatta: a **kézi szám volt a helyes**, az
+őrnek volt hamis zöldje. A hiány-alapvonal mindkét irányban frissült, indokkal.
+
+**Amit ez NEM állít.** A hiány nem lett kevesebb: a 20 hiány-kulcs marad, csak az ÖSSZETÉTELE igaz.
+Gépi jel: `npm run verify:kuka` (KUKA-361) · `npm run verify:lefedes` (LR1 · LR2).
+
+---
+
+## D-VS-3170 — A KILÉPÉS A KÖZÖS ÜRÍTŐN MEGY ÁT, ÉS A MEGHÍVÓ JEGYE IS ODA TARTOZIK (R164/3)
+
+**A döntés.** A kijelentkezés nem végez saját, részleges ürítést: a `resetViewCaches()`-t hívja, és a
+meghívó **jegyét** (`state.inviteToken`) is törli.
+
+**Miért.** A rajzolás legelső döntése a jegy. MÉRVE: a meghívott megnyitja a meghívó-képernyőt, kilép,
+és a következő belépő — **más ember** — ugyanazon a meghívó-képernyőn érkezik meg, héj-nézet nélkül.
+A nézethez kötött tárak sem ürültek a kilépéskor, és a futó útmutató sem adódott át ott — ezért hamis
+„eltűnt az elem" üzenettel szakadt meg egy ép átadás közepén.
+
+**Amit ez NEM állít.** Viselkedés-szintű böngészős mérés erre a konkrét szivárgásra ma nincs: a két
+szereplős történet mai útja (rövidítő gomb + újratöltés) nem járja be ezt az ágat. NEVESÍTETT hiány,
+az R158 7/1. tételében megy tovább. Gépi jel: `npm run verify:kuka` (KUKA-362).
+
+---
+
+## D-VS-3171 — AZ IDŐKERET MÉRÉSBŐL JÖN, ÉS A NEM FUTOTT NEM „NEM FELEL MEG" (R164/3)
+
+**A döntés.** A külső-ellenőrző futtató program-kerete **1 800 000 ms** (két battéria-pass + a program
+saját munkája), a saját újrafogalmazásunk mag-próba-kerete **180 000 ms**, és a battéria darabszáma
+**mérésből** jön (`adaptiveUnitPlan`: időtúllépésre finomabbra oszt). A külső fél 15 000 ms-os
+EGYSÉG-korlátját nem lazítjuk — az az ő szava.
+
+**Miért.** A 600 s-os keret egy feltevésen állt. MÉRVE: 253 mutáció és 69 mag-próba mellett egy teljes
+battéria-pass ~8 perc (40 egység × 11 960 ms), és a két passzt futtató `r81core`/`r83core` a kereten
+HALT MEG (`kilépés null · 600 107 ms`) — a lánc IDŐ-okból mondott eltérést olyan programra, aminek a
+tartalmáról semmit nem mért. A kézzel tartott darabszám ÖTÖDSZÖR avult el.
+
+**Amit kimondok: a két korlát egymásnak feszül.** A finomabb darabolás betartja az egység-korlátot, de
+NÖVELI a teljes időt (egységenkénti indulási költség). Ez nem „gyorsabb lett" — ezért hosszú a lánc, és
+ezért nem fut a söprésben. Gépi jel: `npm run verify:kuka` (KUKA-363) · `npm run verify:external-checks`.
+
+---
+
+## D-VS-3172 — A PRÓBA DIAGNOSZTIKÁJA A PRÓBA RÉSZE (R164/3)
+
+**A döntés.** A böngészős tanú a modális panelt bezárja (egy otthonban, a zárás **tényét megmérve**), a
+váltás és a belépés utáni rajzolást **megvárja**, és minden megszakadást a KÉPERNYŐ állapotával együtt
+nevez meg: fiók · menü-elemek · panel nyitva-e · belépési űrlap · meghívó-lap · a következő lépés célja.
+
+**Miért.** Három egymást követő néma elakadás után a napló csak Playwright-belső sorokat írt; a
+`(null)` lépés-azonosító miatt a hiba helye kitalálás kérdése volt. A diagnosztika beépítése után
+EGY futásból kiderült a valódi ok (az előző ember meghívó-képernyője).
+
+**Amit ez NEM állít.** A tanú nem lett szigorúbb: ugyanazt méri, csak megmondja, hol állt meg.
+Gépi jel: `npm run verify:kuka` (KUKA-364) · `npm run proof:demo-walk`.
+
+---
+
+## D-VS-3166 — A VISSZATÖLTÉS CÉLJA FRISS, SAJÁT ADATBÁZIS: A TULAJDONT A LÉTREHOZÁS ADJA (R164/1)
+
+**A döntés.** A `proof:pg-durability` célja alapértelmezésben **generált, egyedi név**, amit a futás
+maga **létrehoz** (`freshTargetName` → `CREATE DATABASE`). A `CREATE` sikere a **tulajdon-bizonyíték**:
+PostgreSQL-ben nincs `IF NOT EXISTS`, tehát ütközésnél 42P04 jön — a siker azt jelenti, hogy a cél
+ELŐTTE nem létezett. **Már létező célhoz a próba nem nyúl**, akkor sem, ha a neve más, mint a forrásnak,
+és akkor sem, ha az előtagot hordozza. A takarítás kizárólag arra a névre áll, amin a `CREATE` sikerrel
+futott; a `VS_RESTORE_TEST_DB` megmarad kimondott választásnak, de csak akkor használható, ha **nem
+létezik** (akkor a próba létrehozza, tehát a sajátja lesz).
+
+**Miért.** A régi alak `DROP DATABASE IF EXISTS <cél>`-t futtatott, és az egyetlen kapu az volt, hogy a
+cél ne EGYEZZEN a forrással. A „nem a forrás" viszont nem azonos azzal, hogy „az enyém": e kettő között
+ott áll minden más adatbázis a kiszolgálón. **A név előtagja önmagában nem tulajdonbizonyíték**
+(chatgpt-v3 szava, R164/1).
+
+**És a feloldó nem az egyetlen védelem.** A forrás nevét a kiszolgáló mondja meg (`SELECT
+current_database()`), a libpq-utánzó feloldó jóslatát ehhez MÉRJÜK, és **eltérésnél megállunk**; a cél
+megnyitása után is visszaellenőrizzük, hogy a kapcsolat oda megy, ahová hittük. A titkok nem mennek a
+parancssorba (a kapcsolat `PG*` környezeti változókban), és minden kiírt szöveg titok-tisztítón megy át.
+
+**Amit ez NEM állít.** Nem Railway-mentés bizonyítéka és nem PITR: helyi, eldobható PostgreSQL 16.15-en
+mért viselkedés. Gépi jel: `npm run verify:kuka` (KUKA-358) · `npm run proof:pg-restore-safety` (E1 ·
+E5 · E7) — a lánc eldobható HELYI kiszolgálót kér, ezért a söprésben nem fut (KUKA-307).
+
+---
+
+## D-VS-3167 — A VISSZATÖLTÉS VERDIKTJE SORONKÉNTI OSZTÁLYOZÁS, NEM RÉSZSZTRING (R164/1)
+
+**A döntés.** A `pg_restore` kimenetét **soronként** osztályozzuk (`restoreOutcome`): a `error:`-sorok és
+a `warning:`-sorok külön számolva. **Egyetlen hiba-sor mellett a verdikt FAIL** — akkor is, ha
+figyelmeztetés is jött, és akkor is, ha a kilépési kód NULLA. Nem nulla kilépés CSAK nulla hiba-sor
+mellett tolerálható, és akkor is NEVEZETTEN. A végső mérce ettől függetlenül a **tartalmi
+visszaolvasás**, ami kötelezően lefut.
+
+**Miért.** A régi alak `if (!/warning/i.test(stderr)) throw e;` volt — bármilyen hiba elnyelődött, ha a
+kimenet bárhol tartalmazta a „warning" szót, és a nem nulla kilépés általánosan PASS-szá vált. MÉRVE
+(E4): egy `warning` ÉS egy `error` sort kiíró, 1-gyel kilépő visszatöltő-helyettesítőn a mai alak FAIL-t
+ad és megnevezi a hiba-sort; a **sikeres pár** is mérve (E4e): csak figyelmeztetés + 1-es kilépés → PASS,
+de a 4a/4b/4c visszaolvasás tényleg lefutott.
+
+**Amit ez NEM állít.** Nem minden `pg_restore`-kimenet osztályozható: ha a kliens máshogy jelöl, a
+szabály nem segít — ezért nem a némaság, hanem a TARTALOM a mérce. Gépi jel: `npm run verify:kuka`
+(KUKA-359) · `npm run proof:pg-restore-safety` (E4 · E4e · E9a–E9d).
+
+---
+
+## D-VS-3168 — A MEGSZAKÍTÁS KEZELŐJE CSAK AKKOR ŐR, HA MEG IS TUD SZÓLALNI (R164/1)
+
+**A döntés.** A próba a mért lépések KÖZÖTT **átadja a vezérlést** (`await megszakithato()` — egy
+`setImmediate`-kör), és a takarításnak **egy otthona** van: a `process.on('exit')` horog, ami MINDEN
+kilépési úton (rendes vég, kivétel, jel) eldobja, ami bizonyítottan a miénk. Amit egy kezelhetetlen
+leállás (SIGKILL) hátrahagy, azt a következő futás **megnevezi**, de nem dobja el.
+
+**Miért.** A jel-kezelőt megírtam, az ellenpróba viszont azt mérte, hogy SOHA nem szólal meg: a 3.
+szakasz végig blokkoló gyermekhívásokban áll (`execFileSync`), a Node a JS jel-kezelőt csak az
+eseményhurok következő körében futtatja, és a szakasz után a próba `process.exit`-tel zárt. A gyerek
+0-s kilépéssel, ZÖLDEN fejezte be azt a futást, amit meg kellett volna szakítani — **a KUKA-207 pontos
+osztálya**: a kezelő létezéséből a működésére következtettem. MÉRVE (E6): a visszatöltés közben a
+folyamatCSOPORTnak küldött SIGTERM után a kilépés 130, a megszakítás-ág lefutott, a saját cél
+eltakarítva, a forrás és az idegen adatbázis érintetlen.
+
+**Amit ez NEM állít.** A SIGKILL ettől sem kezelhető — ezért a maradék-jelentés, és ezért nem töröljük
+az idegen maradékot. Gépi jel: `npm run verify:kuka` (KUKA-360) · `npm run proof:pg-restore-safety`
+(E6a–E6d · E6e1–E6e5).
+
+---
+
+## D-VS-3163 — AZ ÜRES KAPCSOLATI-KULCS FELÜLÍRÁS MEGÁLLÁST AD (R158, a visszatöltési kapu)
+
+**A döntés.** A kapcsolati cím kulcsainál a JELENLÉT és az ÉRTÉK két külön tény (`queryLast`): ha a
+`dbname` kulcs jelen van, és az UTOLSÓ előfordulása ÜRES, a forrás neve **NEM MEGÁLLAPÍTHATÓ**, tehát
+a lánc megáll. Ugyanez a felhasználóra: egy üres `?user=` felülírja a cím felhasználóját, tehát az
+innentől nem jelölt.
+
+**Miért.** A libpq az üres felülírást IS eltárolja, és az üres `dbname`-et a FELHASZNÁLÓ nevére oldja
+fel. MÉRVE: `postgres://source@host/decoy?dbname=` + `VS_RESTORE_TEST_DB=source` → a régi alak
+`decoy`-t mondott forrásnak (`same: false`), tehát a lánc elindult, és a `DROP DATABASE "source"` a
+VALÓDI forrást törölte volna; a mostani alak megáll.
+
+**Amit kimondok: a válasz nem a libpq pontos utánzása, hanem a megállás.** Az ismételt-kulcs
+szabályról (F158-01) azt vettem alapul, hogy az UTOLSÓ, NEM ÜRES érték győz; ez a lelet azt mutatja,
+hogy az üres érték AKTÍV. A két olvasat ott válik el, ahol a `DROP DATABASE` áll — ezért ahol MÁST
+adnának, a név nem tudható. A `w1` battéria-sort ennek megfelelően PONTOSÍTOTTAM (az üres utolsó érték
+most megállás), nem töröltem: az F158-01 eredeti kárát (`dbname=decoy&dbname=source` → `decoy`) ez nem
+oldja vissza.
+
+**Amit ez NEM állít.** Továbbra sem teljes libpq-feloldás: a szolgáltatás-fájl tartalmát nem olvassuk,
+és a rendszer-felhasználót nem tippeljük. Gépi jel: `npm run verify:app-findings-r154` (AA: aa1, aa2
+· W: w1) · `npm run verify:kuka` (KUKA-355).
+
+---
+
+## D-VS-3164 — A JOKER JOGOSULTSÁGÁNÁL A POZITÍV TARTOMÁNY A FELOLDOTT NYELVRE IS „EMLÍTÉS" (R158, LNG-03)
+
+**A döntés.** A `*` joker jelöltjeiből kimaradnak azok a nyelvek is, amelyekre egy KIFEJEZETTEN,
+pozitív súllyal megnevezett REGIONÁLIS tartomány feloldódik (`hu-HU` → `hu`). A `q=0` KIZÁRÁSOK
+pontossága változatlan: azokat továbbra is a szigorú RFC 4647 tartomány-illesztés dönti el.
+
+**Miért.** MÉRVE: `Accept-Language: hu-HU;q=0.5, *;q=1` → a régi alak `hu`-t adott. A joker az
+EMLÍTÉS NÉLKÜLI nyelvekre szól, tehát egy elérhető `en` 1-es súllyal megelőzi a 0,5-es magyart — a
+régi alak NÉMÁN felminősítette a kérő alacsonyabb preferenciáját. A javítás után `en`.
+
+**És csak a TÉNYLEGES feloldás számít.** A `normalizeLanguage` ismeretlen címkére az ALAPNYELVRE esik
+vissza; ha azt említésnek vennénk, egy ismeretlen `xx-YY` „említené" a magyart, és a joker elnémulna.
+MÉRVE: `xx-YY;q=0.5, *;q=1` → `hu` (változatlan), `de-AT;q=0, de;q=1` → `de` (a KUKA-330 szabálya áll).
+
+**Amit ez NEM állít.** Nem teljes RFC 4647 kiterjesztett szűrés, és a joker jelöltjei között továbbra
+is a nyelvi jegyzék sorrendje dönt. Gépi jel: `npm run verify:i18n` ·
+`npm run verify:app-findings-r154` (AA: aa3 — hat eset, köztük négy ellenpár) · `npm run verify:kuka`
+(KUKA-356).
+
+---
+
+## D-VS-3165 — A KANONIKUS IDŐBÉLYEG-ALAK VIZSGÁLATA BETŰRE PONTOS, NEM `LIKE`-ON ÁLL (R158, K03 · SQL-02)
+
+**A döntés.** A `pending_intent` takarításában a kanonikus alak két betűjét (`T` és `Z`) BÁJTRA
+hasonlítjuk (`substr(created_at, 11, 1) = 'T'`, `substr(created_at, 24, 1) = 'Z'`); a `LIKE` innentől
+csak az ALAKOT szűri. Ami így nem kanonikus, az az időpillanat-ágra kerül, és `Date.parse` ítéli meg.
+
+**Miért.** A `node:sqlite` `LIKE`-ja ASCII-ra kis/nagybetű-ÉRZÉKETLEN, a PostgreSQL-é nem. MÉRVE: egy
+importált, FRISS és értelmezhető `2026-10-06t12:00:00.000z` sor SQLite-on KANONIKUSNAK számított, és a
+szöveges összevetés a kisbetűs `t`-t (0x74) a nagybetűs `T`-nél (0x54) nagyobbnak látta — jövőbelinek
+minősítette és TÖRÖLTE (`purged: 1`); PostgreSQL-en ugyanaz a sor az időpillanat-ágra ment és
+megmaradt. A takarítás viselkedése tehát a TÁROLÓTÓL függött, és a folytatás CSAK SQLite-on veszett el.
+
+**Mérve a javítás után, öt soron:** a két FRISS (kis- és nagybetűs) marad, a két lejárt és a romlott
+megy — `purged: 3`, ebből a nem kanonikus ágról 2.
+
+**Amit ez NEM állít.** A mérés `node:sqlite` tárolón fut; a PostgreSQL-oldali viselkedést a `proof:pg-*`
+láncok mérnék, azok valódi kiszolgálót kérnek (`KUKA-307`). A `created_at` oszlop alakját a séma
+továbbra sem kényszeríti. Gépi jel: `npm run verify:v3ref` (P-K03-intent-expiry (k) ág + M223) ·
+`npm run verify:app-findings-r154` (AA: aa4) · `npm run verify:kuka` (KUKA-357).
+
+---
+
+## D-VS-3162 — A DIAGNOSZTIKAI UTAK IS A TISZTÍTÓN MENNEK, ÉS A KÉTÉRTELMŰSÉG LISTÁJA VÁLASZTHATÓ MARAD (R158, a fogyasztás-export)
+
+**A döntés.** A fogyasztás-exportáló MIND A NÉGY diagnosztikai út-kiírása a `safePath` tisztítón megy
+(`safeErrPath`), és a tisztító EGY feloldó marad, egy paraméterrel: az exportban „nem exportált", a
+hiba-üzenetben „ELREJTVE". A kétértelműség listája a jelöltet a `--projects` GYÖKÉRHEZ KÉPEST nevezi
+meg (`pickPath`).
+
+**Miért.** Az előző körben a leltár `source.path` mezőjét vezettem át a tisztítón (`KUKA-343`), a
+hiba-ágak viszont nyers út-kiírással mentek. MÉRVE: egy repón ÉS HOME-on kívüli `--transcript` esetén
+a régi alak kiírta a teljes abszolút utat (a mérésben `…/telepites/ugyfel_titkos_nev/nincs.jsonl`), a
+mostani csak az ELREJTVE jelzést. A hiba-ág épp az az út, ami akkor szólal meg, amikor valami nem
+sikerült — tehát pont akkor beszél a legtöbbet, amikor a legkevésbé figyelünk rá.
+
+**A KÉT SZABÁLY EGYÜTT, mert ütköztek.** A `KUKA-319` azt kéri, hogy a kétértelmű átirat hibája
+NEVEZZE MEG a jelölteket — különben az operátor nem tud választani (`KUKA-201`). A puszta tisztítás
+ezt elvette volna (mindkét jelölt „ELREJTVE"-ként jelent meg, és a `verify:app-findings-r154` n6 sora
+JOGGAL lett piros). A megoldás nem az egyik szabály feladása: a jelölt a `--projects` gyökérhez képest
+van megnevezve — azt az utat a HÍVÓ adta meg, tehát nem mond neki újat, a választás viszont működik.
+MÉRVE: a lista megnevezi mindkét jelöltet, a gyökeret nem írja ki.
+
+**Amit ez NEM állít.** Nem titkos-őr: a `safePath` három esetet ismer (repón belül · HOME-on belül ·
+azon kívül), és a HOME-on belüli utat `~`-os alakban továbbra is kiírja — az operátor saját gépén ez
+szándékos. Gépi jel: `npm run verify:app-findings-r154` (Z: z8–z10) · `npm run verify:kuka`
+(KUKA-354). A böngésző-kapu ehhez a javításhoz NEM futott újra, és nem is kell: a változás a
+`tools/` alatti exportálóban van, a v3app FUTTATOTT kódját nem érinti.
+
+---
+
+## D-VS-3159 — AZ ÁLLAPOT-ÍRÁS KAPUJA A HASZNÁLAT PILLANATÁT OLVASSA, ÉS MEG IS ÚJÍTJA A SORT (R158, SES-01)
+
+**A döntés.** A `materialize` saját, FRISS időbélyeget vesz (`hasznalatkor`), azzal kérdezi a
+munkamenet-tárat, és `touch`-csal meg is újítja a sort. A kérés BELÉPŐ kikeresés+érintés párja
+változatlanul a kérés egyetlen idejét (`requestNow`) használja — azt a `KUKA-314` kötötte meg.
+
+**Miért.** A kapu a kérés ELEJI pillanattal kérdezett. Egy lassan feltöltött törzs átvihet a
+tétlenségi korláton: a tár a RÉGI pillanatra még élőnek mondta a sort, a kezelő megírta a
+`pending_intent` sort, és **200**-at adott — a következő kérés viszont a VALÓDI időt mérte, eldobta a
+munkamenetet, és a most írt sort törölte. MÉRVE élő HTTP-n (400 ms korlát, 700 ms-os törzs):
+`200 {"ok":true}` + egy sor, majd a következő kérés után NULLA sor. Ez pontosan az, amit az R158/1
+tiltott: nincs hamis siker, és nincs félig végrehajtott tartós művelet. A javítás után ugyanez a
+kérés `409 session_gone`-t kap, és nem keletkezik sor.
+
+**A KÉT SZABÁLY EGYÜTT, kimondva.** „EGY DÖNTÉS — EGY IDŐ" (`KUKA-314`) NEM azt jelenti, hogy „egy
+KÉRÉS — egy idő". Egy várakozó kérés KÉT döntést hoz KÉT pillanatban: a belépő kikeresés a kérés
+elejéhez tartozik, az állapot-írás kapuja a HASZNÁLAT pillanatához. A két javítás tehát nem
+fordítja vissza egymást; a közös szabály: **minden döntés a SAJÁT pillanatát olvassa, és azon belül
+csak egyet.**
+
+**Amit ez NEM állít.** Nem ad új toleranciát a tétlenségi korlátnak: a korláton túlvivő kérés
+NEVEZETTEN elakad. A `touch` csak azt a sort újítja meg, amelyik a kapun át is ment. Gépi jel:
+`npm run verify:app-findings-r154` (Z: z1, z2) · `npm run verify:kuka` (KUKA-351).
+
+---
+
+## D-VS-3160 — A TÉTLENSÉGI PÁSZTA RITKÍTÁSA A SÖPRÉSBEN DŐL EL, EGY HELYEN (R158, SES-01)
+
+**A döntés.** A tétlenségi pászta a `sweep`-en belül dönti el, hogy esedékes-e
+(`now >= nextIdleSweep`, percenként egyszer), és a hívó már csak azt mondja meg, hogy VAN ok söpörni
+(plafon VAGY esedékes pászta). A PLAFON változatlanul azonnali.
+
+**Miért.** A ritkítás eddig a HÍVÓBAN állt, ezért csak a plafon alatti úton érvényesült: a plafon
+fölötti úton a pászta MINDIG végigjárta a teljes tárat — azon az ágon is, ahol az O(1) rövidre zárás
+(`F154-17`) rögtön utána eldobja a jövevényt. Az ELUTASÍTOTT felvétel így `O(maxSessions)`-t
+fizetett, alapértéken 20 000 sort, és mindezt a hitelesítési kapu ELŐTT, tehát cím-rotáló,
+hitelesítés nélküli forgalom közvetlenül ránk tudta terhelni. MÉRVE 300 elutasított felvétellel:
+5 000-es plafon **0,113 ms/kérés** · 20 000-es **0,622** · 80 000-es **1,432**. A javítás után
+20 000-es plafonnál **0,0064 ms/kérés**, és a kérésenkénti költség négyszeres táron sem nő
+négyszeresére.
+
+**Amit ez VESZÍT, kimondva.** Egy percen belül a kiszorítás olyan névtelen sort is választhat, amit a
+pászta amúgy lejártként elvitt volna. A kár elhanyagolható, mert az áldozat-sorrend a LEGRÉGEBBEN
+LÁTOTT sort veszi előbb — a lejárt sor pedig épp a legrégebben látott —, és a tétlenségi korlát
+helyességét az OLVASÁS is érvényesíti (`KUKA-296`). Gépi jel: `npm run verify:app-findings-r154`
+(Z: z3 a viselkedés idő-mérés nélkül, z3b az ellenpár a plafonra, z4 a skála-független költség-arány)
+· `npm run verify:kuka` (KUKA-352).
+
+---
+
+## D-VS-3161 — AZ IDŐBÉLYEG KANONIKUS UTC ALAKBAN SZÜLETIK, ÉS A NEM KANONIKUS SORT IDŐPILLANATKÉNT ÍTÉLJÜK MEG (R158, K03)
+
+**A döntés.** A `rememberIntent` a pillanatot UTC `toISOString()` alakban tárolja, és a nem
+értelmezhető órára NEVEZETTEN elakad. A `purgeExpiredIntents` két lépésben dolgozik: a KANONIKUS
+(`____-__-__T__:__:__.___Z`) sorokon egy halmaz-utasítás (ott a szöveges rendezés AZONOS alakot
+hasonlít, tehát érvényes), a NEM kanonikus sorokat pedig korlátos darabszámban (`LIMIT`) kiolvassa és
+`Date.parse`-szal, IDŐPILLANATKÉNT ítéli meg.
+
+**Miért.** Az előző alak MINDEN sort szövegesen vetett össze a `Z`-s határokkal. Egy eltolásos alak
+(`2026-10-06T01:00:00+02:00`) ugyanazt a PILLANATOT jelenti, mint a `…T23:00:00.000Z`, szövegként
+viszont „nagyobb" — ezért egy FRISS sor JÖVŐBELINEK minősült, és a takarítás TÖRÖLTE. MÉRVE ugyanazzal
+az órával írva és takarítva: a sor azonnal eltűnt. A javítás után ugyanez a sor megmarad, és négy
+importált sorból a romlott, a lejárt és a jövőbeli megy, a friss eltolásos marad.
+
+**Amit kimondok a saját munkámról.** Ezt a hiba-osztályt a repó MÁR egyszer kivezette: a
+`P-INVITE-window` mag-próba épp azt méri, hogy a MEGHÍVÓ lejárata IDŐ-összehasonlítással dől el, nem
+szöveggel. A `KUKA-347` javításomban ugyanazt a szöveges összevetést vittem be a szomszéd táblára —
+és a kár itt a legrosszabb fajta volt: nem elmaradt védelem, hanem TÖRLÉS.
+
+**Amit ez NEM állít.** A `created_at` oszlop alakját a séma továbbra sem kényszeríti (`TEXT NOT
+NULL`): a kanonizálás az ÍRÁS oldalán áll, a tárolóban nincs megkötés — a migrációs lánc ebben a
+körben nem nyílt ki. A korlátos (`LIMIT`) második lépés egy importált, csupa nem kanonikus sorból álló
+táblát több takarítási körben visz el, nem egyben. Gépi jel: `npm run verify:v3ref`
+(P-K03-intent-expiry (i) és (j) ág + M220/M221/M222 + az újra-horgonyzott M209/M217) ·
+`npm run verify:app-findings-r154` (Z: z5–z7) · `npm run verify:kuka` (KUKA-353).
+
+---
+
+## D-VS-3157 — A FOLYTATÁS TÜRELMI IDEJE A MUNKAMENET ÉLETÉBŐL SZÁRMAZIK, A 24 ÓRA PLAFON (R158, K03)
+
+**A döntés.** A függő meghívó-szándék ténylegesen kiszolgálható türelmi idejét EGY feloldó adja:
+`intentTtlMs({ sessionIdleMs, ceilingMs })` = a kimondott PLAFON (24 óra) és a munkamenet tétlenségi
+korlátjának KISEBBIKE. A kiszolgáló a sajátját adja át (`sessionIdleMs: limits.idleMs`), és MINDEN
+olvasó, valamint a halmazos takarítás is EZEN a kapun megy (`folytatasa(sessionId)`). A hiányzó
+tétlenségi korlát NEVEZETTEN elakad — nincs néma visszaesés a plafonra.
+
+**Miért.** A `pending_intent` sort KIZÁRÓLAG a munkamenet azonosítója találja meg, a munkamenet pedig
+12 óra tétlenség után kiesik, és a kiesés a sort is törli (`onEvicted`). A kimondott 24 óra tehát a
+MÁSODIK 12 órában elvileg sem teljesülhetett: aki 13 óra múlva tért vissza, annak a belépése
+folytatás NÉLKÜL sikerült, miközben a kódban és a szerződés `limit` szövegében is „24 óra" állt.
+MÉRVE a javítás előtt és után: a 13 órás ÁRVA sort a régi, 24 órás mérce a táblában hagyta
+(`takarítva: 0`), a mostani elviszi (`takarítva: 1`), a 11 órás pedig marad. A HATÁRON mérve mindkét
+irány: 12 órás munkamenetnél a tényleges érték 12 óra, egy 48 órásnál a 24 órás plafon fog.
+
+**A választott irány, és a VESZTESE.** A reviewer két irányt ajánlott; a munkamenet megnyújtása
+helyett a RÖVIDÍTÉST választottam. Ok: a `pending_intent` sort belépés ELŐTT, NÉVTELENÜL is létre
+lehet hozni, tehát a hosszabb munkamenet-élet egy látogató szerver-oldali helyét duplázná — pont azt
+a felületet növelve, amit a KUKA-300/302/329 szűkített —, és a tétlenségi söprésnek munkamenetenként
+a tárolót is kérdeznie kellene (KUKA-290). A rövidítés VESZTESE: a folytatás a 12. óra után nem
+él tovább. Ez eddig sem élt — most a SZÖVEG mondja ezt, nem az ellenkezőjét.
+
+**Amit ez NEM állít.** Nem hosszabbítja meg egyetlen folytatást sem, és nem takarítja ki
+visszamenőleg a korábban keletkezett árva sorokat. Gépi jel: `npm run verify:v3ref`
+(P-K03-intent-expiry (h) ág + M218/M219 mutáció) · `npm run verify:app-findings-r154` (Y: y6–y8) ·
+`npm run verify:kuka` (KUKA-350).
+
+---
+
+## D-VS-3158 — A KAPCSOLATI CÍM JELENTÉSÉHEZ A KÖRNYEZET IS HOZZÁTARTOZIK (R158, a visszatöltési kapu)
+
+**A döntés.** A forrás adatbázis nevét a `tools/lib/vs_pg_target.mjs` feloldója a libpq TELJES
+sorrendjében adja meg, és a CÍM megelőzi a KÖRNYEZETET: query `dbname` → út → `PGDATABASE` → query
+`user` → cím-felhasználó → `PGUSER`. Ha egyik sem nevez meg, a név NEM TUDHATÓ (a kliens a
+rendszer-felhasználóból veszi), tehát a `sameDatabase` óvatosan megáll. A szolgáltatást a környezet
+is megnevezheti (`PGSERVICE`): erre ugyanaz a válasz, mint a `?service=`-re. A környezet INJEKTÁLHATÓ
+paraméter, az alapértelmezése a futó folyamat környezete.
+
+**Miért.** A `pg_dump` a környezetet ÖRÖKLI. MÉRVE a reviewer példáján: `postgres://decoy@host` +
+`PGDATABASE=source` esetén a régi alak `decoy`-t mondott forrásnak, tehát a `VS_RESTORE_TEST_DB=source`
+„eltér"-t kapott, a lánc elindult, és a végén álló `DROP DATABASE "source"` a VALÓDI forrást
+törölte volna. Most ugyanez `source` → `same: true` → megállás; az ellenpár (ugyanaz a cím környezet
+nélkül) továbbra is jogosan indul.
+
+**Amit kimondok, mert nem jó irányba tévedni: a KORÁBBI mondatom nem volt igaz.** A KUKA-341-ben azt
+írtam, hogy a környezeti változók „nincsenek benne, és pont ezért esik minden bizonytalanság az
+óvatos ágra". Nem esett: a felhasználó-alapú tartalék NEVET adott, a név pedig ELDÖNTÖTT válasz —
+a kapu nem megállt, hanem továbbengedett. Egy kimondott hiány csak akkor védelem, ha a kód tényleg
+megáll (KUKA-020 · KUKA-050).
+
+**Amit ez NEM állít, és ami TUDATOSAN óvatosabb a kelleténél.** Ez nem teljes libpq-feloldás: a
+szolgáltatás-fájl tartalmát NEM olvassuk (más gépen, más engedélyekkel áll, és a `PGSERVICEFILE`
+is átállítható), és a rendszer-felhasználó nevét sem tippeljük meg. Ezért `?service=` vagy
+`PGSERVICE` jelenlétében a lánc akkor is megáll, ha a cím KIMONDOTTAN megnevezi az adatbázist (ott a
+szolgáltatás-fájl már nem szólhatna bele) — ez a tévedés a NEM TÖRLÉS irányába esik, és így
+szándékos. Gépi jel: `npm run verify:app-findings-r154` (Y: y1–y5) · `npm run verify:kuka`
+(KUKA-349). A `proof:pg-durability` lánc valódi PostgreSQL-t kér, ezért a söprésben nem fut
+(KUKA-307).
+
+---
+
+## D-VS-3100 — A VÉDELEM KÖLTSÉGE KORLÁTOS: A KÉRÉSKORLÁT SORA VÁGOTT, A DARABSZÁM KIMONDVA ALSÓ KORLÁT (R154, NET-04)
+
+**A döntés.** A `makeRateLimiter` egy címhez a LEGFRISSEBB `max + 1` kérés-bélyeget tartja meg, és a
+vágás után a verdikt kimondja (`capped: true`), hogy a darabszám ALSÓ KORLÁT, nem pontos szám.
+
+**Miért.** A korábbi alak MINDEN bélyeget megtartott, és kérésenként végigszűrte a sort. MÉRVE:
+60 000 kérés egy címről `count=60000` 240-es korlát mellett és **28 987 ms** tiszta CPU; 120 000
+kérés **225 327 ms** — négyszeres kérésre 7,8-szoros idő, vagyis a költség KVADRATIKUS. Egyszálú
+folyamatban a kéréskorlát maga állítja meg a szolgáltatást, miközben a 429-ek helyesen mennek ki,
+tehát a napló „megfogtuk"-ot mutat. A javítás után ugyanaz a 60 000 kérés **105 ms** (276×), a
+verdikt pedig BETŰRE ugyanaz: a korlátig engedünk, utána tiltunk, és a lejárt ablak után újra
+engedünk.
+
+**Amit ez NEM állít.** Nem elosztott kéréskorlát (továbbra is példányonként számol), és nem
+teljesítmény-hangolás: a próba 5 másodperces plafonja a KVADRATIKUS nagyságrendet zárja ki, nem a
+gépet méri. Gépi jel: `npm run verify:app-findings-r154` (A: a1–a6) · `npm run verify:kuka`
+(KUKA-290).
+
+---
+
+## D-VS-3101 — A HIBÁS BEMENET NEVEZETT 4xx, NEM 500: A HIBÁS SZÁZALÉK-ESCAPE (R154, HTP-01)
+
+**A döntés.** A statikus kiszolgáló útfeloldása `try`-ban áll, és a hibás százalék-escape NEVEZETT
+`400 path_malformed` + `refused_by: "static_path"` választ kap.
+
+**Miért.** MÉRVE: `GET /%`, `GET /%zz`, `GET /a%E0%A4%A` mind **500 `internal_error`** volt, mert a
+`decodeURIComponent` `URIError`-ja a kérés-ciklus programhiba-ágára esett. A hiba a KÉRÉSBEN volt, a
+válasz mégis a SZOLGÁLTATÁST mondta hibásnak: ez terheli a hibakeretet, riaszt, és elrejti a valódi
+5xx-eket. A határ szerződése nevezett elutasítást ír elő.
+
+**Amit ez NEM állít.** A kiszolgálás nem szűkült: a létező lap 200, a nem létező 404 `not_found`, az
+útvonal-átlépés 403 `path_rejected` — mindhárom ellenpár mérve. Gépi jel:
+`npm run verify:app-findings-r154` (B: b1–b4) · `npm run verify:kuka` (KUKA-291).
+
+---
+
+## D-VS-3102 — A MUNKAMENET-TÁR KORLÁTOS: TÉTLENSÉGI IDŐ ÉS PLAFON, A NÉVTELEN ESIK ELŐBB (R154, SES-01)
+
+**A döntés.** A munkamenet-tár NEVEZETT feloldó (`makeSessionStore`) két kimondott korláttal:
+TÉTLENSÉGI IDŐ (alap 12 óra) és PLAFON (alap 20 000 sor). A plafon fölött a LEGRÉGEBBEN LÁTOTT sorok
+mennek előbb, és a NÉVTELENEK ELŐBB, mint a belépettek; a belépett munkamenet kiszorítása NAPLÓBAN
+nevezett sor. Mindkét korlát környezetből állítható (`VS_APP_SESSION_MAX` ·
+`VS_APP_SESSION_IDLE_MS`).
+
+**Miért.** A korábbi alak sima `Map` volt: MINDEN süti nélküli kérés új sort tett bele, és törölni
+egyedül a be- és kilépés törölt. MÉRVE: 10 000 süti nélküli `GET /api/me` után a tár 10 000 sort
+tartott — a növekedés soha nem áll meg magától. Lejárat SEMMILYEN nem volt, tehát egy ellopott
+munkamenet-süti időkorlát nélkül használható volt. A kiszorítás sorrendje azért jogosultsági döntés,
+mert az elárasztás NÉVTELEN sorokat gyárt: a kár ott keletkezik, tehát az őr ott áll.
+
+**Amit ez NEM állít.** Nem osztott munkamenet-tár (példányonkénti, memóriabeli — újraindítás
+nullázza), és a 12 órás tétlenségi idő nem mért optimum, hanem kimondott alapérték. A környezeti
+felülírás NEM kényelmi kapcsoló: egy 20 000-es plafont élő HTTP-n másképp nem lehet MEGMÉRNI
+(KUKA-207). Gépi jel: `npm run verify:app-findings-r154` (C/1: c1–c6 · C/2: c7–c10) ·
+`npm run verify:kuka` (KUKA-292).
+
+---
+
+## D-VS-3104 — A TALÁLAT TÉNYE A FELOLDÓBÓL JÖN, MINDEN BEMENETI ÚTON (R154, LNG-03)
+
+**A döntés.** Az `Accept-Language` fejléc választását és a TALÁLAT TÉNYÉT egy feloldó adja
+(`pickFromAcceptLanguage` → `{ code, matched }`); a `resolveLanguage` ezt HASZNÁLJA, nem pótolja. A
+`parseAcceptLanguage` szerződése szándékosan változatlan (a kódot adja, szövegként).
+
+**Miért.** A `matched` mező egyetlen dolga megmondani, hogy a hívó a KÉRT nyelvet kapta-e, és a
+fejléc-úton HARDKÓDOLT `true` volt. MÉRVE: `Accept-Language: fr-FR` → `code: hu, matched: true`,
+miközben UGYANEZ a kérés `explicit: 'fr'`-ként helyesen `matched: false`. Egy kérdés két úton két
+választ adott. Az ok egy szinttel lejjebb volt: az alapnyelv visszatérése kétértelmű — ugyanaz a
+„magyart kért és magyart kapott" és a „franciát kért, nincs francia, ezért magyar".
+
+**Amit ez NEM állít.** Nem fordítás-minőségi állítás, és a nyelvjegyzék nem változott. A hiba
+felhasználói hatása MA nulla, mert a `matched`-et továbbadó `langMemory.mjs`-re ma nincs fogyasztó —
+de a mező pont erre a kérdésre való, és a következő fogyasztó némán kapott volna hamisat. Gépi jel:
+`npm run verify:app-findings-r154` (D: d1–d4, d8) · `npm run verify:kuka` (KUKA-294).
+
+---
+
+## D-VS-3106 — AZ OLVASÁS IS KAPU: A LEJÁRT MUNKAMENET NEM ADHATÓ VISSZA (R154, SES-01 javítása)
+
+**A döntés.** A munkamenet-tár `get`-je (és rajta keresztül a `has` és a `touch`) lejáratot MÉR: a
+lejárt sort nem adja vissza, és el is dobja. Tudatosan mellékhatásos olvasó — a tár lejárattal bíró
+tár, nem `Map`.
+
+**Miért.** A KÜLSŐ REVIEW (Codex) mért leletére: a `get` lejárat nélkül adta vissza a sort, a
+kérés-ciklus rögtön `touch`-olta, és a tétlenségi söprés csak ÚJ sor beszúrásakor futott. Mérve (1 s
+korlát, 5 s tétlenség): a `get` visszaadta, a `touch` után a sor megmaradt. Egy csendes példányon a
+korlát SOHA nem lépett működésbe, egy ellopott süti pedig korlátlanul megújítható volt — pont az az
+eset, amiért a D-VS-3102 a korlátot bevezette.
+
+**Amit ez NEM állít.** A korlát ALATT semmi nem változott: a sor megmarad, és az érintés
+meghosszabbítja (ellenpár mérve). Gépi jel: `npm run verify:app-findings-r154` (E: e1–e3) ·
+`npm run verify:kuka` (KUKA-296).
+
+---
+
+## D-VS-3107 — A FOLYTATÁST HORDOZÓ NÉVTELEN MUNKAMENET KÜLÖN OSZTÁLY — DE NEM MENTESÜL (R154)
+
+**A döntés.** A kiszorítás HÁROM osztályt ismer: (0) folytatást nem hordozó névtelen · (1) folytatást
+hordozó névtelen · (2) belépett — ebben a sorrendben. A tényt a kanonikus otthona adja
+(`SELECT session_id FROM pending_intent`), nem egy kézzel tett bélyeg. **A védettség SORRENDET ad,
+mentességet NEM:** a plafon minden osztályra áll.
+
+**Miért.** A KÜLSŐ REVIEW (Codex) mért leletére: a belépés előtti meghívó-szándék a munkamenet
+azonosítójához kötött, és a kiszorítás minden névtelen sort szemétnek vett. Mérve élő HTTP-n: 300
+névtelen kérés után a meghívott munkamenete kiesett, a böngésző új azonosítót kapott, a DB-sor pedig
+elérhetetlenül ott maradt.
+
+**Miért nem mentesség.** A `POST /api/invites/pending` HITELESÍTÉS NÉLKÜL ír a `pending_intent`
+táblába. Ha a védettség kivonna a plafon alól, egy elárasztó minden saját sorát védetté tehetné, és a
+memória-korlát megkerülhető lenne — a védelem nyitná a kaput. Ezt a BIZTONSÁGI ellenpár méri (e9):
+minden sor „védett" mellett a plafon mégis áll.
+
+**Amit ez NEM állít.** Az árva `pending_intent` sorok takarítása (lejárat szerint) továbbra is nyitott
+kérdés — a tábla ma csak `created_at`-ot tárol, és a `resumeIntent` nem ellenőriz lejáratot
+(D-VS-3007 nevezett függője). Ez a döntés annyit ér el, hogy ÚJ árva sort a kiszorítás nem gyárt.
+Gépi jel: `npm run verify:app-findings-r154` (E: e6–e9) · `npm run verify:kuka` (KUKA-297).
+
+---
+
+## D-VS-3110 — A VÉDELMI KÉRDÉS HATÓKÖRÉT A DÖNTÉS SZABJA MEG, ÉS AZ ÁRVA ÁLLAPOT TAKARÍTÓDIK (R154)
+
+**A döntés.** A munkamenet-tár védett-lista kérdése a JELÖLTEKRE szűkítve, 500-as darabokban megy
+(`protectedIds(candidates)`), és a tár BEJELENTI a kiszorított azonosítókat (`onEvicted`), amire a
+hívó törli az árván maradt `pending_intent` sorokat. A tár nem ismeri a táblákat — a takarítás a hívóé.
+
+**Miért.** A KÜLSŐ REVIEW (Codex) mért leletére, és ez a csomag egyik legfontosabb tanulsága:
+**ugyanazt a hibát követtem el, amit ebben a csomagban én magam vezettem ki.** A D-VS-3100 (KUKA-290)
+kimondta, hogy a védelem költsége nem nőhet azzal, amivel szemben véd — hat javítással később,
+ugyanabban a fájlban, a védett-lista a TELJES `pending_intent` táblát olvasta be minden söprésnél.
+Abba pedig a `POST /api/invites/pending` HITELESÍTÉS NÉLKÜL ír. Mérve: 400 hitelesítés nélküli kérés
+után a tár 19 sornál állt, a tábla 400-nál. A javítás után: 120 kérés → a tábla 36 sornál áll.
+
+**Amit ez NEM állít.** A `pending_intent` sorok LEJÁRAT szerinti takarítása továbbra is nyitott
+(D-VS-3007 nevezett függője); ez a döntés annyit ér el, hogy a tábla a TÁRRAL EGYÜTT korlátos. Gépi
+jel: `npm run verify:app-findings-r154` (G: g1, g6, g7) · `npm run verify:kuka` (KUKA-300).
+
+---
+
+## D-VS-3111 — A ROTÁCIÓ ELŐBB ADJA VISSZA A HELYÉT, AZTÁN FOGLAL (R154)
+
+**A döntés.** A belépés a függő szándék kiolvasása után TÖRLI a saját régi munkamenetét, és csak
+azután születik a rotált azonosító.
+
+**Miért.** A KÜLSŐ REVIEW (Codex) mért leletére: a korábbi sorrend előbb szúrt be, és telt táron a
+beszúrás egy IDEGEN belépett munkamenetet szorított ki — a saját régi sor törlése pedig utána mégis
+felszabadított egy helyet. Mérve: 4 belépett sor 4-es plafonon, újra-belépés → egy idegen kiesett, a
+tár 3-nál állt. Egy embert feleslegesen léptettünk ki.
+
+**Amit ez NEM állít.** A kiolvasás sorrendje nem változott: a `resumeIntent` továbbra is a törlés
+ELŐTT fut, mert a függő meghívó-szándékot a régi azonosítóról kell áthozni. Gépi jel:
+`npm run verify:app-findings-r154` (G: g5) · `npm run verify:kuka` (KUKA-301).
+
+---
+
+## D-VS-3114 — A NULLA BÁJT TILALMA EGY FELOLDÓBAN ÁLL, ÉS MINDEN SZÖVEGES TÍPUS HÍVJA (R154)
+
+**A döntés.** A nulla bájt tilalma önálló feloldó (`nulCheck`), amit mind a négy szöveges típus hív:
+`string` · `nonempty_string` · `nonempty_text` · `email_address`. Az e-mail cím azonosító-fajta érték,
+ezért ott a teljes vezérlő-karakter-tilalom áll. A `secret_string` kimarad (scrypt lenyomat).
+
+**Miért.** A KÜLSŐ REVIEW (Codex) mért leletére: az ISC-02-ben a tilalmat KÉT típusba írtam be
+kézzel, az `email_address` viszont a saját ellenőrzőjét futtatja. Mérve: a
+`{"email":"a\u0000@b.test"}` törzsre a `validateRequest` `ok: true`-t adott — tehát pont az a
+tároló-eltérés maradt nyitva (SQLite eltárolja, PostgreSQL elutasítja), aminek a megszüntetése az
+ISC-02 CÉLJA volt. Gépi jel: `npm run verify:app-findings-r154` (I: i1–i3) · `npm run verify:kuka`
+(KUKA-304).
+
+---
+
+## D-VS-3115 — A TELT PÉLDÁNY NEVEZETTEN MOND NEMET, NEM SZOLGÁL KI MUNKAMENET NÉLKÜL (R154)
+
+**A döntés.** A `newSession` kimondja, felvette-e a tár (`admitted`). Ha nem, a kérés-ciklus
+`503 at_capacity` + `Retry-After` választ ad azokra az utakra, amiknek munkamenet kell; a statikus lap
+továbbra is kimegy, de süti nélkül.
+
+**Miért.** A KÜLSŐ REVIEW (Codex) **P1** leletére, ami a D-VS-3112 következménye: telt, csupa belépett
+sorral teli táron a friss névtelen munkamenet azonnal kiesik — a kérés viszont lefutott, a süti
+kiment, és egy állapotíró kezelő olyan azonosítóra írt, ami nincs a tárban. Mérve: 30 süti nélküli
+állapotíró kérés → **30 árva** adatbázis-sor, és a takarítás már lefutott, mielőtt a sor megszületett.
+A rendszer sikert jelentett egy olyan hatásra, amit senki nem tud visszaolvasni.
+
+**Amit ez NEM állít.** A 503 egy VALÓDI korlát kimondása, nem hibakezelés: ha a staging rendszeresen
+ezt adja, a plafon kevés, és a `VS_APP_SESSION_MAX` emelése a válasz. Gépi jel:
+`npm run verify:app-findings-r154` (I: i7, i8) · `npm run verify:kuka` (KUKA-305).
+
+---
+
+## D-VS-3118 — A KISZOLGÁLÁS IDEJÉRE VÉDETT MUNKAMENET, A KAPU HELYETT (R154, SES-03)
+
+**A döntés.** Amíg egy kérés egy munkamenetet kiszolgál, annak a sora VÉDETT (`sessions.pin(id, token)`),
+és a kérés végén minden pinje elenged (`unpinAll` a `finally` ágon). Az `admitted` mező és a
+`503 at_capacity` ág KIKERÜLT — egy mechanizmus kettő helyett.
+
+**Miért.** A KÜLSŐ REVIEW (Codex) két újabb leletére, amik a D-VS-3115 ÁRAI voltak:
+· **P1:** a felvétel ellenőrzése egyszeri volt, a kérés viszont `await readBody`-n megszakad. Mérve
+`maxSessions=2` mellett: a lassú, darabolt POST **200**-at adott, és ÁRVA `pending_intent` sort hagyott.
+· **P2:** az átfogó `503` a `GET /api/verify`-t is elzárta, ami munkamenetet nem is használ. Mérve
+csupa belépett sorral teli táron: a megerősítő levél hivatkozása **503** — a felhasználó nem tudta
+megerősíteni a fiókját, és a token közben lejárhat.
+
+A tanulság nem „hiányzott egy ellenőrzés", hanem hogy a munkamenet létezését FELTEVÉSKÉNT kezeltem, és
+a feltevést előbb ellenőrzéssel, aztán kapuval akartam pótolni.
+
+**Amit ez NEM állít.** A plafon nem pontos korlát: a tár a plafon fölött lehet annyival, ahány kérés
+ÉPP FUT, és a plafon a KÖVETKEZŐ beszúrásnál érvényesül — tehát egy sorral túl is lóghat, amíg új kérés
+nem jön. Ez korlátos és kimondott tűrés. A pin elengedését külön ellenpár méri. Gépi jel:
+`npm run verify:app-findings-r154` (J: j1–j5, I: i7) · `npm run verify:kuka` (KUKA-308).
+
+---
+
+## D-VS-3119 — A VISSZAVÉTEL-PRÓBA A MECHANIZMUS FORRÁSÁNÁL TÖRTÉNIK (R154)
+
+**A döntés.** A KUKA-092 szerinti visszavétel-próbát a mechanizmus SAJÁT FORRÁSÁNÁL végezzük, nem a
+hatásai egyikénél; ha a mechanizmus több ponton hat, a lista a visszavétel ELŐTT készül el.
+
+**Miért.** A pin bevezetése után a `drop` védelmét vettem ki, és a battéria joggal maradt 76/76 zöld —
+mert a pin a plafon-számításban is hat, és az még megakadályozta a söprést. Ebből azt a HAMIS
+következtetést vontam le, hogy a próbáim nem védenek, és feleslegesen újraírtam egy jó próbát. Amikor a
+pint a `pin()` feloldónál tettem hatástalanná, a battéria azonnal 3 pirosat adott, és a `j2` pontosan
+azt az 1 árva sort mérte, amit kézzel reprodukáltam.
+
+**Amit ez NEM állít.** Ennek a döntésnek NINCS gépi jele: a visszavétel-próba kézi lépés (ahogy a
+KUKA-293 is kimondja), a tanulság helye a munkarend. Gépi jel: nincs — kimondva.
+
+---
+
+## D-VS-3120 — AZ ÁTIRAT HELYÉT A MÉRŐ FELOLDÓJA ADJA, AZ EXPORT NEM RAK ÖSSZE SAJÁT UTAT (R154)
+
+**A döntés.** A `tools/v3_fogyasztas_export.mjs` a mérő közös feloldóját hívja
+(`transcriptsOf(projectsDir, session)`), a projekt-gyökér `--projects`-szel felülírható, és a hiba
+kimondja, hol keresett. Saját projekt-utat az export nem állít össze.
+
+**Miért.** A korábbi alak BEÉGETVE a `-home-user` projekt-könyvtárat kereste. MÉRVE (R154 zárás):
+ugyanabból az átiratból a mérő **315 hívást** olvasott be — a projekt itt `-home-user-valach-system`
+—, az export viszont `NINCS ÁTIRAT`-tal elhasalt. Egy tény (hol van az átirat) két helyen élt, és a
+hibás példány éppen a csomagváltáshoz KÖTELEZŐ tartalom nélküli fogyasztás-leltár írását állította
+meg (CLAUDE.md 1. szakasz). A beégetett út a saját környezetében zöldnek látszott — ez a KUKA-051
+családja —, és mert az export nem része a söprésnek, egyetlen verifier sem jelezte.
+
+**Amit ez NEM állít.** Nem állítja, hogy a többi egyszeri eszköz át van vizsgálva: ez EGY eszköz EGY
+környezet-függő útja. Gépi jel: `npm run verify:kuka` (KUKA-310: egy pozitív + egy tiltó minta) ·
+`npm run verify:app-findings-r154` (K: k1 a feloldó viselkedése szintetikus projekt-néven, k2 a
+forrás-kötés).
+
+---
+
+## D-VS-3121 — A PLAFON A VÉDELEM MEGSZŰNÉSEKOR IS ÁLL, ÉS AZ ELENGEDÉSI ÚT IS MEGKÉRDEZI A VÉDETTSÉGET (R154)
+
+**A döntés.** A kérés végén az `unpinAll` nem csak elengedi a pint: ha a tár a plafon fölé került, a
+MOST elengedett, folytatást NEM hordozó névtelen sorok mennek elsőként, és ha a plafon utána is
+sérül, a rendes söprés dönt a maga osztály-sorrendjével. A védettséget az elengedési út is
+megkérdezi — de CSAK a most elengedett azonosítókra.
+
+**Miért.** A pin (D-VS-3118) a plafon-számításból is kivonta a sort, ezért egy ÁTFEDŐ kérés-köteg
+minden tagja felvételt nyert, az elengedés viszont nem söpört. MÉRVE `maxSessions=2` mellett 10
+átfedő kéréssel: a tár a köteg lefutása után is **12 sornál** állt — a tár szintjén és ÉLŐ HTTP-n
+egyaránt. A javítás után **2**. A saját soros próbám (`j5`) ezt nem kapta el: átfedés nélkül a hiba
+elő sem áll. A javítás ELSŐ alakja viszont a védettséget nem kérdezte meg, és egy ÉLŐ munkamenet
+meghívó-folytatását vitte el — ezt a saját `g7` ellenpárom kapta el, commit előtt (KUKA-315).
+
+**Amit ez NEM állít.** A tár továbbra is annyival lóghat túl a plafonon, ahány kérés ÉPP FUT — ez
+korlátos és kimondott tűrés, nem „majdnem jó". Gépi jel: `npm run verify:kuka` (KUKA-311 · KUKA-315)
+· `npm run verify:app-findings-r154` (L: l1, l7, l2, l8 · g7).
+
+---
+
+## D-VS-3122 — A SIKERTELEN TAKARÍTÁS AZONOSÍTÓI VÁRÓLISTÁN MARADNAK, A VÁRÓLISTA KORLÁTOS (R154)
+
+**A döntés.** Ha a kiszorított munkamenetek szerver-oldali állapotának takarítása elhasal, az
+azonosítók várólistára kerülnek, és a következő bejelentés leadja őket. A várólista 10 000
+azonosítónál korlátos, és a túlfolyást a napló megnevezi.
+
+**Miért.** A korábbi alak az azonosítókat a hiba előtt kivette a listából, és csak naplózott. A
+munkamenet a tárból eltűnt, tehát a jelölt-listába sem kerülhet vissza: a `pending_intent` sorai
+SOHA többé nem lettek volna megtalálhatók. MÉRVE: dobó takarítás után a várólista 0 volt, és az
+első azonosító elveszett; a javítás után a várólista 1, és a következő bejelentés mind a kettőt
+leadja.
+
+**Amit ez NEM állít.** A `pending_intent` sorok LEJÁRAT szerinti takarítása továbbra is nyitott
+(D-VS-3007 nevezett függője). Gépi jel: `npm run verify:kuka` (KUKA-312) ·
+`npm run verify:app-findings-r154` (L: l3).
+
+---
+
+## D-VS-3123 — A PINEK JEL SZERINTI FORDÍTOTT INDEXE: A KÉRÉS A SAJÁT PINJEIT ENGEDI EL (R154)
+
+**A döntés.** A pinek azonosító szerint ÉS a kérés jele szerint is indexeltek; az elengedés a saját
+azonosítókat járja be, nem a teljes pin-táblát.
+
+**Miért.** MÉRVE: 4000 átfedő kérés pinjeinek elengedése **593 ms** → **6 ms** (≈100×). Ez a
+NEGYEDIK eset ugyanabból a hibaosztályból ebben a csomagban (D-VS-3100 a kéréskorlát sora ·
+D-VS-3110 a teljes tábla-olvasás · D-VS-3116 a rendezés telt táron · ez): a védelem költsége azzal
+nő, amivel szemben véd.
+
+**Amit ez NEM állít.** Nem teljesítmény-hangolás: a próba korlátja a KVADRATIKUS nagyságrendet zárja
+ki, nem a gépet méri. Gépi jel: `npm run verify:kuka` (KUKA-313) ·
+`npm run verify:app-findings-r154` (L: l4).
+
+---
+
+## D-VS-3124 — A KÉRÉSNEK EGY IDEJE VAN, ÉS AZ ÉRINTÉS MEGMONDJA, SIKERÜLT-E (R154)
+
+**A döntés.** A kérés-ciklus egyetlen időbélyeget (`requestNow`) ad a munkamenet kikeresésének és az
+érintésének, a `touch` pedig logikai értéket ad vissza. A hamis érintés munkamenet-hiánynak számít:
+a kérés friss munkamenetet kap, nem használ tovább egy lejártat.
+
+**Miért.** A két külön `Date.now()` rést nyitott: ha a sor a két hívás között lépte át a tétlenségi
+határt, a `get` még visszaadta, a `touch` eldobta — a helyi `session` változó viszont továbbra is
+belépettnek látszott, és a pin egy már nem létező sorra került. A kérés így nem követett
+munkamenettel futott le, és árva szerver-oldali állapotot hagyhatott. Ez a D-VS-3115 alakja a
+`touch`-ra alkalmazva: egy feloldó, ami csendben el is dobhatja, amit a hívó használni akar, minden
+hívójánál hibát szül.
+
+**Amit ez NEM állít.** Nem állítja, hogy a kérés-ciklus minden más idő-használata át van vizsgálva:
+ez EGY pár (kikeresés + érintés). Gépi jel: `npm run verify:kuka` (KUKA-314) ·
+`npm run verify:app-findings-r154` (L: l5, l6).
+
+---
+
+## D-VS-3125 — A PLAFON A BESZÚRÁSNÁL DÖNT: AMIT A TÁR NEM TUD MEGTARTANI, AZT FEL SEM VESSZÜK (R154)
+
+**A döntés.** A munkamenet-tár plafonja a TÁR MÉRETÉRE áll (a pin nem mentesít a számolás alól, csak az
+áldozat-választásból zárja ki a sort), a munkamenet ELŐBB kerül be és CSAK UTÁNA kap pint, a süti pedig
+csak akkor megy ki, ha a tár meg is tartotta a sort. A munkamenethez kötött ÍRÁS — az egyetlen ilyen út,
+a `POST /api/invites/pending` — NEVEZETTEN nemet mond (`503 at_capacity`), ha a sort a tár nem tartotta meg.
+
+**Miért.** A D-VS-3121 a plafont a pin ELENGEDÉSEKOR állította helyre. Telt, BELÉPETT sorokkal teli táron
+viszont a friss névtelen sor a helyes osztály-sorrend szerint is előbb esik ki, mint bármely belépett
+(D-VS-3107: a védettség sorrend, nem mentesség) — így az utólagos söprés pontosan azt a sort vitte el,
+amelyhez a kezelő ÉPP AKKOR írt. MÉRVE (`maxSessions=2`, csupa belépett sor): a süti nélküli
+`POST /api/invites/pending` **200**-at ÉS sütit adott, a munkamenet NEM volt a tárban, a kiírt
+`pending_intent` sort az árva-takarítás törölte, és a következő kérés ugyanazzal a sütivel ÚJ
+munkamenetet kapott, `invite_context: null`-lal. A javítás után ugyanaz a kérés: **503 `at_capacity`**,
+süti nélkül, nulla sorral — és 10 átfedő kérés mellett a tár a plafont KÖZBEN sem lépi túl (régen 11–12).
+
+**Ez HÁROM egymást visszafordító kör vége, és ezt kimondjuk.** Felvételi kapu (D-VS-3115) → pin
+(D-VS-3118) → utólagos söprés (D-VS-3121) → most a sorrend megfordítása. Ha három kör egymást fordítja
+vissza ugyanazon a helyen, nem a lépések hibásak, hanem a SORREND.
+
+**Amit ez NEM állít.** Nem oldja meg a gyökér-okot: minden süti nélküli kérésre továbbra is munkamenet
+SZÜLETIK, csak már nem marad bent, ha nincs hely. A lusta munkamenet átalakítása továbbra is DÖNTÉSRE
+vár (a lefedettségi lap gyökér-ok szakasza). Gépi jel: `npm run verify:kuka` (KUKA-316) ·
+`npm run verify:app-findings-r154` (M: m0–m5 · L: l1).
+
+---
+
+## D-VS-3126 — AZ AZONOSSÁG-VIZSGÁLAT DEKÓDOLJA A FORRÁS ADATBÁZIS NEVÉT (R154)
+
+**A döntés.** A `proof:pg-durability` a forrás adatbázis nevét a `DATABASE_URL`-ből DEKÓDOLVA veti össze
+a visszatöltési céllal; a hibás százalék-kódolás „nem megállapítható", és ott ÓVATOSAN megállunk. A két
+tiszta döntés (alak-ellenőrzés, azonosság) külön modulba került — `tools/lib/vs_pg_target.mjs` —, hogy a
+battéria MEGHÍVHASSA őket.
+
+**Miért.** A `URL.pathname` nyers, kódolt alakot ad: egy `postgres://…/foo%24bar` forrás és egy
+`VS_RESTORE_TEST_DB=foo$bar` cél UGYANAZ az adatbázis, a nyers összehasonlítás szerint viszont
+különböző — a lánc másik végén pedig `DROP DATABASE` áll. A próba tehát a FORRÁST törölte volna, amit
+ígérete szerint soha nem ír felül. MÉRVE a feloldón: nyersen `same: false`, dekódolva `same: true`.
+
+**Amit ez NEM állít.** A lánc továbbra is VALÓDI PostgreSQL-t kér, tehát a söprésben nem fut; a két
+döntés viszont mostantól a battériából mérve van (KUKA-207). Gépi jel: `npm run verify:kuka` (KUKA-317 ·
+a KUKA-307 két mintája az új otthonra) · `npm run verify:app-findings-r154` (N: n1–n3).
+
+---
+
+## D-VS-3127 — A HIBÁS VISSZATÖLTÉSI CÉLT AZ ÉRTÉK NÉLKÜL JELEZZÜK (R154)
+
+**A döntés.** A `VS_RESTORE_TEST_DB` alak-hibája a MÉRT TÉNYEKET mondja el — hossz, kezdet-osztály,
+kapcsolati-cím alak —, az ÉRTÉKET nem írjuk ki.
+
+**Miért.** A leggyakoribb hiba éppen az, hogy valaki kapcsolati CÍMET ad meg adatbázis-név helyett; abban
+felhasználónév és JELSZÓ van. A korábbi alak `JSON.stringify`-jal a naplóba tette — terminálba és
+CI-naplóba egyaránt. Ebben a rendszerben a szabály nem tűr kivételt: `DATABASE_URL` és bármely kulcs
+soha nem kerül chatbe, és ugyanígy naplóba sem. MÉRVE: a jelzés egy jelszavas kapcsolati címre sem
+tartalmazza az értéket, de kimondja, hogy „kapcsolati cím alakú".
+
+**Amit ez NEM állít.** Nem állítja, hogy minden eszköz hibaága át van vizsgálva — ez EGY hibaág. Gépi
+jel: `npm run verify:kuka` (KUKA-318) · `npm run verify:app-findings-r154` (N: n4–n5).
+
+---
+
+## D-VS-3128 — A TÖBBES ÁTIRAT-TALÁLAT NEVEZETT ELAKADÁS (R154)
+
+**A döntés.** Ha ugyanaz a munkamenet-azonosító több projekt-könyvtárban is szerepel, a fogyasztás-export
+MEGÁLL (2-es kilépés), felsorolja a talált utakat, és a `--projects` megadását kéri.
+
+**Miért.** A D-VS-3120 javítása után az export minden projekt-könyvtárat végignéz, de a találatok közül
+csendben az elsőt vette — így ELAVULT példányt is exportálhatott, miközben sikeresnek látszott, és a
+leltár ÁTADÁSI bizonyíték. MÉRVE két szintetikus projekt-könyvtárral: a régi alak 0-s kilépéssel
+exportált, a mostani 2-essel megnevezi mindkét utat.
+
+**Amit ez NEM állít.** A mérő (FGY-01/3) továbbra is MINDET beolvassa — a két viselkedés különbségét nem
+elrejtjük, hanem kimondjuk. Gépi jel: `npm run verify:kuka` (KUKA-319) ·
+`npm run verify:app-findings-r154` (N: n6 — az eszköz tényleges futtatásával).
+
+---
+
+## D-VS-3129 — A `q=0` KIZÁRÁS A DÖNTÉS MINDEN ÁGÁN SZÁMÍT, ÉS A `*` JOKER IS (R154)
+
+**A döntés.** Az `Accept-Language` feloldásában a `q=0` címkék KIZÁRÁST képeznek (`*;q=0` = minden más
+kizárva), a `*` joker a nyelvi jegyzék sorrendjében ad egy NEM kizárt nyelvet, és kizárt nyelvre az
+alapnyelvre-esés sem vezethet. Ha minden elfogadható nyelvet kizártak, a lap akkor is kirajzolódik —
+alapnyelven, de `matched: false`-szal.
+
+**Miért.** A D-VS-3105 javításakor a nulla súlyú címkéket KISZŰRTEM, ezzel a kizárás ténye elveszett.
+MÉRVE: `Accept-Language: hu;q=0, *;q=1` → **`hu`**, vagyis pont a kizárt nyelv; a javítás után `en`.
+A szűrés tehát a hiba egyik felét orvosolta (a kizárt nyelv nem nyer a pozitív ágon), a másikat
+elrejtette (a visszaesési ágon mégis nyert).
+
+**Amit ez NEM állít.** Nem teljes RFC 4647-es nyelvi-tartomány illesztés (nincs `en-*` mintázat-kezelés
+a nyelv-alcímkén túl); a jegyzék sorrendje dönt a joker esetében, és ezt kimondjuk. Gépi jel:
+`npm run verify:kuka` (KUKA-320) · `npm run verify:app-findings-r154` (O: o1–o7) ·
+`npm run verify:i18n`.
+
+---
+
+## D-VS-3130 — A PRÓBA KIMENETE SOHA NEM A KÖNYVELT BIZONYÍTÉK ÚTJA (R154)
+
+**A döntés.** Minden próba, ami egy repó-eszközt futtat, KIMONDOTTAN megadja a saját kimeneti útját
+(ideiglenes könyvtár). Az eszközök alapértelmezett, könyvelt kimeneti útjára próba nem írhat.
+
+**Miért.** A KUKA-319 próbája `--out` nélkül futtatta az exportálót, és ezzel — különösen a
+visszavétel-próbában, ahol az őr szándékosan nincs ott — felülírta a KÖNYVELT
+`V3_R71_FOGYASZTAS_EXPORT.json`/`.csv` bizonyítékot: a JSON a szintetikus munkamenetet nevezte meg
+nulla hívással, a CSV kiürült, és a kár a `00e4251` commitban fel is ment. A fájlokat visszaállítottam
+a SPEC-alappal (`e24860f4`) **bájtra azonos** alakra.
+
+**Amit ez NEM állít.** Nem állítja, hogy a többi próba át van vizsgálva erre — ez EGY próba EGY
+mellékhatása; a `verify:artifact-naming` a NEVEKRE áll, nem arra, hogy ki írja őket. Gépi jel:
+`npm run verify:kuka` (KUKA-321).
+
+---
+
+## D-VS-3131 — A PLAFON A `set` UTÁN MINDIG ÁLL: A FELVÉTEL ELUTASÍTHATÓ, DE KILÉPTETÉS NINCS (R154)
+
+**A döntés.** Ha a plafon a két kiszorítási kör után is sérül (mert minden áldozat épp kiszolgálás
+alatt áll), akkor a BESZÚRT sor megy — akkor is, ha belépett. A belépés ilyenkor NEVEZETTEN nem
+sikerül (`503 at_capacity`), süti nélkül. A már bent lévőket nem léptetjük ki.
+
+**Miért.** A D-VS-3125 után a plafont a beszúrás érvényesíti, az elengedés nem söpör. MÉRVE (plafon 2,
+két belépett sor PINELVE, majd egy belépés): a tár **3 sornál** állt és ott is maradt; élő HTTP-n
+1-es plafonnal ugyanez. Vagyis a „kimondott tűrés" nem volt múló: egy érvényes jelszóval rendelkező
+kérő ismételhette, és a memória-korlát megkerülhető volt. A javítás után: a tár a plafonon marad, a
+számláló pedig ELUTASÍTÁST mond (`refused_cap`), nem kiléptetést (`evicted_cap_signed_in: 0`).
+
+**Amit ez NEM állít.** Az elutasítás ÁTMENETI, nem kapu: amint a futó kérések elengedik a sorukat, a
+belépés sikerül (mérve: `p7`). És ha a staging rendszeresen ezt adja, a plafon kevés — a
+`VS_APP_SESSION_MAX` emelése a válasz, nem az elutasítás elrejtése. Gépi jel:
+`npm run verify:kuka` (KUKA-322) · `npm run verify:app-findings-r154` (P: p1–p7).
+
+---
+
+## D-VS-3132 — MINDEN MÉRÉS MÉRJE MEG A SAJÁT ALAPSOKASÁGÁT (R154)
+
+**A döntés.** A teljesítmény- és viselkedés-mérések KIMONDOTTAN állítják a saját előfeltételüket (itt:
+`l4a` — a pinek száma tényleg annyi, amennyit a mérés feltételez), mielőtt bármit állítanának.
+
+**Miért.** A KUKA-313 mérése a pint a beszúrás ELŐTT tette; az F154-29 megfordította a sorrendet, és a
+`pin()` nem létező sorra már nem pinel — a mérés NULLA pint hozott létre, tehát akkor is zöld lett
+volna, ha a kvadratikus alak visszatér. MÉRVE: a javított próba 4000 pinnel, a kvadratikus alak
+visszatételével **452 ms**-mal piros; a hibás alak 2 ms-mal zöld maradt.
+
+**Amit ez NEM állít.** Nem állítja, hogy a battéria MINDEN mérése kimondja az alapsokaságát — ez EGY
+mérés javítása és EGY szabály kimondása. Gépi jel: `npm run verify:kuka` (KUKA-323) ·
+`npm run verify:app-findings-r154` (l4a, l4).
+
+---
+
+## D-VS-3133 — A NEVEZETT ELUTASÍTÁSNAK MŰKÖDŐ KIÚTJA VAN (R154)
+
+**A döntés.** A fogyasztás-export kétértelműségénél három feloldási út van, és MIND a három működik:
+`--transcript <fájl>`, `--projects <a KIVÁLASZTOTT projekt-könyvtár>`, vagy a szülő-könyvtár minden
+projektje. A hibaüzenet mind a hármat megnevezi.
+
+**Miért.** A korábbi üzenet a projekt-gyökér megadását tanácsolta, de a feloldó a kapott utat a
+projekt-könyvtárak SZÜLŐJÉNEK veszi — a kiválasztott könyvtárral tehát `NINCS ÁTIRAT`-tal elhasalt
+(mérve: 2-es kilépés). Egy nevezett elutasítás annyit ér, amennyit a folytatása (KUKA-201).
+
+**Amit ez NEM állít.** Nem fűzi össze a több átiratot — az továbbra is a mérő dolga, és ezt az üzenet
+kimondja. Gépi jel: `npm run verify:kuka` (KUKA-324) · `npm run verify:app-findings-r154` (Q: q5–q8).
+
+---
+
+## D-VS-3134 — AZ ÚT NÉLKÜLI KAPCSOLATI CÍM ADATBÁZIS-NEVE A FELHASZNÁLÓ (R154)
+
+**A döntés.** Ha a `DATABASE_URL` nem nevez meg adatbázist, az adatbázis-név a kapcsolódó FELHASZNÁLÓ
+neve (dekódolva) — ezt vetjük össze a visszatöltési céllal. Ha felhasználó sincs, a tényleges név NEM
+megállapítható, és ott ÓVATOSAN megállunk.
+
+**Miért.** A PostgreSQL-kliensek alapértelmezése ez. A korábbi alak üres nevet képzett, így egy
+`postgres://source_user:pw@host` forrás és egy `VS_RESTORE_TEST_DB=source_user` cél „eltér"-nek
+számított, holott UGYANAZ az adatbázis — a lánc végén pedig `DROP DATABASE` áll. Ugyanaz a hibaosztály,
+mint a D-VS-3126 (ott a százalék-kódolás, itt az elhagyott út).
+
+**Amit ez NEM állít.** Nem teljes libpq-kompatibilis feloldás (környezeti változók, `.pgpass`, `PGDATABASE`
+nincs figyelembe véve) — ezért is esik a „nem tudom" az óvatos ágra. Gépi jel: `npm run verify:kuka`
+(KUKA-325) · `npm run verify:app-findings-r154` (Q: q1–q4).
+
+---
+
+## D-VS-3135 — A KAPCSOLATI CÍM FELÜLÍRÁSAIT FEL KELL OLDANI, ÉS A SAJÁT URL-EKBŐL KIVENNI (R154)
+
+**A döntés.** A forrás tényleges adatbázis-nevét EGY feloldó adja (`effectiveDatabase`): query `dbname` →
+út → query `user` → cím-felhasználó; ha egyik sincs, NEM TUDHATÓ, és ott megállunk. A kiszolgáló-URL-eket
+a `withDatabase` állítja elő: beállítja az utat ÉS kiveszi a `?dbname=` felülírást.
+
+**Miért.** `postgres://decoy@host/?user=source` `source`-ként kapcsolódik, és út híján a `source`
+adatbázist nyitja — a korábbi alak a `decoy`-t vetette össze a céllal, „eltér"-t mondott, és a
+`DROP DATABASE "source"` a VALÓDI forrást törölte volna. Ez a HARMADIK eset ugyanebben az eszközben
+(D-VS-3126 a százalék-kódolás, D-VS-3134 az elhagyott út, ez a query).
+
+**Amit ez NEM állít.** Nem teljes libpq-feloldás: környezeti változók és `service` fájl nincs benne —
+ezért esik a „nem tudom" az óvatos ágra. Gépi jel: `npm run verify:kuka` (KUKA-326) ·
+`npm run verify:app-findings-r154` (R: r1–r5).
+
+---
+
+## D-VS-3136 — AZ ÚJ KÉZI BEMENET IS HATÁR: A `--transcript` A KÉRT MUNKAMENETHEZ KÖTVE (R154)
+
+**A döntés.** A `--transcript` csak akkor fogadható el, ha a fájlnév `<munkamenet>.jsonl`, VAGY a tartalom
+első 50 sorának `sessionId`-ja a kért munkamenetre mutat. Különben nevezett elakadás.
+
+**Miért.** A kapcsoló (a D-VS-3133 új kiútja) bármely létező fájlt elfogadott, a kimenet viszont a
+parancssori azonosítót írta a fejlécbe: egy elgépelt út HIHETŐ, de hibásan attribuált leltárt adott
+(mérve: régen 0-s kilépés idegen átirattal). A leltár átadási bizonyíték.
+
+**Amit ez NEM állít.** Nem ellenőrzi az átirat tartalmi épségét — csak a HOZZÁRENDELÉST. Gépi jel:
+`npm run verify:kuka` (KUKA-327) · `npm run verify:app-findings-r154` (R: r8–r9).
+
+---
+
+## D-VS-3137 — A MUNKAMENET-KORLÁTOK POZITÍV EGÉSZ SZÁMOK (R154)
+
+**A döntés.** A `VS_APP_SESSION_MAX` és a `VS_APP_SESSION_IDLE_MS` csak pozitív EGÉSZ szám
+(`Number.isSafeInteger`); a hibás értéket a napló megnevezi, és az alapértelmezés áll be.
+
+**Miért.** `0.5` korábban érvényes volt, az első beszúrás után viszont a tár azonnal a plafon fölé
+került: a névtelen sor kiesett, a belépett a végső elutasításra futott — a szolgáltatás egyetlen
+munkamenetet sem tudott megtartani, miközben a beállítás „átment az ellenőrzésen".
+
+**Amit ez NEM állít.** Nem tagadja meg az indulást: a memória-korlát nélkül nem futhatna a kiszolgálás,
+egy indulás-megtagadás pedig a mai üzemben nagyobb kárt tenne, mint a KIMONDOTT visszaállás. Gépi jel:
+`npm run verify:kuka` (KUKA-328) · `npm run verify:app-findings-r154` (R: r6–r7).
+
+---
+
+## D-VS-3138 — A FRISS, ÁLLAPOT NÉLKÜLI SOR ELŐBB ESIK KI, MINT EGY FOLYTATÁST HORDOZÓ (R154)
+
+**A döntés.** Ha a plafon betartásához a VÉDETT (folytatást hordozó) körbe kellene lépni, és a beszúrt
+sor névtelen és nem hordoz folytatást, akkor a BESZÚRT sor megy. A jövevény ilyenkor nevezett
+elutasítást kap az írásra, és egyetlen meglévő folytatás sem esik ki.
+
+**Miért.** A `keep` védelme a 0. körből is kivette a friss sort, ezért csupa folytatást hordozó táron az
+1. kör kezdett ürítni. MÉRVE (`maxSessions=4`): négy folytatást hordozó sor + egy friss kérés → **két**
+meghívó-folytatás elveszett; élő HTTP-n a jövevény **200**-at kapott, a tábla 37→38 lett. Vagyis egy
+látogató, aki semmit nem tett, mások állapotát törölte.
+
+**Amit ez NEM állít.** A `keep` védelme megmarad ott, ahol a beszúrt sor BELÉPETT (D-VS-3112), és a
+védettség továbbra is SORREND, nem mentesség (D-VS-3107). Gépi jel: `npm run verify:kuka` (KUKA-329) ·
+`npm run verify:app-findings-r154` (g7: míg van hely, a folytatás túlél · g8: telt táron a jövevény
+elutasítva).
+
+---
+
+## D-VS-3139 — A NYELVI KIZÁRÁS TARTOMÁNY-ILLESZTÉSSEL ÁLL (R154)
+
+**A döntés.** A `q=0` kizárás a TELJES nyelvi tartományra szól: akkor áll, ha a kód maga a tartomány,
+vagy a tartomány + kötőjel kezdetű. Így `de-AT;q=0` nem zárja ki az általános `de`-t.
+
+**Miért.** A D-VS-3129 megtartotta a kizárást, de az első alcímkére vágta, ezért egy regionális kizárás
+az általános nyelvet is elnémította: `de-AT;q=0, de;q=1` → **`hu`**, most `de`. Az RFC 4647 alap-illesztése
+szerint a hosszabb tartomány a rövidebb címkére nem illeszkedik.
+
+**Amit ez NEM állít.** Nem teljes RFC 4647 (nincs kiterjesztett szűrés, és a jegyzék sorrendje dönt a
+jokernél). Gépi jel: `npm run verify:kuka` (KUKA-330) · `npm run verify:app-findings-r154` (R: r10–r11) ·
+`npm run verify:i18n`.
+
+---
+
+## D-VS-3154 — A VÉDELEM KÖLTSÉGÉT A JAVÍTÁS UTÁN IS MEG KELL MÉRNI (R158, KUKA-346)
+
+**A döntés.** A kéréskorlát kulcs-kiszorítása a `Map` beszúrási sorrendjét használja LRU-listaként
+(`delete`+`set` minden találatnál), és az ELEJÉRŐL dob annyit, amennyi a plafon fölött van — rendezés
+NÉLKÜL; a figyelmeztetés ablakonként legfeljebb egyszer megy ki. **Miért.** Az első javításom telt
+plafonnál minden kérésnél RENDEZTE a teljes térképet (a reviewer gépén 20 000 kulcs ~9,5 s), és
+kérésenként naplózott — vagyis a KUKA-290 hiba-osztályát, amit ebben a PR-ben magam vezettem ki,
+visszaépítettem a megoldásba. **Ki találta meg.** Külső review (Codex, F158-12, P1). **Amit ez NEM
+állít.** A kiszorítás nem ingyenes: egy eldobott kulcs számlálója újraindul (ez a KIMONDOTT csere), és
+a mérce skála-független — a kiszorításonkénti költség négyszeres munkánál sem nő kétszeresére.
+
+---
+
+## D-VS-3155 — AZ IDŐ-KORLÁT KÉT IRÁNYÚ, ÉS A TAKARÍTÁS AZ ÁRVA SORT IS ELÉRI (R158, KUKA-347)
+
+**A döntés.** A `resumeIntent` a NEGATÍV kort (jövőbeli `created_at`) is lejártnak veszi, és a halmazos
+takarítás három esetet visz egy utasításban, tároló-függetlenül: a türelmi időn túli · a jövőbeli · és a
+nem kanonikus alakú sort (`created_at NOT LIKE '____-__-__T%'`). **Miért.** A negatív kor VÉGES, tehát
+átment a frissességi ellenőrzésen (egy 2099-es sor 2099-ig folytatódott volna); a romlott időbélyegű
+ÁRVA sorhoz pedig sem a szöveges `<` összehasonlítás, sem az olvasás nem ér el. **Ki találta meg.**
+Külső review (Codex, F158-13 · F158-14). **Amit ez NEM állít.** A `created_at` alakját sémában továbbra
+sem kényszerítjük — a védelem az olvasó és a takarító oldalon áll.
+
+---
+
+## D-VS-3156 — A KAPU TANÚJA A FUTÁSHOZ KÖTÖTT (R158, KUKA-348)
+
+**A döntés.** A böngésző-kapu a jelentést a futtatás ELŐTT törli, és a jelentés kezdő időpontjának a
+mostani futás indulása UTÁN kell lennie (2000 ms tűrés). **Miért.** A létezés-ellenőrzés egy korábbi
+futás fájlját is elfogadta volna — pontosan az a helyzet, ami a kapu első futásánál elő is állt.
+**Ki találta meg.** Külső review (Codex, F158-15). **Amit ez NEM állít.** A tűrés a jelentő saját
+órájából következik; a kötés szerkezeti, és a battéria `x6` sora ezt KIMONDJA (nem viselkedés-mérés).
+
+---
+
+## D-VS-3147 — A FÜGGŐ SZÁNDÉK NEM ÉRTELMEZHETŐ IDŐBÉLYEGE LEJÁRTNAK SZÁMÍT (R158, KUKA-339)
+
+**A döntés.** A `resumeIntent` a NaN korú sort (romlott `created_at` vagy óra) LEJÁRTNAK veszi: a
+folytatás elmarad, és a sor törlődik. **Miért.** A `Number.isFinite(kor) && …` alak a nem tudást a
+MEGENGEDŐ irányba oldotta fel — egy importált sor időkorlát nélkül folytatódott volna. **Ki találta
+meg.** Külső review (Codex, F158-04). **Amit ez NEM állít.** A `created_at` alakját sémában nem
+kényszerítjük; a romlott sort az OLVASÁS dobja el, a halmazos takarítás string-összehasonlítással
+nem talál rá. KIMONDVA: ugyanezt a hiba-osztályt a KUKA-337 EBBEN a körben vezette ki — a tanulság
+kimondása nem védett meg a megismétléstől.
+
+---
+
+## D-VS-3148 — A KÉRÉSKORLÁT BEÁLLÍTÁSA MÉRT ALAK, A KULCS-TÉRKÉPE KEMÉNY PLAFON (R158, KUKA-340)
+
+**A döntés.** A `rateLimitConfig` ugyanazt a `posInt` szabályt használja, mint a `sessionLimits`
+(hibás érték → nevezett naplósor + alapértelmezés), és a kulcs-térkép plafonja FRISS kulcsokra is
+áll: előbb a lejártak mennek, aztán a legrégebben láttak. **Miért.** `VS_APP_RATE_WINDOW_MS=bogus|0|-1`
+csendben KIKAPCSOLTA a védelmet, `VS_APP_RATE_MAX=0.5` pedig mindent 429-re vitt; a térkép pedig egy
+ablakon belül korlátlanul nőtt. **Ki találta meg.** Külső review (Codex, F158-07 · F158-08). **Amit ez
+NEM állít.** A plafon nem ingyenes: egy eldobott kulcs számlálója ÚJRAINDUL, tehát a korlát a
+legcsendesebb címekre nézve lazul. A `VS_APP_RATE_MAX=0` továbbra is KIMONDOTT kikapcsolás.
+
+---
+
+## D-VS-3149 — A KAPCSOLATI CÍM OLVASATA libpq SZEMANTIKÁVAL MEGY (R158, KUKA-341)
+
+**A döntés.** Ismételt kulcsnál az UTOLSÓ, nem üres érték dönt; `?service=` jelenlétében a forrás NEM
+MEGÁLLAPÍTHATÓ, és a `sameDatabase` óvatosan megáll. **Miért.** A régi alak az ELSŐ értéket vette, és
+út nélküli címnél a felhasználót — mindkét úton `DROP DATABASE` fenyegette a VALÓDI forrást. **Ki
+találta meg.** Külső review (Codex, F158-01 · F158-02, mindkettő P1), dokumentációs hivatkozással.
+**Amit ez NEM állít.** A szolgáltatás-fájl tartalmát nem olvassuk be — nem is tudnánk; a válasz a
+bizonytalanság kimondása.
+
+---
+
+## D-VS-3150 — A JOKER A KIFEJEZETTEN MEGNEVEZETT NYELVEKET KIHAGYJA (R158, KUKA-342)
+
+**A döntés.** Az `Accept-Language` `*` jokere csak az EMLÍTÉS NÉLKÜLI nyelvekre szól — súlytól
+függetlenül (RFC 9110 §12.4.3). **Miért.** `hu;q=0.5, *;q=1` esetén magyart adtunk, holott egy
+elérhető `en`/`de` 1-es súllyal megelőzi. **Ki találta meg.** Külső review (Codex, F158-09). **Amit ez
+NEM állít.** A jegyzék sorrendje továbbra is dönt a jelöltek között; a szabály hét határesetre van
+kötve, nem egy példára.
+
+---
+
+## D-VS-3151 — A KAPU A HASZNÁLAT PILLANATÁBAN ÁLL, ÉS A NEMLEGES VÁLASZ A SAJÁT NEVÉN MEGY (R158, KUKA-343)
+
+**A döntés.** A `materialize` a tartós munkamenet LÉTÉT is ellenőrzi; a lejárat-eldobás bejelenti
+magát (`announceDropped`); az exportált út a közös tisztítón megy. A kiszolgálás közben eltűnt
+munkamenet válasza `409 session_gone` — nem a „tár megtelt" neve. **Miért.** A tűzés a kiszorítás ellen
+véd, a KIMONDOTT törlés ellen nem: egy lassú, darabolt POST egy már törölt azonosítóra írt, és 200-at
+adott. **Ki találta meg.** Külső review (Codex, F158-05 (P1) · F158-06 · F158-10). **Amit ez NEM
+állít.** A már korábban árván maradt sorok visszamenőleges takarítását nem végezzük el.
+
+---
+
+## D-VS-3152 — A KÖLTSÉG-REGRESSZIÓ MÉRCÉJE SKÁLA-FÜGGETLEN (R158, KUKA-344)
+
+**A döntés.** A „nem nő a költség" állítást KÉT tárméret ARÁNYA méri (tízszeres tár ⇒ legfeljebb
+négyszeres idő), nem absztrakt millisekundum. **Miért.** A `ms < 200` őr a reviewer gépén 219 ms-ot
+mért HELYES viselkedés mellett, és pirosat jelzett regresszió nélkül. **Ki találta meg.** Külső review
+(Codex, F158-03). **Amit ez NEM állít.** Az arány-tűrés (négyszeres, +50 ms) a mi gépünkön mért zajhoz
+van szabva; a nagyvonalú 5 s-os plafon csak a végtelen hurkot fogja meg.
+
+---
+
+## D-VS-3153 — AZ ŐR-OTTHON A MAI MECHANIZMUST NEVEZI MEG (R158, KUKA-345)
+
+**A döntés.** A KUKA-311 őr-otthona a BESZÚRÁSNÁL álló felvételi döntést nevezi meg, és a bejegyzés
+`replaced_by` mondata ELÖL jelöli, hogy a felülírt alakot írja le. **Miért.** A régi szöveg a pin
+elengedésekor álló söprésre mutatott, ami az R154 hatodik köre óta nem létezik — a regiszter rosszat
+tanított, miközben lefedést állított. **Ki találta meg.** Külső review (Codex, F158-11). **Amit ez NEM
+állít.** Ennek NINCS gépi jele: a `verify:kuka` a regisztert és az őr-otthon fájlt szándékosan kizárja
+a minta-illesztésből, különben a regiszter a saját szövegén teljesítené a saját őreit.
+
+**A hét döntés közös tanulsága, kimondva:** a tizenegy review-lelet közül EGY SEM volt új funkció
+hibája — mind egy MÁR KIJAVÍTOTT szabály másik előfordulása, vagy a MÉRÉS (próba, regiszter) és a kód
+közti elcsúszás. A javítások fele a saját előző javításaim mellékhatása volt.
+
+---
+
+## D-VS-3146 — AZ ÜRES ÁTVITT KORLÁT KORLÁT, A SÉRÜLT ALAK PEDIG NEM MEGÁLLAPÍTHATÓ (R158/3)
+
+**A döntés.** A delegálási plafon mindkét tengelye UGYANÚGY olvassa a tárolt korlátot: az ÜRES lista
+KORLÁT (semmi nem adható tovább), a hiányzó vagy nem-tömb alak pedig NEVEZETTEN elakad
+(`parent_limit_undecidable`). A szerep-tengely szűrése feltétel nélkül lefut.
+
+**Miért.** A két tengely ELLENTÉTESEN olvasta ugyanazt az alakot: a szerepeknél az üres lista „nincs
+korlát"-ot jelentett, az adatköröknél „semmit". MÉRVE (visszavonás-próbával, a javítás előtti alakon):
+`roles: []` átvitt korláttal a plafon `["admin","user"]` lett — az ÜRES korlát tehát ADMIN továbbadására
+jogosított; és ugyanez történt, ha a mező HIÁNYZOTT vagy nem tömb volt (`roles: "admin"`). A tagságra
+átvitt korlát a `grant_basis.granted_limit` JSON-ja, amit a beolvasó szerkezet-vizsgálat NÉLKÜL vesz át.
+
+**Ki találta meg.** SAJÁT AUDIT-LELET (Claude-v3, R158/3).
+
+**Amit ez NEM állít.** A HTTP-határról ma NEM elérhető: a rendes út nem ír üres szerep-korlátot (a
+számítás `delegation_ceiling_empty`-vel elakad, mielőtt írna). A lelet az OLVASÓ oldalán áll — ott, ahol
+egy sérült, migrált vagy importált sor hatása eldől; ugyanaz a válasz, amit a tiltásnál már egyszer
+megépítettünk (R73/C-F05: a séma-kényszer a migrációt köti, a már bent lévő sort nem). Gépi jel:
+`npm run verify:v3ref` (`P-AUTHZ-parent-limit` + M213/M214) · `npm run verify:kuka` (KUKA-338).
+
+---
+
+## D-VS-3145 — A VÉDŐ KAPUK MINDEN ÓRÁJA A VÉDŐ IRÁNYBA DŐL, ÉS A ZÁRÁS A SAJÁT NEVÉN MEGY (R158/3)
+
+**A döntés.** A tiltás (`banEffectiveAt`) és a felfüggesztés (`suspensionEffectiveAt`) értelmezhetetlen
+KÉRÉS-óra esetén is ZÁR: `banned: true` / `suspended: true`, `decidable: false`, `clock_*` okkal és a
+hívónak szóló mondattal. Az újbóli belépés kapuja ezt a SAJÁT nevén utasítja el
+(`reentry_undecidable_clock`, `next_step: fix_request_clock`), nem a felfüggesztés nevén.
+
+**Miért.** A `banScope.mjs` saját bevezetője kimondja: „a tiltás VÉDŐ intézkedés, tehát az eldönthetetlen
+óra nem oldhatja fel" — a kód viszont csak a TÁROLT sor óráira alkalmazta ezt, a kérés órájára nem.
+MÉRVE: egy bírósági végzéssel alany-szélesen tiltott személy `reentry_admissible`-t kapott, ha a kérés
+„most"-ja `undefined`, üres vagy nem kanonikus volt — és a `checked` lista közben felsorolta a
+`suspension`+`ban` lépést, tehát a nyom lefutott kapukat ígért.
+
+**Ki találta meg.** SAJÁT AUDIT-LELET (Claude-v3, R158/3, a jogosultsági mag átvizsgálása).
+
+**Amit ez NEM állít.** A rés a HTTP-határról MA NEM elérhető: a `nowIso` minden éles úton a kiszolgáló
+órájából jön (`clock.now()`), és az kanonikus. A lelet a NYILVÁNOS feloldó szintjén áll — ott, ahol
+minden új hívó örökölné (KUKA-227). Nem állítjuk tehát, hogy élő megkerülés történt; azt állítjuk, hogy
+a védelem féloldalas volt, és a féloldalas őr a megengedő irányba dőlt. Gépi jel: `npm run verify:v3ref`
+(`P-AUTHZ-protective-clock` + M210/M211/M212) · `npm run verify:kuka` (KUKA-337).
+
+---
+
+## D-VS-3142 — A BÖNGÉSZŐS ELLENŐRZÉS A KÖTELEZŐ KAPU RÉSZE, ÉS AZ EL SEM INDULT MÉRÉS NEM PASS (R158/2)
+
+**A döntés.** A böngészős láncok (`test:e2e` · `proof:core-ux` · `proof:demo-walk`) a KÖTELEZŐ kapu
+részei: a `npm run verify:browser-gate` a `verify:` névtérben áll, tehát a söprés név-szűrője magától
+elindítja. A kapu a SCRIPTEKET futtatja, és kimondja, ha egy script parancsa megváltozott.
+
+**Miért.** A söprés minden `verify:*`-ot lefuttat — a böngészős láncok más néven futnak, tehát SOHA nem
+kerültek a kapuba. MÉRVE: a böngészőben 3 helyzet bukott és 119 teljesült, miközben a kör-végi söprés
+zöldet jelentett. Egy ellenőrző, amit a kapu nem indít el, pontosan annyit véd, mint egy nem létező.
+
+**Három dolog KÜLÖN mérve.** (1) A böngésző nemcsak ott VAN, hanem EL IS INDUL — a hiánya **PIROS**, nem
+„env-kihagyás" (ez a kapu soha nem deklarál környezeti kihagyást). (2) A mérés EL INDULT: a JSON-jelentés
+megvan, nem nulla helyzet futott, és nincs kihagyott helyzet. (3) MINDEN próba-fájl bekerült a mérésbe —
+egy néma gyűjtés-kimaradás különben „0 bukás"-ként jelenne meg.
+
+**Ki döntötte el.** Az `R158 — DECISION` kör (chatgpt-v3, az **operátor** felhatalmazásával) szó szerint:
+„hiányzó böngésző vagy el sem indult mérés NEM PASS."
+
+**Amit ez NEM állít.** Nem állítja, hogy a böngészős bizonyíték minden pontján HTTP- vagy
+tároló-bizonyíték: a `proof:demo-walk` háttere a SZIMULÁLT bemutató-adapter, és ezt a lánc maga kimondja
+(KUKA-227). A kapu azt köti meg, hogy a mérés MEGTÖRTÉNT, és minden verdikt zöld. MÉRT futásidő a mi
+gépünkön: a Playwright-lánc 350 s, a bemutató-járás 439 s — a söprés 900 s-os türelmén belül.
+Gépi jel: `npm run verify:browser-gate` · `npm run verify:kuka` (KUKA-333).
+
+---
+
+## D-VS-3143 — A BÖNGÉSZŐS PRÓBAPAD AZ ELKÜLÖNÍTETT BEMUTATÓ-KÖRNYEZET, ÉS A DEMÓ-JEL JOGOT NEM AD (R158/2)
+
+**A döntés.** A böngészős próbapad (`tests/e2e/global-setup.mjs`) `VS_DEMO=1`-gyel indul: ez az
+elkülönített bemutató-környezet, ahol a KÉT ÉLŐ MUNKAMENETET igénylő végigvezetések felkínálódnak. A jel
+a kiszolgálón EGYETLEN döntést érint — a `requires_demo` végigvezetések felkínálását.
+
+**Miért.** Két végigvezetés (`tour.inviteRevoke` · `tour.reentry`) `requires_demo`, a próbák viszont a
+teljes, tizenegyes készletet várták: három helyzet körökön át ezen piroslott. A javítás iránya NEM az
+elvárás leszállítása 11-ről 9-re (az a próba gyengítése volna, KUKA-045), hanem a hiányzó KÖRNYEZET
+bekötése.
+
+**És a jog nem jár vele — MÉRVE** (`verify:app-findings-r154`, U csoport: u1–u6). Ugyanazon a szerveren,
+ugyanazokkal a fiókokkal, CSAK a jelet átállítva: a két végigvezetés a jellel megjelenik (11) és nélküle
+nevezetten eltűnik (9); a meghívó-visszavonás belépés nélkül mindkét jelálláskor `401/login_required`, a
+kívülállónak mindkét jelálláskor `404/invite_unknown` — és a meghívó ÉL, tehát az elutasítások a JOGRÓL
+szólnak, nem a hiányról. A jel HATÓKÖRE a forrásból mérve: a kiszolgáló EGY helyen olvassa, és a döntés
+CSAK a végigvezetés-felkínálóban áll.
+
+**Ki döntötte el.** Az `R158 — DECISION` kör kikötése: „a demó bekapcsolása ne kerülje meg a normál
+jogosultsági védelmet."
+
+**Amit ez NEM állít.** A böngésző-oldali bemutató-adapter ettől NEM kapcsol be: azt a lap `vs-demo` meta
+jele telepíti, amit a repó `index.html`-je nem hordoz. És egy ÉLES, `demo`-ra állított telepítésről ebből
+nem következik állítás: ott az alkalmazás-héj a két szereplős történetet a váltás-lépésnél NEVEZETTEN
+megállítja (lásd D-VS-3144).
+
+---
+
+## D-VS-3144 — A VÉGIGVIHETŐSÉG HATÓKÖRE KIMONDVA: TÍZ A HÉJBAN, KETTŐ A BEMUTATÓ-KÖRNYEZETBEN (R158/2)
+
+**A döntés.** A tizenkét végigvezetésből TÍZ az alkalmazás-héjban VÉGIGVIHETŐ — ott a „befejezve" a
+mérce. KETTŐ (`tour.inviteRevoke` · `tour.reentry`) DEKLARÁLTAN átível a szereplőkön (`switch_actor`), és
+két élő munkamenetet kér: ezek a héjban a VALÓDI műveleteiket lefuttatják (meghívó visszavonása · tag
+eltávolítása · visszahívás — mind igazi HTTP-művelet), és a szereplő-váltásnál NEVEZETTEN megállnak
+(`targetMissing`). A TELJES végigjárásuk tanúja a `proof:demo-walk` a bemutató-lapon, ahol a
+váltás-vezérlő létezik — és ez a lánc a kötelező kapu része (D-VS-3142).
+
+**Miért.** A héjban nincs „váltás a másik nézetére" vezérlő — ezt a `requires_demo` kapu indoklása maga
+mondja ki. A lépés-ellenőrző viszont a váltás-ágon NEM kérdezte meg, hogy a vezérlő létezik-e: a buborék
+„válts át a KIEMELT gombbal"-t írt ki, miközben semmi nem volt kiemelve (KUKA-335). Ez most nevezett
+megszakítás. Ugyanígy megszólal az ELVÉGZETT lépés is, ha a célja a becsukott panelben van — saját
+mondattal, mert a meglévő „ez a lépés még nem érhető el" egy elvégzett lépésről hazugság (KUKA-334).
+
+**Ki döntötte el.** Az `R158 — DECISION` kör: a három örökölt pirosat „a meglévő működési szerződés
+szerint" kellett javítani, és az „örökölt" sem kifogás, sem zöld eredmény.
+
+**Amit ez NEM állít — ÉS AMI NEVEZETTEN NYITVA MARAD.** NEM állítjuk, hogy a két szereplős történet az
+alkalmazás-héjban végigvihető. Ahhoz a héjnak DEKLARÁLT váltás-vezérlő kellene: a kijelentkezés ma egy
+lenyitható menüben áll, tehát a lépésnek saját `appears_after`-re volna szüksége, a váltás pedig VALÓDI
+ki- és belépés a másik emberrel (a futás-átadás ezt már ma is túléli: `vs3.tour.handover`). Ez egy
+KÉPESSÉG, nem hibajavítás — ezért nem ebben a körben épül meg, és a maradékot a REPORT nevezetten viszi.
+A `proof:demo-walk` tanúja pedig a SZIMULÁLT adapterrel mér: HTTP- és tároló-bizonyíték nem következik
+belőle. Gépi jel: `npm run verify:browser-gate` · `npm run verify:kuka` (KUKA-334 · 335 · 336).
+
+---
+
+## D-VS-3141 — A FÜGGŐ SZÁNDÉK 24 ÓRA ALATT LEJÁR, ÉS AZ OLVASÁS IS KAPU (R158/1b)
+
+**A döntés.** A `pending_intent` sor türelmi ideje **24 óra**, nevezett állandóból
+(`PENDING_INTENT_TTL_MS`). A lejáratot KÉT helyen érvényesítjük: az OLVASÁS (`resumeIntent`) a
+határon túli sort nem adja vissza, és TÖRLI; a TAKARÍTÁS (`purgeExpiredIntents`) pedig halmazon megy,
+egyetlen `DELETE … WHERE created_at < ?`-tel, megszámolva. A takarítás a kérés útján fut, de
+**percenként legfeljebb egyszer** — így nem hoz vissza kérésenkénti teljes bejárást, és nem tart
+nyitva időzítőt. Óra nélkül mindkét belépő NEVEZETTEN elakad.
+
+**Miért.** Ez a D-VS-3007 kimondott, NEVEZETT függője volt (a maradék-mondat szó szerint: „a
+pending_intent csak created_at-ot tárol, a resumeIntent nem ellenőriz lejáratot"). Amíg nyitva volt, egy
+régen elfelejtett meghívó-kattintás a KÖVETKEZŐ belépéskor — akár évekkel később — folytatta a
+szándékot, miközben a meghívó jogosultsági háttere (kibocsátói jog, tagság, tilalom) közben bármit
+változhatott; a lejárt sorok pedig korlátlanul gyűltek.
+
+**Ki döntötte el.** Az `R158 — DECISION` kör (chatgpt-v3, az **operátor** felhatalmazásával) kifejezetten
+ezt kérte: „A lejárt pending_intent takarítása is kapjon meghatározott időbeli szabályt a meglévő döntés
+szerint. A takarítás ne hozzon vissza kérésenkénti teljes bejárást vagy korlátlan memória-növekedést."
+
+**Amit ez NEM állít.** A tábla ALAKJA nem változott (ma is három oszlop: `session_id`, `invite_token`,
+`created_at`) — a lejárat ebből a `created_at`-ból számol, külön lejárat-oszlop nincs. A 24 óra FIX
+kiszolgáló-oldali állandó: nem meghívónként állítható, és nem az eredeti meghívó saját lejáratát követi.
+A takarítás AMORTIZÁLT, tehát egy lejárt sor legfeljebb egy percig még a táblában állhat — folytatni
+azonban nem lehet, mert az olvasás is kapu. A mérés HELYI tárakon (`node:sqlite` és PostgreSQL 16.15)
+óra-előretolással fut, nem 24 órás valós várakozással. Gépi jel: `npm run verify:v3ref`
+(`P-K03-intent-expiry` + az M208/M209 mutáció) · `npm run verify:kuka` (KUKA-332) ·
+`npm run verify:app-findings-r154` (T: t1–t6).
+
+---
+
+## D-VS-3140 — IGÉNY SZERINTI MUNKAMENET: ÁLLAPOT NÉLKÜL NINCS SOR ÉS NINCS SÜTI (R158/1)
+
+**A döntés.** Süti nélküli kérés ÁTMENETI munkamenetet kap: nincs a tárban, nem jár sütivel. Tárolt sor
+csak akkor születik, amikor a kérés TÉNYLEGESEN állapotot kötne hozzá — belépéskor (rotáció) vagy
+`materialize()`-szal. Ma egyetlen ilyen út van: a meghívó-folytatás írása. A lejárt vagy kiszorított süti
+TÖRLŐDIK, és a kilépés sem nyit új sort.
+
+**Miért.** Ez volt az R154 tíz review-körének GYÖKÉR-OKA: a 43 leletből **26** ugyanebben a tárban volt, és
+a körök leletei rendre az előző kör javításaiból fakadtak. A terület nem azért hibázott, mert a szabályai
+rosszak voltak, hanem mert a helyzet elő sem állhatott volna. MÉRVE: 200 süti nélküli olvasás után a tár
+**üres** (régen a plafonig telve, kiszorításokkal); a statikus lap és az olvasó végpont sütit sem kap.
+
+**Ki döntötte el.** A tervet az R154 lefedettségi lapja NEVESÍTVE tette döntésre, és az **operátor** a
+chatgpt-v3 `R158 — DECISION` körében engedélyezte. Nem egyoldalú javítás.
+
+**Amit ez NEM állít.** A memória-korlát TOVÁBBRA IS kell: az állapotot KÉRŐ forgalom sort nyit (mérve: 120
+hitelesítés nélküli folytatás-írás után a tár a plafonnál áll) — az igény szerinti létrehozás nem
+helyettesíti a plafont, a kiszorítási sorrendet és a védettséget. Gépi jel: `npm run verify:kuka`
+(KUKA-331) · `npm run verify:app-findings-r154` (S: s1–s11, köztük s11 az ÁLLAPOT-IGÉNY LELTÁRA) ·
+`npm run app:selfcheck`.
+
+---
+
+## D-VS-3117 — A KONFIGURÁCIÓS ÉRTÉK ALAKJA IS MÉRT, ÉS AZ AZONOSÍTÓ IDÉZŐJELEZVE MEGY (R154)
+
+**A döntés.** A `proof:pg-durability` megméri a `VS_RESTORE_TEST_DB` alakját (zárt azonosító-minta), és
+az értéket idézőjelezve illeszti az utasításba. A rossz alak NEVEZETT elutasítás, ami megmondja a
+helyes alakot.
+
+**Miért.** Mérve (saját lelet): az értéket kapcsolati címmel adtam meg — kézenfekvő tévedés, hiszen a
+`DATABASE_URL` is cím —, és a lánc a `3b` lépésen `ERROR: syntax error at or near ":"` üzenettel bukott
+el. A „cél nem azonos a forrással" kapu ezt átengedte, mert a cím nem egyezett a forrás *nevével*. Két
+hiba egy helyen: szöveg-összefűzéssel épített SQL, aminek a másik végén `DROP DATABASE` áll a gazda
+adatbázison; és egy nyers SQL-üzenet olyan eszközben, aminek a FELADATA a gyakorlás.
+
+**És amit ez a lánc ezzel IGAZOLT.** A helyes névvel a `proof:pg-durability` **végig zöld**, 7 mért
+lépéssel: írás a futó alkalmazáson át · ÚJRAINDÍTÁS után a fiók megvan és ugyanazzal a jelszóval belép ·
+`pg_dump` · visszatöltés ELKÜLÖNÍTETT célra · a sor-számok egyeznek (alany 19/19 · könyv 19/19) · a
+séma-verzió egyezik (`001`) · a konkrét bizonyított csatorna visszajött.
+
+**Amit ez NEM állít.** Ez **helyi** PostgreSQL **16.15**, nem a Railway 18-asa, és nem a FELHŐS
+mentés-visszatöltés igazolása — azt a SPEC külön nevezi meg, és továbbra is NINCS igazolva. Amit igazol:
+a mechanizmus működik, és a gyakorlás elvégezhető. Gépi jel: `npm run verify:kuka` (KUKA-307) ·
+`npm run proof:pg-durability` (valódi PostgreSQL kell hozzá).
+
+---
+
+## D-VS-3116 — A VÉDELMI DÖNTÉS KÖLTSÉGE ÁLLANDÓ (R154, a harmadik ugyanilyen eset)
+
+**A döntés.** A tár számlálja a névtelen sorokat, és ha csak a beszúrt sor vehető el, azonnal eldobja —
+rendezés és másolás nélkül. A döntés O(1).
+
+**Miért.** A KÜLSŐ REVIEW (Codex) mért leletére: telt táron minden süti nélküli kérés lemásolta és
+rendezte a teljes térképet. Mérve 20 000 belépett sor mellett: 100 beszúrás **754 ms** → a javítás után
+**45 ms**.
+
+**És amit ebből kimondok, mert ez a csomag harmadik ilyen esete.** F154-01 (a kéréskorlát sora) ·
+F154-11 (a védett-lista teljes tábla-olvasása) · ez — mindhárom ugyanaz az osztály, és a D-VS-3100 meg
+a D-VS-3110 gépi jelei nem kapták el, mert EGY KONKRÉT sorra illeszkednek. A tanulság nem új szabály,
+hanem általánosabb jel: minden védelmi/takarító úton a döntés költsége legyen állandó vagy a DÖNTÉS
+hatókörével arányos.
+
+**Amit ez NEM állít.** A számláló helyessége FELTEVÉSEN áll (az `subject_id` a beszúrásnál áll be és
+nem változik), ezért MÉRJÜK: a battéria vegyes sorozat után összeveti a számlálót a tényleges
+tartalommal (i6). Gépi jel: `npm run verify:app-findings-r154` (I: i4–i6) · `npm run verify:kuka`
+(KUKA-306).
+
+---
+
+## D-VS-3113 — HÁROM SZÖVEG-FAJTA, NEM KETTŐ: A SZABAD SZÖVEG ÖNÁLLÓ TÍPUS (R154, ISC-03)
+
+**A döntés.** A bemeneti típusok három szöveg-fajtát ismernek: AZONOSÍTÓ/NÉV (`nonempty_string` —
+vezérlő-karakter tilos) · NEM ÜRES SZABAD SZÖVEG (`nonempty_text` — sortörés jogos, nulla bájt tilos)
+· OPCIONÁLIS SZABAD SZÖVEG (`string`). A segéd-chat `question` mezője a középső.
+
+**Miért.** A KÜLSŐ REVIEW (Codex) mért leletére, és ez az ISC-02 (D-VS-3109) **regressziója**: a
+vezérlő-karakter-tiltást a `nonempty_string`-re tettem, a `question` mező pedig az volt — a felület
+viszont `<textarea>`-t ad hozzá, ahol az ENTER sortörést tesz. Mérve: a több soros kérdés HTTP 400
+`invalid_type`-ot kapott. A felületen FELAJÁNLOTT szerkesztő tett küldhetetlenné egy jogos kérdést.
+A kockázatot a saját PR-kommentemben megnevezte — és mégis elkövettem.
+
+**Amit ez NEM állít.** A szűkítés nem tűnt el: a nulla bájt a kérdésben is tilos, az üres kérdés is,
+és a NÉV mezőben a sortörés is — mindhárom ellenpár mérve. A PÁROSÍTÁS mostantól GÉPI: a próba a két
+fájlból olvassa össze, hogy a lap `<textarea>`-t ad ÉS a típus szabad szöveg (h3). Gépi jel:
+`npm run verify:app-findings-r154` (H: h1–h6) · `npm run verify:kuka` (KUKA-303) ·
+`npm run verify:v3ref` (237/237 elkapott mutáció a változás után).
+
+---
+
+## D-VS-3112 — A FRISS SOR VÉDELME A SAJÁT OSZTÁLYÁIG TART (R154, a D-VS-3108 szűkítése)
+
+**A döntés.** A `keep` (a beszúrt sor sérthetetlensége) a SAJÁT OSZTÁLYÁIG tart: ha a plafon
+betartásához belépett sort kellene elvenni, és a beszúrt sor NÉVTELEN, akkor a BESZÚRT sor megy.
+
+**Miért.** A KÜLSŐ REVIEW (Codex) mért leletére, ami a D-VS-3108 mellékhatása: telt táron EGY süti
+nélküli kérés a hiányt a belépett körre tolta. Mérve: 4 belépett sor 4-es plafonon, egy névtelen
+beszúrás → `evicted_cap_signed_in: 1`, és a friss névtelen BENT maradt. Vagyis egy hitelesítés nélküli
+látogató kiléptetett egy belépett embert — a javítás új támadási utat nyitott. Két helyes szabály
+(az új sor sérthetetlen · a névtelen esik előbb) ütközött, és az ütközést nem mondtam ki.
+
+**A tudatos csere, kimondva.** Telt táron a névtelen látogató olyan sütit kaphat, ami a következő
+kérésnél új munkamenetet nyit. Ez rosszabb neki, de egy névtelen látogató kényelme nem ér fel egy
+belépett ember kiléptetésével.
+
+**Amit ez NEM állít.** A D-VS-3108 garanciája nem veszett el: a BELÉPETTEN született friss sor
+továbbra is sérthetetlen (ellenpár mérve). Gépi jel: `npm run verify:app-findings-r154` (G: g2, g3, g4)
+· `npm run verify:kuka` (KUKA-302).
+
+---
+
+## D-VS-3109 — A VEZÉRLŐ-KARAKTER A HATÁRON AKAD EL, TÁROLÓTÓL FÜGGETLENÜL (R154, ISC-02)
+
+**A döntés.** A bemeneti típusok zárják a vezérlő-karaktereket, két szinten: a NULLA BÁJT minden
+szöveges mezőben tilos (`string` és `nonempty_string`), a többi C0 vezérlő és a DEL pedig a NÉV- és
+AZONOSÍTÓ-fajta mezőkben (`nonempty_string`). A SZABAD SZÖVEG (`string`) a sortörést engedi. A
+`secret_string` érintetlen.
+
+**Miért.** Mérve: `POST /api/workspaces {"name":"A\u0000B"}` ÁTMENT a kapun, és onnantól a kimenet a
+tárolótól függött — SQLite: **201**, a munkakörnyezet létrejött `A\0B` névvel; elkülönített helyi
+PostgreSQL 16.15: **400 `provision_failed`**, írás nélkül (a PG oka közvetlenül is mérve:
+`22021 invalid byte sequence for encoding "UTF8": 0x00`). Egy határ-szerződés, aminek a kimenete attól
+függ, melyik tároló fut, nem szerződés — és a PG-s elutasítás FÉLREVEZETŐ okot adott: nem a bemenetet
+nevezte meg, hanem a létrehozást. A javítás után mindkét tároló UGYANAZT a nevezett 400-at adja.
+
+**Amit ez NEM állít.** Nem a teljes PostgreSQL-paritás igazolása: egyetlen mező-fajtát mértem végig két
+tárolón. A használt PostgreSQL **16.15**, NEM a Railway 18-asa — a SPEC a 18-hoz igazítást kérte, ez
+kimondott eltérés. A `secret_string` szűkítése szándékosan kimaradt (a jelszó `scrypt` lenyomatként
+tárolódik, tehát ott nincs tároló-eltérés; egy szűkítés meglévő jelszavakat tenne érvénytelenné).
+Gépi jel: `npm run verify:app-findings-r154` (F: f1–f4) · `npm run verify:kuka` (KUKA-299) ·
+`npm run verify:v3ref` (a mag mutációs battériája).
+
+---
+
+## D-VS-3108 — A BESZÚRT SOR SÉRTHETETLEN, ÉS A BELÉPÉS MUNKAMENETE BELÉPETTEN SZÜLETIK (R154)
+
+**A döntés.** A plafon-söprés a beszúrt sort soha nem veszi el (`keep`), a `newSession(subjectId)`
+pedig a BESZÚRÁS pillanatában állítja be az alanyt. A hisztérézis osztályonként más: a névtelenekből
+az alsó vízszintig söprünk, a belépettekből csak a plafonig.
+
+**Miért.** A KÜLSŐ REVIEW (Codex) mért leletére: 37 belépett + 3 névtelen 40-es plafonon, és az ÚJ sor
+beszúrása négy névtelent vitt el, köztük MAGÁT. A `newSession()` így olyan objektumot adott vissza,
+ami nincs a tárban — a belépés 200-at és sütit adott, a következő kérés viszont kiléptetett: siker-
+jelentés hatás nélkül (KUKA-120). A belépés ráadásul az alanyt utólag tette rá, tehát a beszúrás
+pillanatában még névtelennek számított.
+
+**Amit ez NEM állít.** Az osztályonkénti hisztérézis nem mért optimum (a 90%-os alsó vízszint
+kimondott alapérték); annyit garantál, hogy egy lassú névtelen elárasztás nem léptet ki embert
+pusztán a hisztérézis kedvéért. Gépi jel: `npm run verify:app-findings-r154` (E: e4, e5, e10) ·
+`npm run verify:kuka` (KUKA-298).
+
+---
+
+## D-VS-3105 — A `q=0` KIZÁRÁS, NEM LEGHÁTSÓ PREFERENCIA (R154, RFC 7231 §5.3.1)
+
+**A döntés.** Az `Accept-Language` súly-szűrője a `q=0`-s címkét KIZÁRJA. Ha minden címke kiesik, a
+válasz az alapnyelv, `matched: false`-szal.
+
+**Miért.** A régi alak a `q=0`-t a legkisebb előnyben részesítésnek vette. MÉRVE: `de;q=0` → `de`,
+`en;q=0` → `en` — aki kifejezetten kizárta a nyelvet, pont azt kapta. A fájl fejléce közben
+szabványokra hivatkozik (RFC 5646 · W3C), a súly-szemantikát viszont nem mérte senki.
+
+**Amit ez NEM állít.** A súlyozás működése nem változott: `de;q=0, en;q=0.5` továbbra is `en`, és
+`hu;q=0, en;q=0.1` is `en` — a kizárás nem söpri el a többi címkét (ezt az ellenpár méri). A
+`q=abc` és a tartományon kívüli `q=5` továbbra is megengedő olvasás; ez kimondott, nem mért optimum.
+Gépi jel: `npm run verify:app-findings-r154` (D: d5–d7) · `npm run verify:kuka` (KUKA-295).
+
+---
+
+## D-VS-3103 — A VISSZAVÉTEL-PRÓBA VERDIKTJE IS MÉRCE: AZ ELAKADÁS NEM FAIL (R154)
+
+**A döntés.** Egy lelet-battéria minden állítása olyan tulajdonságon áll, ami a javítás NÉLKÜL is
+létezik; a javítással SZÜLETETT belső felszínt csak védett olvasó nézi, és annak hiánya FAIL, nem
+kivétel. A feloldó közvetlen mérése mellé kell egy olyan állítás, amit a BEKÖTÉS eltávolítása
+elbuktat.
+
+**Miért.** Az R154 battériájának első alakját a KUKA-092 szerinti visszavétel-próbán mértem: a
+javítás kivételekor a feloldó-csoport (c1–c6) VÁLTOZATLANUL ZÖLD maradt — helyesen, mert a feloldó
+megvolt, csak nem volt bekötve —, a határ-mérés viszont `app.sessions.stats is not a function`
+kivétellel elhasalt, és a battéria KILÉPÉSI KÓD 2-t adott: „ELAKADT MÉRÉS — a rendszerről ez NEM
+mond semmit". A bekötés eltávolítása tehát pont annak a jelzésnek a köntösében jelent meg, amit
+instabilitásnak szokás nézni. A javított alak ugyanerre `size: 407` a 40-es plafon ellen, kilépési
+kód 1.
+
+**Amit ez NEM állít.** A visszavétel-próba MAGA nem automatizált: kézi lépés, és ezt kimondjuk. Gépi
+jel: `npm run verify:kuka` (KUKA-293, a battéria fájlján).
+
+---
+
 ## D-VS-3099 — A LEFEDÉS BIZONYÍTÉKA DEKLARÁLT KÖTÉS, A TELJESSÉG PIROS, ÉS A MODELL TÉMÁJÁBÓL MŰVELET LESZ (R144, LEF-01 · SMP-01 · AST-08 · AST-09)
 
 > **Hatály:** V3 (`valach-system`). Nincs merge, éles telepítés, V2-módosítás, új fizetős

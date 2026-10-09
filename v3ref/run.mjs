@@ -17,12 +17,14 @@ import { dirname, join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { openStore, clockFrom, instantMs } from './store.mjs';
 import { observeInvite, redeemInvite, rememberIntent, resumeIntent, inviteGrantAt,
-  revokeInvite, inviteRevocationAt, inviteOpenAt, reentryAdmission } from './invite.mjs';
+  revokeInvite, inviteRevocationAt, inviteOpenAt, reentryAdmission,
+  purgeExpiredIntents, PENDING_INTENT_TTL_MS, intentTtlMs } from './invite.mjs';
 import { rightAt, revokeMembership, revocationTransition, roleGrants, KNOWN_ROLES } from './authz.mjs';
 import { ADJUDICATION_OPS, adjudicationRightAt, grantAdjudicationAuthority, submitClaim, readClaim,
   adjudicateClaim, suspendMembership, liftSuspension, intakeKeyOf, UNATTRIBUTED_INTAKE_KEY,
   NEUTRAL_CLAIM_ACK, CLAIM_NOT_AVAILABLE, CLAIM_RATE } from './adjudication.mjs';
 import { suspensionEffectiveAt } from './suspension.mjs';
+import { reentryExclusionsAt } from './reentryGate.mjs';
 import { issueBan, imposeBan, banEffectiveAt, banReaches, kindForCause, KNOWN_BAN_KINDS, KNOWN_BAN_CAUSES, operationScopeRef, operationScopeProblem } from './ban.mjs';
 import { executableRightAt } from './authority.mjs';
 import { resultScopesOf, declaredScopesOfType, KNOWN_DATA_SCOPES } from './resultScope.mjs';
@@ -290,7 +292,8 @@ probe('P-K03-intent', 'R32/K03 · D-VS-667',
       w.store.run('INSERT INTO channel_proof (subject_id, namespace, value_norm, proven_at) VALUES (?,?,?,?)',
         'sub_invitee', 'email', 'kovacs@pelda.hu', w.clock.now());
       // 3. A rendszer visszatér UGYANAHHOZ a meghívóhoz.
-      const resumed = resumeIntent({ store: w.store, sessionId: 'sess_1' });
+      // AZ ÓRA ITT IS KÖTELEZŐ (D-VS-3141): a függő szándék lejárata nem opcionális.
+      const resumed = resumeIntent({ store: w.store, sessionId: 'sess_1', clock: w.clock });
       const r = redeemInvite({ store: w.store, token: resumed, actingSubjectId: 'sub_invitee', clock: w.clock });
       const ok = anon.status === 'needs_invitee_identity' && resumed === 'tok_1' && r.ok && r.shape === 'membership_only';
       return {
@@ -702,6 +705,145 @@ probe('P-AUTHZ-revoke-now', 'R32/K09',
       return {
         expected: 'utemezett=elorehozva · mar hatalyos=valtozatlan · elozmeny megorizve · a feloldo hivva',
         actual: `elorehozas=${pulled.reason} · alice=${aliceNow.reason} · mar hatalyos=${already.reason} · carol=${carolDate} · elozmeny=${hist && hist.previous_effective_at}`,
+        pass: ok,
+      };
+    } finally { w.store.close(); }
+  });
+
+probe('P-K03-intent-expiry', 'R32/K03 · D-VS-3141 (a D-VS-3007 nevezett függője)',
+  'A FÜGGŐ SZÁNDÉK LEJÁR: az olvasás is kapu, a takarítás halmazon megy, és óra nélkül NEVEZETT hiba',
+  () => {
+    const w = buildWorld({ inviteeHasAccount: true });
+    try {
+      // (a) FRISS szándék: visszaadható.
+      rememberIntent({ store: w.store, sessionId: 'sess_friss', token: 'tok_1', clock: w.clock });
+      const friss = resumeIntent({ store: w.store, sessionId: 'sess_friss', clock: w.clock });
+
+      // (b) LEJÁRT szándék: NEM adható vissza, ÉS a sor el is tűnik (az olvasás is kapu).
+      rememberIntent({ store: w.store, sessionId: 'sess_lejart', token: 'tok_1', clock: w.clock });
+      w.clock.advance(PENDING_INTENT_TTL_MS + 60_000);
+      const lejart = resumeIntent({ store: w.store, sessionId: 'sess_lejart', clock: w.clock });
+      const sorEltunt = !w.store.get('SELECT 1 AS x FROM pending_intent WHERE session_id = ?', 'sess_lejart');
+
+      // (c) A TAKARÍTÁS: a lejárt sort elviszi, a FRISSET meghagyja — EGY halmaz-utasításban.
+      // Az `sess_friss` sora az (a) pont óta MAGA IS lejárt (előre tekertük az órát), ezért újra
+      // rögzítjük: ez egyben azt is méri, hogy az ÚJRA-rögzítés FRISSÍTI a `created_at`-ot.
+      rememberIntent({ store: w.store, sessionId: 'sess_friss', token: 'tok_1', clock: w.clock });
+      rememberIntent({ store: w.store, sessionId: 'sess_most', token: 'tok_1', clock: w.clock });
+      w.store.run('INSERT INTO pending_intent (session_id, invite_token, created_at) VALUES (?,?,?)',
+        'sess_regi', 'tok_1', new Date(Date.parse(w.clock.now()) - PENDING_INTENT_TTL_MS - 1000).toISOString());
+      const takaritas = purgeExpiredIntents({ store: w.store, clock: w.clock });
+      const maradt = w.store.all('SELECT session_id FROM pending_intent').map((r) => r.session_id).sort();
+
+      // (d) ÓRA NÉLKÜL NEVEZETT HIBA (KUKA-238): nem csendes „nincs lejárat".
+      let nevezett = false;
+      try { resumeIntent({ store: w.store, sessionId: 'sess_most' }); }
+      catch (e) { nevezett = /clock/.test(String(e && e.message)); }
+
+      // (e) A NEM ÉRTELMEZHETŐ IDŐBÉLYEG LEJÁRTNAK SZÁMÍT (F158-04, külső review, Codex, P2).
+      //     A `created_at` puszta `TEXT NOT NULL`: egy import vagy sérülés értelmezhetetlen értéket
+      //     hoz, és az első alakom `Number.isFinite(kor) && …` őre ilyenkor NEM tüzelt — a szándék
+      //     időkorlát nélkül folytatódott. Amiről nem tudjuk, milyen öreg, arról nem állítjuk, hogy
+      //     friss (KUKA-020), és a sort el is dobjuk.
+      w.store.run('INSERT INTO pending_intent (session_id, invite_token, created_at) VALUES (?,?,?)',
+        'sess_romlott', 'tok_x', 'nem-egy-idopont');
+      const romlott = resumeIntent({ store: w.store, sessionId: 'sess_romlott', clock: w.clock });
+      const romlottEltunt = !w.store.get('SELECT 1 AS x FROM pending_intent WHERE session_id = ?', 'sess_romlott');
+
+      // (f) A JÖVŐBELI IDŐBÉLYEG SEM FRISS (F158-13): a negatív kor VÉGES, tehát az előző alakon
+      //     átment — egy 2099-es sor 2099-ig folytatódott volna, megkerülve a 24 órás türelmi időt.
+      w.store.run('INSERT INTO pending_intent (session_id, invite_token, created_at) VALUES (?,?,?)',
+        'sess_jovo', 'tok_j', '2099-01-01T00:00:00.000Z');
+      const jovo = resumeIntent({ store: w.store, sessionId: 'sess_jovo', clock: w.clock });
+      const jovoEltunt = !w.store.get('SELECT 1 AS x FROM pending_intent WHERE session_id = ?', 'sess_jovo');
+
+      // (g) ÉS A HALMAZOS TAKARÍTÁS IS VISZI A ROMLOTT ÉS A JÖVŐBELI SORT (F158-14). Ezek ÁRVÁK is
+      //     lehetnek (a munkamenetük már nincs), tehát az OLVASÁS soha nem hívódna meg rájuk — a
+      //     táblában maradnának örökre.
+      w.store.run('DELETE FROM pending_intent');
+      w.store.run('INSERT INTO pending_intent (session_id, invite_token, created_at) VALUES (?,?,?)', 'arva_romlott', 'tok_a', 'bogus');
+      w.store.run('INSERT INTO pending_intent (session_id, invite_token, created_at) VALUES (?,?,?)', 'arva_jovo', 'tok_b', '2099-01-01T00:00:00.000Z');
+      w.store.run('INSERT INTO pending_intent (session_id, invite_token, created_at) VALUES (?,?,?)', 'arva_friss', 'tok_c', w.clock.now());
+      const halmaz = purgeExpiredIntents({ store: w.store, clock: w.clock });
+      const halmazMaradt = w.store.all('SELECT session_id FROM pending_intent').map((r) => r.session_id).sort().join(',');
+
+      // (h) A FOLYTATÁS NEM ÉLHETI TÚL A KULCSÁT (F158-17, külső review, Codex, P2). A kimondott 24 óra
+      //     PLAFON: a sor egyetlen kulcsa a munkamenet, ezért a ténylegesen kiszolgálható idő a plafon
+      //     és a munkamenet tétlenségi korlátjának KISEBBIKE. A hiányzó korlát NEVEZETTEN elakad —
+      //     különben a hívó NÉMÁN visszakapná a 24 órát, vagyis pont a javított hibát (KUKA-238).
+      const ORA = 60 * 60 * 1000;
+      const ttlRovid = intentTtlMs({ sessionIdleMs: 12 * ORA });
+      const ttlHosszu = intentTtlMs({ sessionIdleMs: 48 * ORA });
+      let ttlNevezett = false;
+      try { intentTtlMs({}); } catch (e) { ttlNevezett = /tétlenségi korlátja KÖTELEZŐ/.test(String(e && e.message)); }
+
+      // (i) AZ IDŐT IDŐPILLANATKÉNT VETJÜK ÖSSZE, ÉS AZ ÍRÁS KANONIZÁL (F158-20, külső review, Codex, P2).
+      //     A LELET: egy eltolásos alakú óra (`+02:00`) ugyanazt a PILLANATOT jelenti, mint a `Z`-s
+      //     alak, a halmazos takarítás viszont SZÖVEGESEN vetette össze — ezért egy FRISS sor
+      //     „jövőbelinek" minősült és TÖRLŐDÖTT. A válasz: az írás kanonikus UTC alakot tárol, és ami
+      //     mégsem kanonikus (import, sérülés), azt `Date.parse`-szal, IDŐPILLANATKÉNT ítéljük meg.
+      w.store.run('DELETE FROM pending_intent');
+      const eltolt = { now: () => '2026-10-06T01:00:00+02:00' };
+      rememberIntent({ store: w.store, sessionId: 'sess_eltolas', token: 'tok_e', clock: eltolt });
+      const kanonikusAlak = w.store.get('SELECT created_at FROM pending_intent WHERE session_id = ?', 'sess_eltolas').created_at;
+      const eltoltTakaritas = purgeExpiredIntents({ store: w.store, clock: eltolt });
+      const eltoltMegvan = Boolean(w.store.get('SELECT 1 AS x FROM pending_intent WHERE session_id = ?', 'sess_eltolas'));
+
+      // (j) ÉS AZ IMPORTÁLT, NEM KANONIKUS ÁRVA SOROK: a romlott és a lejárt MEGY, a FRISS MARAD.
+      w.store.run('DELETE FROM pending_intent');
+      const beSor = (sid, at) => w.store.run('INSERT INTO pending_intent (session_id, invite_token, created_at) VALUES (?,?,?)', sid, 'tok', at);
+      beSor('imp_friss_eltolas', '2026-10-06T01:00:00+02:00');
+      beSor('imp_romlott', 'bogus');
+      beSor('imp_regi', '2026-10-01T00:00:00.000Z');
+      const impTakaritas = purgeExpiredIntents({ store: w.store, clock: eltolt });
+      const impMaradt = w.store.all('SELECT session_id FROM pending_intent').map((r) => r.session_id).sort().join(',');
+
+      // (k) ÉS A KANONIKUS ALAK VIZSGÁLATA BETŰ-ÉRZÉKENY (F158-24, külső review, Codex, P2). A LELET:
+      //     az SQLite `LIKE`-ja ASCII-ra kis/nagybetű-érzéketlen, ezért egy FRISS, értelmezhető
+      //     `…t…z` alakú sor kanonikusnak LÁTSZOTT, és a szöveges összevetés a kisbetűs `t`-t (0x74)
+      //     a nagybetűs `T`-nél (0x54) nagyobbnak látta — vagyis jövőbelinek minősítette és TÖRÖLTE;
+      //     PostgreSQL-en ugyanaz a sor megmaradt. A takarítás viselkedése a TÁROLÓTÓL függött.
+      w.store.run('DELETE FROM pending_intent');
+      const mostIso = new Date(Date.parse(w.clock.now())).toISOString();
+      const regiIso = new Date(Date.parse(w.clock.now()) - PENDING_INTENT_TTL_MS - 1000).toISOString();
+      beSor('betu_kis_friss', mostIso.toLowerCase());
+      beSor('betu_kis_lejart', regiIso.toLowerCase());
+      beSor('betu_nagy_friss', mostIso);
+      beSor('betu_nagy_lejart', regiIso);
+      const betuTakaritas = purgeExpiredIntents({ store: w.store, clock: w.clock });
+      const betuMaradt = w.store.all('SELECT session_id FROM pending_intent').map((r) => r.session_id).sort().join(',');
+
+      // (l) ÉS A KANONIKUS ALAK HOSSZ-KÖTÖTT: AMI CSAK A FEJÉBEN HASONLÍT, AZ AZ ÉRTELMEZŐ ÁGRA MEGY
+      //     (R164 — a SAJÁT mag-battériánk M222 mutációja TÚLÉLT, és ezt a külső-ellenőrző lánc
+      //     IDŐ-bukása fedte el: a tartalmi maradék MÉRETLEN volt, nem zöld. KUKA-093 alakja.)
+      //     A LELET ALAKJA. Ha az alak-minta farka `%`-ra enged (`____-__-__T%` a hossz-kötött
+      //     `____-__-__T__:__:__.___Z` helyett), akkor egy ROMLOTT sor, aminek a FEJE kanonikusnak
+      //     látszik (`…Z` + szemét), „kanonikusnak" minősül, és a SZÖVEGES ágra kerül. Ott az
+      //     összevetés az ABLAKON BELÜLRE esik, tehát NEM törlődik — és az ÉRTELMEZŐ ág sem látja,
+      //     mert az a `NOT (ALAK)` sorokat kéri. A romlott sor így ÖRÖKÉLETŰ ÉS LÁTHATATLAN: egyetlen
+      //     jelentésben sem jelenik meg (se `odd_rows`, se `odd_purged`).
+      //     EZÉRT NEM ELÉG AZT MÉRNI, HOGY ELTŰNT-E: azt is mérjük, MELYIK ÁGON tűnt el (KUKA-216 — a
+      //     verdikt ne mutasson a mérés hatókörén túl; a „purged=1" magában NEM mondja meg az utat).
+      w.store.run('DELETE FROM pending_intent');
+      const fejHasonlo = `${new Date(Date.parse(mostIso) - 60 * 60 * 1000).toISOString()}xyz`;
+      beSor('hossz_romlott_fej', fejHasonlo);
+      const hosszTakaritas = purgeExpiredIntents({ store: w.store, clock: w.clock });
+      const hosszMaradt = w.store.all('SELECT session_id FROM pending_intent').length;
+
+      const ok = friss === 'tok_1' && lejart === null && sorEltunt
+        && takaritas.purged === 1 && maradt.join(',') === 'sess_friss,sess_most' && nevezett === true
+        && romlott === null && romlottEltunt === true
+        && jovo === null && jovoEltunt === true
+        && halmaz.purged === 2 && halmazMaradt === 'arva_friss'
+        && ttlRovid === 12 * ORA && ttlHosszu === PENDING_INTENT_TTL_MS && ttlNevezett === true
+        && kanonikusAlak === '2026-10-05T23:00:00.000Z' && eltoltTakaritas.purged === 0 && eltoltMegvan === true
+        && impTakaritas.purged === 2 && impTakaritas.odd_purged === 1 && impMaradt === 'imp_friss_eltolas'
+        && betuMaradt === 'betu_kis_friss,betu_nagy_friss' && betuTakaritas.purged === 2 && betuTakaritas.odd_purged === 1
+        && hosszTakaritas.odd_rows === 1 && hosszTakaritas.odd_purged === 1
+        && hosszTakaritas.purged === 1 && hosszMaradt === 0;
+      return {
+        expected: 'friss=tok_1 · lejárt=null és a sor eltűnt · takarítás=1 lejárt sor, a friss marad · óra nélkül NEVEZETT hiba · ROMLOTT és JÖVŐBELI időbélyeg = lejárt · a HALMAZOS takarítás az árva romlott és jövőbeli sort is viszi, a frisset nem · a türelmi idő a PLAFON és a munkamenet KISEBBIKE, korlát nélkül NEVEZETT hiba · az ÍRÁS kanonikus UTC alakot tárol, az eltolásos FRISS sor megmarad, és a nem kanonikus árva sort IDŐPILLANATKÉNT ítéljük meg · a KISBETŰS friss sor is megmarad (az alak-vizsgálat betű-érzékeny) · és a csak a FEJÉBEN kanonikus romlott sor az ÉRTELMEZŐ ágon tűnik el, nem a szövegesen (odd_rows=1 · odd_purged=1)',
+        actual: `friss=${friss} · lejárt=${lejart} · sor_eltunt=${sorEltunt} · takaritva=${takaritas.purged} · maradt=${maradt.join(',')} · nevezett_hiba=${nevezett} · romlott=${romlott} · romlott_eltunt=${romlottEltunt} · jovo=${jovo} · jovo_eltunt=${jovoEltunt} · halmaz_takaritva=${halmaz.purged} · halmaz_maradt=${halmazMaradt} · ttl_12h=${ttlRovid / ORA}h · ttl_48h=${ttlHosszu / ORA}h · ttl_korlat_nelkul_nevezett=${ttlNevezett} · tarolt_alak=${kanonikusAlak} · eltolasos_friss_megvan=${eltoltMegvan} · import_takaritva=${impTakaritas.purged}/nem_kanonikusbol=${impTakaritas.odd_purged} · import_maradt=${impMaradt} · betu_maradt=${betuMaradt} · betu_takaritva=${betuTakaritas.purged}/nem_kanonikusbol=${betuTakaritas.odd_purged} · fej_hasonlo_ag=odd_rows:${hosszTakaritas.odd_rows}/odd_purged:${hosszTakaritas.odd_purged}/purged:${hosszTakaritas.purged}/maradt:${hosszMaradt}`,
         pass: ok,
       };
     } finally { w.store.close(); }
@@ -2537,6 +2679,126 @@ probe('P-REV-ban-scope', 'R71 §8/1 · REV-N5b · K09 · K15 · KUKA-048 · KUKA
         },
       };
     } finally { w.store.close(); }
+  });
+
+probe('P-AUTHZ-protective-clock', 'R158/3 · REV-N5a · SUS-01 · KUKA-039 · KUKA-020 · KUKA-124',
+  'A VÉDŐ KAPUKAT AZ ELDÖNTHETETLEN ÓRA SEM OLDHATJA FEL — és a zárás a SAJÁT nevén megy',
+  () => {
+    const w = buildTwoBookWorld();
+    try {
+      // BÍRÓSÁGI VÉGZÉS: ALANY-SZÉLES tiltás. Ez a legerősebb fajta: MINDEN kérést el kell érnie,
+      // tehát ha valahol átjut, az a legsúlyosabb alak.
+      plantBanFixture(w, { subjectId: 'sub_dolgozo', cause: 'court_order_subject', kind: 'subject', targetRef: null });
+      const kérés = { bookId: 'book_a', opClass: 'own_book' };
+      const ban = (nowIso) => banEffectiveAt({ store: w.store, subjectId: 'sub_dolgozo', nowIso, request: kérés });
+
+      // (a) KONTROLL: érvényes órával a tiltás HAT. Enélkül a lenti ágak semmit nem mondanának.
+      const jo = ban(w.clock.now());
+      const aOk = jo.banned === true && jo.reason === 'ban_subject_wide';
+
+      // (b) AZ ELDÖNTHETETLEN KÉRÉS-ÓRA NEM OLDJA FEL — négy alakban, mert a hiba négyféleképpen jön:
+      //     hiányzó · üres · nem kanonikus · rossz típus. A régi alak MIND A NÉGYRE `banned: false`-t
+      //     adott (MÉRVE), holott a sor-szintű órákat már eddig is óvatosan kezelte (KUKA-039).
+      const rosszak = [undefined, '', '2026-02-01 00:00:00', 1769904000000];
+      const bOk = rosszak.every((x) => {
+        const v = ban(x);
+        return v.banned === true && v.decidable === false && String(v.reason).startsWith('clock_');
+      });
+
+      // (c) ÉS A FELFÜGGESZTÉS UGYANÚGY: a `banScope.mjs` maga nevezi meg a felfüggesztést az
+      //     idő-irány forrásaként (SUS-01), tehát a két ág egy szabály két fele.
+      w.store.run(`INSERT INTO membership_suspension (subject_id, book_id, actor_subject_id, suspended_at)
+        VALUES (?,?,?,?)`, 'sub_dolgozo', 'book_b', 'sub_adjudicator', w.clock.now());
+      const sus = (nowIso) => suspensionEffectiveAt({ store: w.store, subjectId: 'sub_dolgozo', bookId: 'book_b', nowIso });
+      const cOk = sus(w.clock.now()).suspended === true
+        && rosszak.every((x) => { const v = sus(x); return v.suspended === true && v.decidable === false && String(v.reason).startsWith('clock_'); });
+
+      // (d) AZ ÚJBÓLI BELÉPÉS KAPUJA NEM ENGED BE — és NEM a felfüggesztés nevén zár, hanem a
+      //     SAJÁTJÁN (KUKA-124: a rossz nevű hibaüzenet elrejti az igazit). MÉRVE a javítás ELŐTT:
+      //     `ok: true, reason: 'reentry_admissible'`, miközben a `checked` lista felsorolta a
+      //     `suspension`+`ban` lépést — a nyom azt állította, hogy a kapuk lefutottak (KUKA-129).
+      const kapu = (nowIso) => reentryExclusionsAt({ store: w.store, subjectId: 'sub_dolgozo', bookId: 'book_a', closed: null, nowIso });
+      const jóKapu = kapu(w.clock.now());
+      const dOk = jóKapu.ok === false && jóKapu.reason === 'reentry_blocked_ban'
+        && rosszak.every((x) => { const v = kapu(x); return v.ok === false && v.reason === 'reentry_undecidable_clock' && v.next_step === 'fix_request_clock'; });
+
+      // (e) ELLENPÁR: a javítás NEM lett „mindig tiltott". Tiltás NÉLKÜLI alanyon, ÉRVÉNYES órával a
+      //     válasz továbbra is NEM TILTOTT — különben a kapu bezárná a rendes működést is (KUKA-091).
+      const tisztaBan = banEffectiveAt({ store: w.store, subjectId: 'sub_invitee', nowIso: w.clock.now(), request: kérés });
+      const eOk = tisztaBan.banned === false && tisztaBan.reason === 'not_banned';
+
+      return {
+        pass: aOk && bOk && cOk && dOk && eOk,
+        detail: { aOk, bOk, cOk, dOk, eOk },
+        assertions: {
+          'A-REV-N5a-valid-clock-control': aOk,
+          'A-REV-N5a-undecidable-request-clock-does-not-lift-the-ban': bOk,
+          'A-SUS-01-undecidable-request-clock-does-not-lift-the-suspension': cOk,
+          'A-RNV-02-reentry-refuses-under-its-own-name': dOk,
+          'A-REV-N5a-counterpart-clean-subject-stays-allowed': eOk,
+        },
+      };
+    } finally { w.store.close(); }
+  });
+
+probe('P-AUTHZ-parent-limit', 'R158/3 · ORG-N1b · KUKA-020 · KUKA-236 · KUKA-039',
+  'AZ ÁTVITT KORLÁT ÜRES VAGY HIBÁS ALAKJA NEM „NINCS KORLÁT" — a plafon nem nyílhat ki egy sérült soron',
+  () => {
+    const T = '2026-03-01T00:00:00.000Z';
+    const AT = '2026-04-01T00:00:00.000Z';
+    // A TAGSÁGRA ÁTVITT korlát a `grant_basis.granted_limit` JSON-ja, és az ALAKJÁT senki nem
+    // ellenőrzi (`JSON.parse`, szerkezet-vizsgálat nélkül) — tehát a sérült alak VALÓDI bemenet.
+    const vilag = (grantedLimit) => {
+      const store = openStore();
+      store.run("INSERT INTO book (id, name) VALUES ('book_a','A')");
+      store.run("INSERT INTO subject (id, kind) VALUES ('sub_admin','person')");
+      store.run("INSERT INTO account (subject_id, credential) VALUES ('sub_admin','cred_a')");
+      store.run("INSERT INTO membership (subject_id, book_id, role, granted_at) VALUES ('sub_admin','book_a','admin',?)", T);
+      const g = store.run(`INSERT INTO membership_grant (subject_id, book_id, role, recorded_at, effective_at)
+        VALUES ('sub_admin','book_a','admin',?,?)`, T, T);
+      store.run(`INSERT INTO authority_basis (basis_id, version, book_id, issuer_subject, effective_at, recorded_at,
+          expires_at, revoked_at, allowed_operations, allowed_roles, allowed_scopes, evidence_ref)
+        VALUES ('deleg:book_a:sub_fonok',1,'book_a','sub_admin',?,?,NULL,NULL,?,?,?,'proof')`,
+        T, T, JSON.stringify(['invite_issue', 'alter_right']), JSON.stringify(['admin', 'user']), JSON.stringify(['keszlet']));
+      store.run(`INSERT INTO grant_basis (grant_event_id, token, basis_id, basis_version, granted_limit)
+        VALUES (?, 'tok', 'deleg:book_a:sub_fonok', 1, ?)`, Number(g.lastInsertRowid), JSON.stringify(grantedLimit));
+      return store;
+    };
+    const plafon = (lim) => {
+      const store = vilag(lim);
+      try { return delegationCeilingOf({ store, subjectId: 'sub_admin', bookId: 'book_a', at: AT }); }
+      finally { store.close(); }
+    };
+
+    // (a) KONTROLL: a RENDES korlát szűkít — enélkül a lenti ágak semmit nem mondanának.
+    const jo = plafon({ roles: ['user'], scopes: ['keszlet'] });
+    const aOk = jo.ok === true && JSON.stringify([...jo.roles]) === JSON.stringify(['user']);
+
+    // (b) AZ ÜRES SZEREP-LISTA KORLÁT, NEM SZABADSÁG. MÉRVE a javítás ELŐTT: a plafon
+    //     `["admin","user"]` lett, vagyis egy ÜRES korlát ADMIN továbbadására jogosított.
+    const ures = plafon({ roles: [], scopes: ['keszlet'] });
+    const bOk = ures.ok === false && ures.reason === 'delegation_ceiling_empty';
+
+    // (c) A HIÁNYZÓ ÉS A NEM-TÖMB ALAK NEM MEGÁLLAPÍTHATÓ — nem „nincs korlát" (KUKA-020 · KUKA-236:
+    //     a zárt lista a MEZŐKRE is érvényes). Három alak, mert háromféleképpen sérül egy sor.
+    const cOk = [{ scopes: ['keszlet'] }, { roles: 'admin', scopes: ['keszlet'] }, { roles: ['user'], scopes: 'keszlet' }]
+      .every((lim) => { const v = plafon(lim); return v.ok === false && v.reason === 'parent_limit_undecidable'; });
+
+    // (d) ÉS A KÉT TENGELY UGYANAZT OLVASSA (KUKA-039): az ÜRES adatkör-lista eddig is „semmit"
+    //     jelentett — a szerep-tengely most ugyanígy viselkedik, tehát nincs többé ellentétes olvasat.
+    const uresScope = plafon({ roles: ['user'], scopes: [] });
+    const dOk = uresScope.ok === true && uresScope.scopes.length === 0;
+
+    return {
+      pass: aOk && bOk && cOk && dOk,
+      detail: { aOk, bOk, cOk, dOk },
+      assertions: {
+        'A-ORG-N1b-normal-limit-narrows': aOk,
+        'A-ORG-N1b-empty-role-limit-is-a-limit-not-freedom': bOk,
+        'A-ORG-N1b-missing-or-malformed-limit-is-undecidable': cOk,
+        'A-ORG-N1b-both-axes-read-the-same-shape-the-same-way': dOk,
+      },
+    };
   });
 
 probe('P-REV-ban-paths', 'R71 §8/1 · REV-N5a · K09 · K15 · KUKA-039',

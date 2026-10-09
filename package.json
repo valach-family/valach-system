@@ -81,12 +81,17 @@
     "verify:pg-schema-parity": "node tools/vs_verify_pg_schema_parity.mjs",
     "start": "node v3app/server.mjs",
     "verify:mutation-anchors": "node tools/vs_verify_mutation_anchors.mjs",
+    "verify:browser-gate": "node tools/vs_verify_browser_gate.mjs",
     "proof:pg-bridge-transport": "node tools/v3_pg_bridge_transport_proof.mjs",
     "proof:pg-readiness": "node tools/v3_pg_readiness_proof.mjs",
     "proof:pg-domain-race": "node tools/v3_pg_domain_race_proof.mjs",
     "verify:domain-race-judge": "node tools/v3_pg_domain_race_proof.mjs --selftest",
+    "proof:pg-intent": "node tools/v3_pg_intent_proof.mjs",
     "proof:pg-recovery": "node tools/v3_pg_recovery_proof.mjs",
-    "staging:test-account": "node tools/v3_staging_test_account.mjs"
+    "staging:test-account": "node tools/v3_staging_test_account.mjs",
+    "verify:app-findings-r154": "node v3app/findings_r154.mjs",
+    "proof:r154-findings": "node v3app/findings_r154.mjs",
+    "proof:pg-restore-safety": "node tools/v3_pg_restore_safety_proof.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.0"

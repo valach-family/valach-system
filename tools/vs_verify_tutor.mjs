@@ -196,6 +196,29 @@ function anchorExists(id) {
   }
   return false;
 }
+/**
+ * A BELÉPÉS ELŐTTI ÚTMUTATÓ KIMONDJA, MELYIK BELÉPÉSI NÉZETBEN JÁR (R166 §3).
+ *
+ * A LELET: a futtató FIXEN a regisztrációs nézetre vitt minden `requires_anonymous` útmutatót — a cél
+ * az EGYETLEN akkori ilyen útmutatóból volt általánosítva. Két új útmutató azonnal kibuktatta: a
+ * céljaik a BELÉPÉSI lapon vannak, nem a regisztráción. A nézet-nevek ZÁRT listán állnak: ami nincs
+ * rajta, az elírás, és piros (KUKA-236).
+ */
+const AUTH_VIEWS = Object.freeze(['login', 'register', 'resend']);
+const authViewBaj = [];
+for (const t of Object.values(TOURS)) {
+  if (t.requires_anonymous !== true) continue;
+  if (typeof t.auth_view !== 'string' || !AUTH_VIEWS.includes(t.auth_view)) {
+    authViewBaj.push(`${t.id}→${t.auth_view === undefined ? 'NINCS deklarálva' : String(t.auth_view)}`);
+  }
+}
+check('TUT05', 'MINDEN belépés előtti útmutató KIMONDJA a belépési nézetét (zárt lista: ' + AUTH_VIEWS.join(' · ') + ')',
+  authViewBaj.length === 0,
+  authViewBaj.join(' · ') || `${Object.values(TOURS).filter((t) => t.requires_anonymous === true).length} útmutató, mind deklarálja`);
+// ÉS A NÉZET-NEVEK A FORRÁSBAN IS LÉTEZNEK: a `renderAuth` ágai adják meg őket (nem feltevés).
+check('TUT05', 'a belépési nézetek nevei a FELÜLET forrásában is megvannak (renderAuth ágai)',
+  AUTH_VIEWS.every((v) => APP_SRC.includes(`'${v}'`)), AUTH_VIEWS.join(' · '));
+
 const anchorMissing = [];
 for (const f of FEATURES) for (const a of f.anchors) if (!anchorExists(a)) anchorMissing.push(`${f.id}→${a}`);
 check('TUT05', 'a funkció-horgonyok a FORRÁSBAN megvannak (szó szerint vagy nevezett sablon-családból)',
@@ -269,7 +292,13 @@ check('TUT05', 'a súgó betöltése NEM áll meg belépés nélkül (nyilvános
   !/async function loadHelpData\(\) \{\s*\n\s*if \(!\(state\.me && state\.me\.subject_id\)\) return;/.test(APP_SRC),
   'loadHelpData: nincs belépés-feltétel a függvény elején');
 const tasks = [...new Set(Object.values(TOURS).flatMap((t) => t.steps.map((s) => s.task).filter(Boolean)))];
-const taskUnproven = tasks.filter((t) => !APP_SRC.includes(`tourTaskDone('${t}')`));
+/**
+ * A NYUGTA MA JELÖLŐT IS HOZHAT (R186 §2): a történethez kötött lépés csak a VÁLASZTOTT célon
+ * teljesül, ezért a hívás alakja `tourTaskDone('<feladat>', { ref })` is lehet. A mérce TÁRGYA
+ * változatlan — hogy a lépést a LAP igazolja, nem a kattintás —, ezért a nyitó zárójelig mérünk,
+ * és a második argumentumot nem írjuk elő (`KUKA-057`: a szabály legyen megengedő, ne felsorolás).
+ */
+const taskUnproven = tasks.filter((t) => !new RegExp(`tourTaskDone\\('${t.replace(/\./g, '\\.')}'\\s*[,)]`).test(APP_SRC));
 check('TUT05', 'MINDEN feladathoz kötött lépést a lap IGAZOL (nem a kattintás)', taskUnproven.length === 0,
   taskUnproven.join(' · ') || `${tasks.length} feladat: ${tasks.join(' · ')}`);
 const tourRefBad = FEATURES.filter((f) => f.tour && !Object.prototype.hasOwnProperty.call(TOURS, f.tour));
@@ -461,7 +490,8 @@ if (selftest) {
   // Nem létező bemutató-cél
   t('nem létező bemutató-cél PIROSRA vált', !UI_SOURCES.includes('data-testid="nincs-ilyen-elem"'), 'nincs-ilyen-elem nem szerepel a forrásban');
   // Igazolatlan feladat
-  t('igazolatlan feladat-lépés PIROSRA vált', !APP_SRC.includes("tourTaskDone('nincs.ilyen.feladat')"), 'az app nem igazolja');
+  t('igazolatlan feladat-lépés PIROSRA vált',
+    !/tourTaskDone\('nincs\.ilyen\.feladat'\s*[,)]/.test(APP_SRC), 'az app nem igazolja');
   // Kivezetett látható találat
   const fakeVisible = [{ feature: { id: 'x', status: 'retired' }, visible: true }];
   t('látható kivezetett funkció PIROSRA vált', fakeVisible.filter((r) => r.feature.status === 'retired' && r.visible).length > 0, '1 látható kivezetett');

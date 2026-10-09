@@ -68,6 +68,12 @@ function seed(story) {
     story,
     now: Date.parse(t0),
     actor: 'anna',
+    // R164/3 — A KIJELENTKEZÉS VALÓDI ÁLLAPOTA. Eddig a `POST /api/logout` csak a FIÓKOT hagyta el
+    // (`inBook = false`), az ember pedig bejelentkezve maradt — miközben a fölötte álló megjegyzés
+    // azt állította, hogy „a néző váltása az app saját útján: kilépés → belépés". A szöveg többet
+    // mondott, mint amit a kód tett (KUKA-050). Mostantól a kilépés KILÉPTET: a héj az anonim
+    // állapotot rajzolja, és a folytatás VALÓDI belépés a másik emberrel.
+    signedOut: false,
     book: BOOK,
     plan: 'pro',
     subjects: {
@@ -189,6 +195,71 @@ function install() {
   });
   const served = () => ({ served_book_id: inBook() ? S.book : null, served_subject_id: me().id });
 
+  /**
+   * A TÖRTÉNET CÉL-KÖTÉSE A BEMUTATÓ SAJÁT ADATÁBÓL (R186 §2 · KUKA-016 · KUKA-227).
+   *
+   * MIÉRT KELL. A bemutató-csomag (`demo-assistant.json`) a VALÓDI szerver válaszát viszi, és az
+   * R186 §2 óta a két átívelő történet payloadja a választott cél stabil jelölőjét is tartalmazza
+   * (`story.ref` · `story.actor`). Ezek a jelölők azonban a RÖGZÍTÉST készítő, eldobható
+   * próbavilág meghívójához és alanyaihoz tartoznak — EBBEN a szintetikus világban nem léteznek.
+   * Változatlanul kiszolgálva a lap egy NEM LÉTEZŐ célra kötné a futást, és a történet saját kapui
+   * (`story_ref` · `switch_to`) fail-closed módon zárnának: a bemutató a levél-lépésnél elakadna,
+   * ZÖLD helyett némán. A hiba OSZTÁLYA a KUKA-016: az ALAKOT a fogyasztótól vesszük, az ÉRTÉKET
+   * viszont attól a világtól, amelyikben a lap tényleg kattint.
+   *
+   * MIT TESZ. Pontosan azt a szabályt futtatja, amit a szerver `storyBindingOf`-ja mér
+   * (`v3app/server.mjs`): a FÜGGŐ meghívó története a legkorábban lejáró, FIÓKKAL RENDELKEZŐ
+   * címzettű meghívóra kötődik; az újbóli belépés története a kérőn KÍVÜLI élő tagra; és mindkettőnél
+   * a VÁRT RÉSZTVEVŐ ugyanaz az ember, akit a történet követ. A nyilatkozat ZÁRT KÉSZLET: amit a
+   * szerver nem köt (`own_personal_book`), azt a bemutató sem köti — kitalált kötés nincs.
+   * ÉS A KÉT LISTA EGY SZABÁLYT KAP (`tours` · `resumable_tours`): a szerver is ugyanazt a feloldót
+   * hívja mindkettőre, a lap pedig a definíciót a MÁSODIKBÓL is feloldhatja (`tourDefOf`) — egy
+   * kihagyott lista NÉMÁN a rögzítés idegen jelölőjét adná vissza (`KUKA-039`: a több helyen igaz
+   * szabály ne éljen több példányban).
+   *
+   * ÉS AMIT NEM TESZ: a kötést NEM gyengíti és jogot NEM ad. A `ref` itt is csak jelölő, a beváltás
+   * a TELJES tokenhez kötött, és a bemutató állapota nem jogosultság (KUKA-227) — ez szintetikus
+   * próbavilág, se HTTP-, se tároló-bizonyíték.
+   */
+  /**
+   * ÉS A VÁLASZTÁS SZABÁLYA UGYANAZ, MINT A KISZOLGÁLÓÉ (`KUKA-468` — SAJÁT LELET).
+   *
+   * A csonk eddig a LEGKORÁBBAN lejárót választotta, a kiszolgáló viszont a `KUKA-461` óta a
+   * LEGFRISSEBBEN kiadottat (`expires_at DESC, token`). A bemutató-világban MINDEN meghívónak
+   * UGYANAZ a fix lejárata, tehát a holtversenyt a token dönti el — és a 13. lépésen kiadott
+   * ÚJ meghívó tokenje tetszőleges helyre kerülhet. Ezért a csonk (1) a KÉRT célt részesíti
+   * előnyben, ha az alkalmas, és (2) egyébként a kiszolgáló SORRENDJÉT futtatja — a lap és a
+   * próba UGYANAZT a szabályt méri (`KUKA-227` · `KUKA-207`).
+   */
+  const alkalmasMeghivok = () => S.invites
+    .filter((i) => i.state === 'pending' && Date.parse(i.expires_at) > S.now && Boolean(S.subjects[i.who]))
+    .sort((a, b) => (Date.parse(b.expires_at) - Date.parse(a.expires_at)) || a.token.localeCompare(b.token));
+  const valasztottMeghivo = (kertRef = null) => {
+    const lista = alkalmasMeghivok();
+    return (kertRef ? lista.find((i) => i.ref === kertRef) : null) || lista[0] || null;
+  };
+
+  const valasztottTag = () => Object.keys(S.memberships)
+    .filter((k) => k !== S.actor && (S.memberships[k] || {}).effective === true && S.subjects[k])
+    .map((k) => S.subjects[k].id)
+    .sort((a, b) => a.localeCompare(b))[0] || null;
+
+  const storyKotes = (kell, kertRef = null) => {
+    if (kell === 'pending_invite') {
+      const m = valasztottMeghivo(kertRef);
+      return m ? { kind: 'invite', ref: m.ref, actor: S.subjects[m.who].id } : null;
+    }
+    if (kell === 'other_member') {
+      const tag = valasztottTag();
+      return tag ? { kind: 'member', ref: tag, actor: tag } : null;
+    }
+    return null;
+  };
+
+  const kotottBemutatok = (tours, kertRef = null) => (Array.isArray(tours) ? tours : []).map((t) => (
+    t && t.requires_story_data ? { ...t, story: storyKotes(t.requires_story_data, kertRef) } : t
+  ));
+
   /** A NÉZET MEGERŐSÍTÉSE — ugyanaz a kötés, amit az `app.js` küld (KTX-03). A mező csak SZŰKÍT. */
   function contextOk(body) {
     if (!body) return true;
@@ -253,6 +324,16 @@ function install() {
         scopes,
         removed_at: m.removed_at,
         reinvitable: !m.effective,
+        /**
+         * ÉS A MAI KISZOLGÁLÓ KÉT TOVÁBBI MEZŐT IS KIAD — A CSONK IS (`KUKA-477`).
+         *
+         * `rights_alterable` (`KUKA-473`): a megvonás-gombok VÉGREHAJTHATÓ hatáskört kívánnak. A
+         * bemutató szereplője a könyv tulajdonosa, tehát a verdikt IGAZ — és KIMONDVA áll, nem
+         * „hiányzik, tehát nem hamis" alakban (a lap csak a kimondott `false`-ot zárja).
+         * `reinvite_roles` (`KUKA-472`): az újrahívás szerep-választéka a MEGMÉRT készletből jön.
+         */
+        rights_alterable: true,
+        reinvite_roles: m.effective ? null : [...KNOWN_ROLES],
       };
     });
   }
@@ -261,6 +342,10 @@ function install() {
     ok: true, book_id: S.book, ...served(), members: memberRows(),
     known_scopes: [...KNOWN_SCOPES], known_roles: [...KNOWN_ROLES],
     grantable_scopes: ['arak', 'beszallitok', 'dokumentumok', 'keszlet'],
+    // A SZEREP-PLAFON IS A KISZOLGÁLÓTÓL JÖN (`KUKA-472` · `KUKA-476`): a meghívó-űrlap EBBŐL
+    // rajzol, és ÜRES készletnél NEM nyílik ki. A bemutató szereplője tulajdonos, tehát a
+    // készlet a két ismert szerep — ugyanúgy RENDEZETTEN, ahogy a kiszolgáló adja.
+    grantable_roles: [...KNOWN_ROLES].sort(), blocked_roles: [],
     blocked_scopes: [], grantable_reason: 'within_delegation_basis', startup_rule_version: 'v2',
   });
 
@@ -300,7 +385,10 @@ function install() {
   // ── A MŰVELETEK ──────────────────────────────────────────────────────────────────────────────
 
   const ROUTES = {
-    'GET /api/me': () => J(200, meBody()),
+    // KILÉPVE NINCS ALANY: a héj ebből rajzolja az anonim állapotot (a belépési űrlapot).
+    'GET /api/me': () => (S.signedOut
+      ? J(401, { ok: false, reason: 'not_signed_in' })
+      : J(200, meBody())),
     'GET /api/members': () => (inBook() && isAdmin()
       ? J(200, membersBody())
       : J(403, { ok: false, reason: 'admin_required' })),
@@ -347,7 +435,8 @@ function install() {
         accepted_at: null, revoked_at: null, reentry: false });
       S.mails.push(mail(email, 'Meghívás', token));
       tick();
-      return J(201, { ok: true, token, ceiling: { roles: ['user'], scopes: KNOWN_SCOPES },
+      // A JELÖLŐ A VÁLASZBAN: a történet SAJÁT választási lépése ERRE köti át a célt (`story_rebind`).
+      return J(201, { ok: true, token, ref, ceiling: { roles: ['user'], scopes: KNOWN_SCOPES },
         basis_id: `deleg:${S.book}:${me().id}`, basis_version: 1,
         expires_at: '2026-10-09T09:00:00.000Z', ...served() });
     },
@@ -380,14 +469,19 @@ function install() {
     'GET /api/invites/observe': (_b, q) => {
       const token = q && q.get ? q.get('token') : null;
       const row = S.invites.find((i) => i.token === token) || null;
+      // A JELÖLŐ A MEGHÍVÓ-SOR LÉTÉHEZ KÖTÖTT, NEM AZ ELŐREVIHETŐSÉGHEZ — a mag ugyanígy méri
+      // (`v3app/server.mjs`, R186 §2): a visszavonás-történet KILENCEDIK lépésénél a meghívó MÁR
+      // visszavont, tehát `not_actionable` — jelölő nélkül a történet saját kapuja szakította volna
+      // meg a LEGITIM utat (KUKA-394). Az ISMERETLEN token válasza bájt-azonos marad (KUKA-084).
       if (!row) return J(200, { ok: true, status: 'not_actionable', reason: 'invite_unknown' });
-      if (row.state === 'revoked') return J(200, { ok: true, status: 'not_actionable', reason: 'invite_revoked' });
-      if (row.state === 'accepted') return J(200, { ok: true, status: 'not_actionable', reason: 'invite_already_redeemed' });
+      if (row.state === 'revoked') return J(200, { ok: true, status: 'not_actionable', reason: 'invite_revoked', ref: row.ref });
+      if (row.state === 'accepted') return J(200, { ok: true, status: 'not_actionable', reason: 'invite_already_redeemed', ref: row.ref });
       // A CÍMZETT CSATORNÁJA BIZONYÍTOTT: a bemutatóban a levél a sajátja, tehát a fiók neve kiadható.
       const existing = Boolean(S.subjects[row.who]);
       return J(200, {
         ok: true,
         status: existing ? 'redeem_as_existing' : 'redeem_as_new',
+        ref: row.ref,
         account: { name: COMPANY, role: row.role },
         invited_by: row.invited_by,
         continue_as: { hint: row.email },
@@ -440,10 +534,21 @@ function install() {
       const who = Object.keys(S.subjects).find((k) => S.subjects[k].id === (b && b.subject_id));
       if (!who || !S.memberships[who]) return J(404, { ok: false, reason: 'not_a_member' });
       const at = tick();
+      /**
+       * A VÁLASZ A MAG TELJES VERDIKTJÉT ADJA — A CSONK IS (`KUKA-475` · `KUKA-477`).
+       *
+       * A megvonás ÜZLETILEG IDEMPOTENS: a mag `ok: true` mellett `changed: false`-ot ad, ha a
+       * tagság MÁR megszűnt, és a lap EBBŐL zárja a bemutató lépését (nem a puszta `ok`-ból). A
+       * csonk eddig csak az időpontot adta, ezért a bemutatóban a lépés SOHA nem lett „elvégezve"
+       * — a `reentry` történet a harmadik lépésen pörgött (mérve: `proof:demo-walk`).
+       */
+      const mar = S.memberships[who].effective === false;
       S.memberships[who].effective = false;
-      S.memberships[who].removed_at = at;
-      return J(200, { ok: true, reason: null, message: 'a tagság megszűnt',
-        revocation: { at }, delegation: { closed: true }, ...served() });
+      S.memberships[who].removed_at = mar ? S.memberships[who].removed_at : at;
+      return J(200, { ok: true, reason: mar ? 'revocation_already_effective' : 'revocation_recorded',
+        message: mar ? null : 'a tagság megszűnt',
+        revocation: { ok: true, changed: !mar, reason: mar ? 'revocation_already_effective' : 'revocation_recorded', effective_at: at, at },
+        delegation: { closed: true }, ...served() });
     },
 
     // ÚJRA MEGHÍVÁS — AJÁNLATOT ad, nem tagságot. A tagságot a címzett elfogadása hozza létre.
@@ -505,13 +610,30 @@ function install() {
     },
 
     // A NÉZŐ VÁLTÁSA AZ APP SAJÁT ÚTJÁN: kilépés → belépés. A bemutató nem „címkézi át" a képernyőt.
-    'POST /api/logout': () => { S.inBook = false; return J(200, { ok: true }); },
+    'POST /api/logout': () => { S.inBook = false; S.signedOut = true; return J(200, { ok: true }); },
     'POST /api/login': (b) => {
       const email = String((b && b.email) || '').trim().toLowerCase();
       const who = Object.keys(PEOPLE).find((k) => PEOPLE[k].email === email);
       if (!who) return J(401, { ok: false, reason: 'invalid_credentials' });
       S.actor = who;
-      S.inBook = !!(S.memberships[who] && S.memberships[who].effective);
+      S.signedOut = false;
+      /**
+       * A BELÉPÉS A TAGSÁG SZERINTI FIÓKBA VISZ — ÉS EZ A CSONK EGY KIMONDOTT EGYSZERŰSÍTÉSE.
+       *
+       * A VALÓDI kiszolgáló a SZEMÉLYES kört adja (`POST /api/login`: `fresh.current_book_id =
+       * personal.book_id`), és a cég képernyőihez a fejléc fiókválasztójában kell átváltani. Az
+       * R164/3-ban hűségesre állítottam, és a bemutató lépés-listáját is kiegészítettem a
+       * fiókváltással.
+       *
+       * R176 — A KIMONDOTT EGYSZERŰSÍTÉS MEGSZŰNT, ÉS AZ OKA IS KIMONDOTT. Itt eddig a tagság
+       * szerinti fiók állt (`S.inBook = effective`), mert a bemutató-lap rövidítő gombja azt várta.
+       * A `KUKA-423` javítása után a váltás-lépés a DEKLARÁLT tengelyt kéri: a fiók-váltó lépésnek
+       * (`s10b` · `s9`) TÉNYLEGES fiókváltás kell, különben nincs mit elvégezni, és a történet
+       * megállna egy olyan ponton, ahol a VALÓDI felületen dolga van. A csonk tehát mostantól a
+       * terméket követi: a belépés a SZEMÉLYES körbe visz, és a cég képernyőihez a fejléc
+       * fiókválasztójában kell átváltani (`KUKA-050`: a szöveg és a kód ugyanazt mondja).
+       */
+      S.inBook = false;
       const pend = S.invites.find((i) => i.who === who && i.state === 'pending');
       return J(200, { ok: true, subject_id: PEOPLE[who].id,
         pending_invite_token: pend ? pend.token : null, personal_book_id: PERSONAL[who] });
@@ -525,7 +647,11 @@ function install() {
     // bemutató-csomag ezért a VALÓDI szerver válaszát viszi, a két történetre szűkítve — a lépések,
     // a célelemek (`target`) és a szövegek bájtra a termék saját adatai (KUKA-016: az alakot a
     // fogyasztótól vesszük, nem emlékezetből).
-    'GET /api/assistant/status': () => J(200, { ...ASSISTANT.status, ...served() }),
+    // A KÉRT CÉL A CSONKON IS ÁTMEGY (`KUKA-468`): a lap ugyanazt a paramétert küldi, mint élesben.
+    'GET /api/assistant/status': (_b, q) => J(200, { ...ASSISTANT.status,
+      tours: kotottBemutatok(ASSISTANT.status && ASSISTANT.status.tours, q && q.get('story_ref')),
+      resumable_tours: kotottBemutatok(ASSISTANT.status && ASSISTANT.status.resumable_tours, q && q.get('story_ref')),
+      ...served() }),
     'GET /api/assistant/knowledge': () => J(200, { ...ASSISTANT.knowledge, ...served() }),
     'POST /api/assistant/ask': () => J(503, { ok: false, reason: 'assistant_unavailable',
       message: 'A segéd a bemutatóban nincs bekötve — ez szintetikus próbavilág, szolgáltatói hívás nem indul.' }),

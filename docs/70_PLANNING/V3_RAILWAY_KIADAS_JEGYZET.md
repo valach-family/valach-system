@@ -42,6 +42,7 @@ NPM_CONFIG_OMIT=dev
 | 6 | `VS_APP_ENV` | `staging` |
 | 7 | `VS_APP_ACCESS_PASSWORD` | beállítva (enélkül a szolgáltatás **el sem indul**) |
 | 8 | `VS_APP_TRUST_PROXY` | `1` |
+| 8b | `VS_APP_CLIENT_IP_HEADER` | **annak a fejlécnek a neve, amiben a SZOLGÁLTATÓ adja a látogató címét.** A reviewer a Railway dokumentációját idézve `x-real-ip`-et nevez meg; **ezt itt nem mértem meg** — a dokumentáció letöltését a környezet hálózati szabálya elutasította (`curl: (56) CONNECT tunnel failed, response 403`). Enélkül a kód a `x-forwarded-for` → `x-real-ip` sorrendet próbálja, és ha egyik sem jön, **egyszer kimondja**, hogy ezt az értéket kell beállítani (`KUKA-376` · `D-VS-3184`) |
 | 9 | `VS_APP_DEV` | **nincs beállítva** (telepítve a fejlesztői felület alapból KI) |
 
 ## 4. A bemutató útja a telepítés után

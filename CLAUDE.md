@@ -113,8 +113,17 @@ ma a gépi jelük) → **`npm run verify:kuka`** (a söprés része; visszacsús
   **Ami EBBŐL a repóból megy, mérve (R65/R67):** lap-feltöltés és kör-üzenet — a `CHATOPS_WRITE_TOKEN`
   a környezetben áll; a `repo` mező a git-távoliból jön (`valach-family/valach-system`), `--repo`
   felülír. **Ami NEM:** a zárás mátrixa (`close-cmd/-step/-pr`) — a katalógus a V2 repóban él, az
-  eszköz ezt nevezett hibával mondja ki. Egy körhöz EGY üzenet és EGY lap fér (a board 409-cel
-  utasítja el a másodikat) — teszt-kört nem gyártunk.
+  eszköz ezt nevezett hibával mondja ki; **és a `reply --type EXECUTION_REPORT` IS a mátrixba fut**
+  (mérve, R158: 422 „17 agent check still pending"), ezért a kör-üzenet `--type NOTE`. Egy körhöz EGY
+  üzenet és EGY lap fér (a board 409/400-cal utasítja el a másodikat), **tehát a PARANCS-körhöz a
+  válasz-lap nem tölthető fel: a REPORT ÚJ kört kap** (mérve, R158 → R159) — teszt-kört nem gyártunk.
+- **A CHATGPT-NEK SZÓLÓ ÜZENET A VÁLASZ VÉGÉN IS OTT VAN — MINDIG** (operátori kérés 2026-10-09). A
+  boardra feltett kör-üzenet (`vs_board_round.mjs reply`) nem elég: az operátor a CHATBEN is látni
+  akarja, **a kör végén, önálló szakaszban** (`ÜZENET A CHATGPT-V3-NAK`). Ami benne van: a mért
+  állapot egy sorban · ami DÖNTÉST kér tőle vagy az operátortól · ami a következő körre átadva.
+  Ugyanaz a szerződés, mint a boardon: **ÖNMAGÁBAN ÉRTHETŐ** (a chatgpt-v3 nem látja ezt a chatet),
+  és a board-kör száma meg van nevezve, hogy a kettő összeköthető legyen. Gépi jel: nincs
+  (szervezési szabály) — a hiánya az operátornak látszik, ezért itt áll, nem egy külön lapon.
 - **A KÜLSŐ ELLENŐRZŐ FÉL (chatgpt-v3) — a tényleges felhatalmazás szerint (R67 F67-04):** az
   MCP-hídon olvassa a boardot, lapot tölt fel, és **az OPERÁTOR felhatalmazásával PARANCS-KÖRT ír**
   (SPEC/ANALYSIS; mérve: az R65 és az R67 `COMMAND` kör, `chatgpt-v3` forrással). A felhatalmazás az
@@ -144,8 +153,11 @@ npm run docs:html
 Miért mind: **checkout** = lehet, hogy egy korábbi ág van kint · **fetch+pull** = a sávok ugyanazt a
 main-t tolják, friss kód nélkül a RÉGI állapotot nézné · **verify:sweep** = nem hisszük el,
 ellenőrizzük · **docs:html** = a friss lapok OLVASHATÓ alakja (`docs/_olvashato/index.html`). Ha egy
-lépés éppen no-op, **akkor is bent marad**. **Adatbázis-sor még NINCS, kimondva:** a V3-ban nulla
-migráció áll; az `npm run db:migrate` az ELSŐ migrációval kerül ide (`verify:release-order` őrzi).
+lépés éppen no-op, **akkor is bent marad**. **AZ ADATBÁZIS-SOR MOST MÁR IDE TARTOZIK** (javítva R164,
+KUKA-050): az ELSŐ migráció megvan (`migrations/001_v3_mag_sema.sql`), és a parancs is áll. A terminál-blokk
+ezért a `npm run verify:sweep` ELŐTT egy sorral bővül, ha az operátor PostgreSQL-lel próbál:
+`DATABASE_URL=… npm run db:migrate` (`verify:release-order` őrzi a sorrendet). Üres `DATABASE_URL` mellett
+a rendszer SQLite-on fut, és a migráció nem kell — ezért a sor FELTÉTELES, nem fix.
 
 ### 3. FORRÁSINDEX — feladathoz kötve olvasd, ne előre
 
@@ -161,6 +173,7 @@ migráció áll; az `npm run db:migrate` az ELSŐ migrációval kerül ide (`ver
 | **kiadás / migráció** | e fájl 5. szakasza · `contracts/releaseOrder.js` · `migrations/LEDGER.json` |
 | **generált fájlt írsz** | `contracts/artifactNaming.js` (`artifactPath`) · a `var/` rend (5. szakasz) |
 | **fogyasztást mérsz** | `tools/v3_fogyasztas_meres.mjs` (`--selftest` az ellenpróbák) · `docs/70_PLANNING/V3_R64_FOGYASZTAS_SZABALYOK_LEVEL.md` |
+| **MENTÉST / VISSZATÖLTÉST vagy PostgreSQL-t érintesz** | a cél-döntések `tools/lib/vs_pg_target.mjs` (friss SAJÁT cél · soronkénti verdikt · titok-tisztító · `acquireFreshTarget`) · `npm run proof:pg-durability` (13 lépés) · `npm run proof:pg-restore-safety` (39 ellenpróba — ELDOBHATÓ helyi kiszolgáló kell) · `npm run proof:pg-intent` · a tiszta döntések a söprésben: `verify:app-findings-r154` AB csoport |
 | **hosszú láncot hagysz ki a söprésből** | `tools/lib/vs_sweep_reuse.mjs` (SRU-01) · `npm run verify:sweep-reuse` |
 | **boardra töltesz** | `tools/vs_board_doc.mjs` · `tools/vs_board_round.mjs` (1. szakasz) |
 | **döntést rögzítesz** | `DECISION_LOG.md` feje (a szám a `verify:decision-numbers`-ből) |

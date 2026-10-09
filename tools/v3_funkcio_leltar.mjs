@@ -33,10 +33,10 @@ function A(name, cond, extra = '') {
   if (!JSON_ONLY) console.log(`${cond ? 'ZÖLD ' : 'PIROS'} ${line}`);
 }
 
-let cov; let FEATURES; let TOURS; let HU; let TEXTS; let HELPMOD;
+let cov; let FEATURES; let TOURS; let SHELL_ANCHORS; let HU; let TEXTS; let HELPMOD;
 try {
   cov = await import('../v3app/knowledge/coverage.mjs');
-  ({ FEATURES, TOURS } = await import('../v3app/knowledge/features.mjs'));
+  ({ FEATURES, TOURS, SHELL_ANCHORS } = await import('../v3app/knowledge/features.mjs'));
   HU = await import('../v3app/public/i18n/hu.mjs');
   /**
    * A MENÜ-CSOPORTOK ÉS AZ OLDALTÉRKÉP A TÉNYLEGES FORRÁSBÓL (R144 — F144-02).
@@ -85,7 +85,8 @@ const population = cov.populationFrom({
     return { all: [...new Set([...u.all, ...sz.all])] };
   })(),
 });
-const inv = cov.inventory({ population, features: FEATURES, tours: TOURS });
+const inv = cov.inventory({ population, features: FEATURES, tours: TOURS,
+  shellAnchors: new Set(SHELL_ANCHORS || []) });
 
 // ── A GÉPI ALAK — a következő kör EZT olvassa, nem újraméri (CLAUDE.md: a repó a memória) ───────
 const jsonPath = join(ROOT, artifactPath({ area: 'reports', kind: 'funkcio_lefedes', ext: 'json', version: '0.1.0' }));
@@ -98,6 +99,27 @@ writeFileSync(jsonPath, JSON.stringify({
   floor_breaks: inv.floorBreaks,
   rows: inv.rows,
   tour_rows: inv.tourRows,
+  /**
+   * A HIÁNY-OSZTÁLYOK A GÉPI ALAKBAN IS BENNE VANNAK (R164 review, Codex, P2 —
+   * `KUKA-384` · `D-VS-3192`).
+   *
+   * A LELET: a kettéosztás (`classifyGaps`) a csomag KÖZPONTI új kimenete volt, de CSAK az
+   * ÖNPRÓBA ágában jelent meg, konzol-állításokban — a gépi artefaktum, amit a KÖVETKEZŐ kör olvas,
+   * nem vitte. Sőt: a `--json` út a nyomtatás ELŐTT kilép, tehát ott az osztályozás egyáltalán nem
+   * látszott. Így a leltár nem tudta megmondani, mely hiány PÓTOLHATÓ és mely NEVESÍTETT FEJLESZTÉSI
+   * RÉS — pontosan azt nem, amiért készült (KUKA-126: amit senki nem olvas vissza, az nem kötés).
+   */
+  gap_classes: {
+    total: inv.classes.total,
+    counts: {
+      fillable: inv.classes.fillable.length,
+      capability_missing: inv.classes.capability_missing.length,
+      unclassified: inv.classes.unclassified.length,
+    },
+    fillable: inv.classes.fillable,
+    capability_missing: inv.classes.capability_missing,
+    unclassified: inv.classes.unclassified,
+  },
 }, null, 2));
 
 if (JSON_ONLY) { console.log(jsonPath); process.exit(0); }
@@ -154,12 +176,88 @@ if (SELFTEST) {
     inv.gapKeys.length
       ? `${inv.gapKeys.length} hiány — a cél NULLA. Soronként lentebb; a regresszió-irány külön áll (LR1/LR2).`
       : 'nulla hiány');
+  /**
+   * (LT2) AZ ELFOGADÁSI CÉL KÜLÖN ÁLLÍTÁS — ÉS EZ NEM A `LT` LAZÍTÁSA (R166 §3).
+   *
+   * Az R166 §3 elfogadási célja SZÓ SZERINT: *„pótolható hiány 0; osztályozatlan 0"* — és külön
+   * kimondja, hogy a `personal.ownMatters` hiányzó képessége MEGMARAD nevesített fejlesztési résnek.
+   * A két kérdés tehát NEM ugyanaz: a `LT` a TELJES hiány-halmazt méri (az a cél továbbra is NULLA,
+   * és a fejlesztési rés miatt PIROS marad), ez az állítás pedig azt, hogy a PÓTOLHATÓ munka
+   * elkészült-e. A `LT` szövegén és feltételén EGY KARAKTERT sem változtattunk — különben a zöld
+   * eredmény a mérés lazításából jönne, nem a munkából (`KUKA-091` · az R166 §3 kikötése:
+   * „Az eredeti őrt ne gyengítsd pusztán zöld eredményért").
+   */
+  A('(LT2) AZ ELFOGADÁSI CÉL: PÓTOLHATÓ hiány 0 és OSZTÁLYOZATLAN 0 (a nevesített fejlesztési rés külön sor, a `LT` azt is számolja)',
+    inv.classes.fillable.length === 0 && inv.classes.unclassified.length === 0,
+    inv.classes.fillable.length || inv.classes.unclassified.length
+      ? `pótolható ${inv.classes.fillable.length} (${inv.classes.fillable.map((x) => x.key).join(' · ') || '—'}) · osztályozatlan ${inv.classes.unclassified.length}`
+      : `pótolható 0 · osztályozatlan 0 · a maradék ${inv.classes.capability_missing.length} NEVESÍTETT fejlesztési rés: ${inv.classes.capability_missing.map((x) => x.key).join(' · ') || '—'}`);
   A('(LR1) REGRESSZIÓ: nem jelent meg olyan hiány, ami a(z) ' + cov.GAP_BASELINE.version + ' alapvonalban nem volt',
     inv.unexpected.length === 0,
     inv.unexpected.length ? `${inv.unexpected.length} ÚJ: ${inv.unexpected.join(' · ')}` : `${inv.gapKeys.length} hiány, mind örökölt`);
   A('(LR2) REGRESSZIÓ: amit megjavítottunk, az ki is került az alapvonalból (nincs HALOTT sor)',
     inv.dead.length === 0,
     inv.dead.length ? `${inv.dead.length} halott sor — vedd ki a GAP_BASELINE.keys-ből: ${inv.dead.join(' · ')}` : 'nincs halott sor');
+
+  /**
+   * ════════════════════════════════════════════════════════════════════════════════════════════
+   * A HIÁNY KÉT CSOPORTJA — MÉRVE, NEM A JELENTÉSBEN ELMONDVA (R164/3)
+   *
+   * Az R164/3 azt kérte, hogy a réseket a VALÓDI kód szerint bontsuk kettőre, és azt is, hogy „ne
+   * állítsd, hogy minden rés ebből jön". Egy jelentés-bekezdés ezt nem tudja igazolni, ezért a
+   * csoportot a REGISZTER állapotából vezetjük le (`classifyGaps`), és itt MEGMÉRJÜK:
+   *   · minden hiány pontosan EGY csoportba esik — OSZTÁLYOZATLAN nem maradhat;
+   *   · és a „nevesített fejlesztési rés" tényleg NEVEZETT: a tervezett bejegyzés kimondja, mi hiányzik.
+   * ════════════════════════════════════════════════════════════════════════════════════════════
+   */
+  const cls = inv.classes;
+  A('(LC1) A KÉT CSOPORT TELJES: minden hiány pótolható VAGY nevesített fejlesztési rés — OSZTÁLYOZATLAN nincs',
+    cls.unclassified.length === 0 && cls.total === inv.gapKeys.length,
+    cls.unclassified.length
+      ? `${cls.unclassified.length} OSZTÁLYOZATLAN: ${cls.unclassified.map((x) => `${x.key} (${x.basis})`).join(' · ')}`
+      : `pótolható ${cls.fillable.length} · nevesített fejlesztési rés ${cls.capability_missing.length} · összesen ${cls.total} = a hiány-kulcsok száma`);
+  A('(LC2) A FEJLESZTÉSI RÉS NEVEZETT: mindegyik kimondja, MI a hiányzó üzleti képesség',
+    cls.capability_missing.every((x) => typeof x.reason === 'string' && x.reason.length > 20),
+    cls.capability_missing.length
+      ? cls.capability_missing.map((x) => `${x.key}: ${String(x.reason || '').slice(0, 70)}…`).join(' · ')
+      : 'nincs fejlesztési rés a hiányok között');
+  // ELLENPÁR: ha a tervezett bejegyzés NEM nevezi meg a hiányzó képességet, a sor OSZTÁLYOZATLAN
+  // lesz — nem csúszik némán a „fejlesztési rés" sávba (KUKA-012).
+  {
+    const hamisFeatures = FEATURES.map((f) => (f.screen === 'personal' && f.status === 'planned'
+      ? { ...f, missing_capability: undefined } : f));
+    const hamis = cov.classifyGaps({ rows: inv.rows, tourRows: inv.tourRows, features: hamisFeatures });
+    /**
+     * (LC4) ÉS AZ OSZTÁLYOZÁS A GÉPI ARTEFAKTUMBAN IS OTT VAN (R164 review, Codex, P2 — `KUKA-384`).
+     *
+     * A LELET: a kettéosztás CSAK itt, az önpróba konzol-állításaiban létezett; a JSON — amit a
+     * KÖVETKEZŐ kör olvas, és amiért ez a lap készült — nem vitte. A `--json` út pedig a nyomtatás
+     * ELŐTT kilép, tehát ott egyáltalán nem látszott. Ezért most a kiírt FÁJLT olvassuk vissza: ami
+     * nincs a fájlban, az a következő körben nem létezik (KUKA-126 · CLAUDE.md: a repó a memória).
+     */
+    const kiirt = JSON.parse(readFileSync(jsonPath, 'utf8'));
+    A('(LC4) A GÉPI ARTEFAKTUM VISZI a hiány-osztályokat — a visszaolvasott fájl számai EGYEZNEK a mérttel',
+      Boolean(kiirt.gap_classes)
+      && kiirt.gap_classes.counts.fillable === cls.fillable.length
+      && kiirt.gap_classes.counts.capability_missing === cls.capability_missing.length
+      && kiirt.gap_classes.counts.unclassified === cls.unclassified.length
+      && kiirt.gap_classes.total === cls.total
+      && Array.isArray(kiirt.gap_classes.capability_missing)
+      && kiirt.gap_classes.capability_missing.every((x) => typeof x.key === 'string' && typeof x.reason === 'string'),
+      kiirt.gap_classes
+        ? `a fájlban: pótolható ${kiirt.gap_classes.counts.fillable} · fejlesztési rés ${kiirt.gap_classes.counts.capability_missing} · osztályozatlan ${kiirt.gap_classes.counts.unclassified}`
+        : 'a fájlban NINCS `gap_classes` — a következő kör nem tudja, melyik rés melyik');
+  }
+  {
+    const hamisFeatures2 = FEATURES.map((f) => (f.screen === 'personal' && f.status === 'planned'
+      ? { ...f, missing_capability: undefined } : f));
+    const hamis = cov.classifyGaps({ rows: inv.rows, tourRows: inv.tourRows, features: hamisFeatures2 });
+    A('(LC3) ELLENPÁR: a MEGNEVEZÉS NÉLKÜLI tervezett bejegyzés OSZTÁLYOZATLAN-ra vált (nem lesz némán „fejlesztési rés")',
+      hamis.unclassified.some((x) => x.key === 'page:personal') && hamis.capability_missing.length === 0,
+      `osztályozatlan: ${hamis.unclassified.map((x) => x.key).join(', ') || 'nincs'}`);
+  }
+  console.log(`      PÓTOLHATÓ (${cls.fillable.length}): ${cls.fillable.map((x) => x.key).join(', ')}`);
+  console.log(`      NEVESÍTETT FEJLESZTÉSI RÉS (${cls.capability_missing.length}): ${cls.capability_missing.map((x) => x.key).join(', ') || 'nincs'}`);
 
   // ÉS A FAJTÁNKÉNTI ÁLLAPOT KIÍRVA — a nyitott halmaz nem elrejti, hogy MI maradt (KUKA-093).
   const cimek = { route: 'végpont', page: 'oldal', action: 'művelet', form: 'űrlap', authview: 'belépési nézet' };

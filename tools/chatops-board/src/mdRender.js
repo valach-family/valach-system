@@ -34,7 +34,7 @@ const splitRow = (line) => line.replace(/^\s*\|/, '').replace(/\|\s*$/, '')
 /** MARKDOWN → HTML-törzs + szakasz-jegyzék. A repó lapjain ténylegesen előforduló alakok. */
 function renderMarkdown(md) {
   const lines = String(md === null || md === undefined ? '' : md).replace(/\r\n/g, '\n').split('\n');
-  const out = []; const toc = [];
+  const out = []; const toc = []; let headingSeq = 0;
   let i = 0; let para = []; let list = null; let quote = []; let li = null;
 
   const flushPara = () => { if (para.length) { out.push(`<p>${inline(para.join(' '))}</p>`); para = []; } };
@@ -72,7 +72,21 @@ function renderMarkdown(md) {
     if (h) {
       flushAll();
       const level = h[1].length;
-      const id = `sz-${toc.length + 1}`;
+      /**
+       * AZ AZONOSÍTÓ SAJÁT SZÁMLÁLÓBÓL JÖN, NEM A TARTALOMJEGYZÉK HOSSZÁBÓL (R164/4 — SAJÁT LELET).
+       *
+       * A LELET. Az azonosító `sz-${toc.length + 1}` volt — a tartalomjegyzék viszont CSAK a 2.
+       * szintig nő (`if (level <= 2) toc.push(...)`). Minden h3-as és mélyebb fejezet ezért UGYANAZT
+       * az azonosítót kapta, amit a KÖVETKEZŐ h2 is: a lapon ISMÉTLŐDŐ `id` keletkezett, és a
+       * tartalomjegyzék kattintása az ELSŐ egyezésre vitt — vagyis egy alfejezetre, nem a
+       * megnevezett fejezetre. MÉRVE az R164-es jelentés lapján: öt azonosító ismétlődött.
+       *
+       * Az operátor EZT a lapot olvassa (KUKA-079: minden neki szánt lapból HTML is kell) — tehát a
+       * hibás navigáció nem szépséghiba, hanem a lap funkciójának elvesztése. A számláló mostantól
+       * MINDEN fejezetre nő; a tartalomjegyzék továbbra is csak a két felső szintet listázza.
+       */
+      headingSeq += 1;
+      const id = `sz-${headingSeq}`;
       if (level <= 2) toc.push({ id, level, text: h[2].replace(/[*`]/g, '') });
       out.push(`<h${level} id="${id}">${inline(h[2])}</h${level}>`);
       i++; continue;

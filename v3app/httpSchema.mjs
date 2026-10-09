@@ -147,6 +147,14 @@ export const ENDPOINT_SCHEMAS = frozen({
     body: frozen({ fields: frozen({ token }) }),
     query: frozen({ fields: frozen({}) }),
   }),
+  // A MEGHÍVÓ ELHAGYÁSA (R166, külső review P2): a SAJÁT munkamenet tárolt folytatását törli.
+  // Törzs NÉLKÜL: a munkamenetet a süti azonosítja, és egy jegyet NEM fogad el — így nem lehet vele
+  // MÁS munkamenet folytatását elvinni (KUKA-236: a zárt lista a mezőkre is érvényes).
+  'POST /api/invites/pending/forget': frozen({
+    version: '1', mutates: true,
+    body: frozen({ fields: frozen({}) }),
+    query: frozen({ fields: frozen({}) }),
+  }),
   'POST /api/invites/redeem': frozen({
     version: '1', mutates: true,
     body: frozen({ fields: frozen({ token }) }),
@@ -239,7 +247,10 @@ export const ENDPOINT_SCHEMAS = frozen({
     version: '1', mutates: true,
     body: frozen({
       fields: frozen({
-        question: frozen({ type: 'nonempty_string', required: true, max_length: 500 }),
+        // A KÉRDÉS SZABAD SZÖVEG, NEM AZONOSÍTÓ (ISC-03, F154-14): a felületen `<textarea>`-ba írják,
+        // ahol az ENTER sortörést tesz — egy azonosító-fajta típus itt küldhetetlenné tenné a
+        // több soros kérdést. A nulla bájt ettől is tilos.
+        question: frozen({ type: 'nonempty_text', required: true, max_length: 500 }),
         lang: frozen({ type: 'nonempty_string', required: false, default: 'hu', max_length: 32 }),
         // A BESZÉLGETÉS ELŐZMÉNYE EGY SZÖVEG-MEZŐBEN (F91-03). MIÉRT így: a mag séma-motorja
         // (BEM-01) nem ismer tömb-típust, és a magot ez a csomag SZÁNDÉKOSAN nem módosítja —
@@ -276,9 +287,15 @@ export const ENDPOINT_SCHEMAS = frozen({
   'GET /api/data/document-full': frozen({ version: '1', mutates: false, body: frozen({ fields: frozen({}) }), query: readContextQuery }),
   // A SEGÉD ÁLLAPOTA: szolgáltatói csatlakozás (NEVEK, érték nélkül) · korlátok · a kérőre
   // ENGEDÉLYEZETT műveletek és bemutatók. A `lang` itt is csak a válasz nyelvét szűkíti.
+  // A `surface` A BETÖLTÖTT FELÜLET NEVE (R164/3). A kérés csak MEGNEVEZ, nem állít képességet: a
+  // szereplő-váltó vezérlő létét a kiszolgáló a lap fájljából MÉRI, és nem ismert névre ÜRES
+  // készletet ad (fail-closed). Ezért elég `nonempty_string` — a zárt lista a kiszolgálóban áll.
+  // A `story_ref` A KÉRT CÉL MEGNEVEZÉSE (`KUKA-468`): a történet saját választási lépése ezzel
+  // kéri a kötést az ÉPPEN kiadott meghívóra, a globális sorrend találgatása helyett. A mező a
+  // ZÁRT listán áll (`KUKA-236`), és jogot NEM ad: a kiszolgáló alkalmassági szűrője változatlan.
   'GET /api/assistant/status': frozen({
     version: '1', mutates: false, body: frozen({ fields: frozen({}) }),
-    query: frozen({ fields: frozen({ ...readContextQuery.fields, lang: frozen({ type: 'nonempty_string', required: false, max_length: 32, confirm_only: true }) }) }),
+    query: frozen({ fields: frozen({ ...readContextQuery.fields, lang: frozen({ type: 'nonempty_string', required: false, max_length: 32, confirm_only: true }), surface: frozen({ type: 'nonempty_string', required: false, max_length: 32, confirm_only: true }), story_ref: frozen({ type: 'nonempty_string', required: false, max_length: 64, confirm_only: true }) }) }),
   }),
   // A TUDÁS-INDEX (és egy funkció célzott lekérése). A teljes kézikönyvet SOHA nem adjuk ki egyben:
   // a `feature` paraméter EGY funkció szerződését kéri (R89 §3: célzottan lekérhető tartalom).

@@ -72,6 +72,53 @@ export const ACTIONS = Object.freeze({
 });
 
 /** A KIMENET-FAJTÁK — a terv §3 táblájából: a nem sikeres út is érthető legyen. */
+/**
+ * A HÉJ VEZÉRLŐI — EZEK NEM EGY LAPHOZ TARTOZNAK (R164/3, SAJÁT LELET).
+ *
+ * MIÉRT KELL KIMONDANI. A lefedési őr azt kérdezi, hogy egy bemutató LÉPÉSE eljutott-e egy adott
+ * lapra, és ehhez a lap funkcióinak HORGONYAIT használja. A profil-menü, a kijelentkezés, a
+ * fiókválasztó és a súgó-nyitó viszont a HÉJ-ban áll, MINDEN lapon — ha ezeket lap-azonosítónak
+ * fogadnánk el, akkor az R164/3-ban megírt ÁTADÁS-lépés (`logout`) egyszerre „bejárná" a biztonsági
+ * lapot is, ahol a bemutató soha nem volt. Ugyanaz a hiba-osztály, mint a közös tábla-horgonyé
+ * (KUKA-239): a hatókör nélküli bizonyíték a szomszéd sort igazolja.
+ *
+ * AMIT EZ NEM ÁLLÍT: nem jogosultság és nem menü-lista. Csak azt mondja meg, mely vezérlők NEM
+ * azonosítanak lapot — a lap azonosítója a menüpontja (`nav-<lap>`) vagy a saját, kizárólagos horgonya.
+ */
+/**
+ * A SZEMÉLYES TÉR LAPJAI — EGY DEKLARÁLT HELYEN (R164 review, Codex, P2 — `KUKA-390` · `D-VS-3198`).
+ *
+ * MIÉRT KELL. A személyes körben a menü CSAK ezeket a lapokat tartalmazza; minden más lap ÜZLETI, és
+ * oda a személyes térből nincs út. Az elérhetőségi feloldónak ezt tudnia kell, különben olyan
+ * bemutatót kínál fel, aminek a célja nincs a lapon (`targetMissing`), vagy egy nem létező lapra
+ * próbál navigálni.
+ *
+ * MIÉRT ITT, ÉS NEM A FELÜLET SZÖVEGEI KÖZÖTT. A menü FELIRATAI a nyelvcsomagokból jönnek, a LAP-LISTA
+ * viszont DÖNTÉS — és a döntés a kódon áll, nem a feliraton (KUKA-221). A feloldó szerver-oldalon is
+ * fut, ezért nem húzhatja be a böngésző szöveg-moduljait.
+ *
+ * ÉS A LISTA NEM A MENÜ — EZ A R164/3 HATODIK KÖRÉNEK JAVÍTÁSA (KUKA-392). Az első alak a személyes
+ * MENÜ lapjaival egyezett, és ezzel elrejtette a `account.add_business` súgóját, a `prepare.business`
+ * műveletét és a `tour.addBusiness` bemutatót — PONTOSAN ott, ahol az ember az ELSŐ vállalkozását
+ * létrehozza. A `new` lap ugyanis nem menüpont: a fiókváltó `ws-add` gombja nyitja, és a kliens
+ * `pageAvailable` feloldója NÉGY lapot ad meg mindig elérhetőként, a személyes körben is. A mérce
+ * tehát a KLIENS SZABÁLYA, nem a menü — a kettő uniója.
+ */
+/**
+ * A MINDIG ELÉRHETŐ LAPOK — a kliens `pageAvailable` feloldójának első sora (`v3app/public/app.js`).
+ * Ezek személyes körben is megnyílnak, mert nem a menüből, hanem a keretből érhetők el (a `new` lapot
+ * a fiókváltó `ws-add` gombja nyitja). Gépi jel: `verify:app-findings-r154` (ah4) a kliens
+ * FÁJLJÁBÓL olvassa ki ugyanezt a négy nevet — ha ott változik, ez a sor pirosra vált.
+ */
+export const ALWAYS_AVAILABLE_SCREENS = Object.freeze(['overview', 'new', 'profile', 'security']);
+
+/** A SZEMÉLYES KÖRBEN ELÉRHETŐ LAPOK: a mindig elérhetők ÉS a személyes menü lapjai (unió). */
+export const PERSONAL_SCREENS = Object.freeze([...new Set([...ALWAYS_AVAILABLE_SCREENS,
+  'overview', 'personal', 'profile', 'security'])]);
+
+export const SHELL_ANCHORS = Object.freeze(['profile', 'logout', 'account-switcher', 'help-open',
+  'nav-toggle', 'brand', 'demo-mail-open', 'mailbox', 'actor-switch']);
+
 export const OUTCOME_KINDS = Object.freeze(['success', 'empty', 'missing', 'refused', 'error', 'uncertain']);
 
 const F = (o) => Object.freeze(o);
@@ -103,9 +150,7 @@ export const FEATURES = Object.freeze([
     outcomes: F(['success', 'refused', 'error']),
     ai: F({ explain: true, open: true, prepare: false, note: null }),
     faq: F(['faq.verify.expired', 'faq.verify.used']),
-    tour: null,
-    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
-    tour_note: 'a megerősítés EGY hivatkozás a levélből: nincs több lépése, amit végig lehetne vezetni — a levél útját a bemutató levél-fogadó (`shell.demo_mail`) mutatja meg',
+    tour: 'tour.verify',
     evidence: F(['v3app/selfcheck.mjs', 'v3app/findings_r75.mjs']),
   }),
   F({
@@ -118,9 +163,7 @@ export const FEATURES = Object.freeze([
     ai: F({ explain: true, open: false, prepare: false,
       note: 'a belépést a segéd nem végzi el és nem készíti elő: jelszó nem kerül a beszélgetésbe' }),
     faq: F(['faq.login.failed']),
-    tour: null,
-    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
-    tour_note: 'egy űrlap két mezővel; a regisztrációs bemutató utolsó lépése ide vezet',
+    tour: 'tour.login',
     evidence: F(['v3app/selfcheck.mjs', 'tests/e2e/v3app-core-flow.spec.mjs']),
   }),
   F({
@@ -132,9 +175,7 @@ export const FEATURES = Object.freeze([
     outcomes: F(['success', 'refused', 'uncertain', 'error']),
     ai: F({ explain: true, open: true, prepare: false, note: null }),
     faq: F(['faq.resend.why']),
-    tour: null,
-    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
-    tour_note: 'egyetlen gomb a belépési képernyőn',
+    tour: 'tour.resend',
     evidence: F(['v3app/findings_r77.mjs']),
   }),
   F({
@@ -149,9 +190,7 @@ export const FEATURES = Object.freeze([
     ai: F({ explain: true, open: true, prepare: false, note: null }),
     // R112 (1. történet): a kijelentkezés és az újrabelépés utáni nyelv kérdése — a TUT11 őr mérte hiánynak.
     faq: F(['faq.logout.language']),
-    tour: null,
-    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
-    tour_note: 'egyetlen gomb a Belépés és biztonság oldalon',
+    tour: 'tour.logout',
     evidence: F(['v3app/selfcheck.mjs', 'tests/e2e/v3app-r97.spec.mjs', 'tests/e2e/v3app-r112-stories.spec.mjs']),
   }),
   F({
@@ -162,9 +201,7 @@ export const FEATURES = Object.freeze([
     outcomes: F(['success', 'empty']),
     ai: F({ explain: true, open: true, prepare: false, note: null }),
     faq: F(['faq.account.personalVsBusiness']),
-    tour: null,
-    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
-    tour_note: 'nem művelet, hanem ÁLLAPOT: a személyes fiók a belépéssel megvan',
+    tour: 'tour.personalAccount',
     evidence: F(['v3app/selfcheck.mjs', 'tests/e2e/v3app-r85.spec.mjs']),
   }),
   F({
@@ -229,10 +266,17 @@ export const FEATURES = Object.freeze([
     // R144: a funkciót kiszolgáló TÁMOGATÓ OLVASÁSOK. Az `authority.endpoint` EGY végpontot
     // nevez meg (ahol a jog dől el); a felület viszont többet is hív — és a lefedési mérés joggal
     // mondta, hogy ezekről a tudás nem beszél. A kötés a HÍVÓ forrásából ellenőrizve.
-    reads: F(['GET /api/invites/observe', 'POST /api/invites/pending']),
+    // A FELEJTÉS IS TÁMOGATÓ OLVASÁS (R166 §1): a visszalépés nemleges ága a szerver-oldali
+    // szándékot is törli, mert a jegy nem vihető át a KÖVETKEZŐ emberre (KUKA-218 — minden
+    // nézethez kötött tár EGY helyen ürül). Kimondva, különben a lefedés fedetlen végpontot mér.
+    reads: F(['GET /api/invites/observe', 'POST /api/invites/pending', 'POST /api/invites/pending/forget']),
     // R144/F144-01: a funkció KIMONDJA, mely felületi műveletek tartoznak hozzá — a
     // lefedés ebből mér, nem kötőjeles részszó-egyezésből (az összekeverte a külön műveleteket).
-    ui_actions: F(['redeem']),
+    // ÉS A FOLYTATÁS VEZÉRLŐJE IS EHHEZ A FUNKCIÓHOZ TARTOZIK (R166 §1): a visszalépés az
+    // ELFOGADÁS képernyőjének a nemleges ága (KUKA-201 — a nemleges válasz vigye a MŰKÖDŐ
+    // folytatást), nem önálló funkció. A kilépés-gombja a meglévő `logout` műveletet használja,
+    // tehát azt az `auth.logout` mondja a magáénak — egy művelet, egy otthon (KUKA-003).
+    ui_actions: F(['redeem', 'invite-leave']),
     group: 'invite', scope: 'person', audience: 'public', screen: null, action: null, entry: 'section-invite',
     // A SZEMÉLYES TÉRBEN IS ÉRTELMES — és ez nem kényelmi kivétel, hanem a funkció LÉNYEGE (P109-01):
     // a meghívott ember MINDIG a személyes teréből indul, hiszen abban a vállalkozásban még nincs
@@ -243,7 +287,7 @@ export const FEATURES = Object.freeze([
     // állapot-függő (csak a bejelentkezett, egyező címzettnek létezik), ezért a bemutató a
     // GOMBSORRA (`invite-actions`) áll, ami minden állapotban ott van — a hiányzó cél így nem
     // hamis megszakítás (KUKA-228 · KUKA-232).
-    anchors: F(['invite-observe', 'invite-identity', 'invite-actions', 'invite-next', 'invite-redeem']),
+    anchors: F(['invite-observe', 'invite-identity', 'invite-actions', 'invite-next', 'invite-redeem', 'invite-continue', 'invite-back']),
     authority: F({ endpoint: 'POST /api/invites/redeem', decided_by: 'v3ref/invite.mjs',
       reasons: F(['invite_expired', 'invite_already_redeemed', 'invite_unknown', 'invite_terms_changed',
         'issuer_right_withdrawn', 'invitee_mismatch', 'channel_not_proven']) }),
@@ -390,9 +434,7 @@ export const FEATURES = Object.freeze([
     ai: F({ explain: true, open: true, prepare: false,
       note: 'a minta tartalmát a segéd nem továbbítja szolgáltatónak — csak a képernyő nyitható meg vele' }),
     faq: F(['faq.data.sampleAccess', 'faq.data.mixedDocument']),
-    tour: null,
-    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
-    tour_note: 'a minta megnyitása EGY lap megnyitása: a végigvezetendő lépések a HOZZÁFÉRÉS oldalán vannak, ezért a `tour.scopeLifecycle` vezeti végig a megadást és a visszavonást — ez a lap annak a következményét mutatja',
+    tour: 'tour.documents',
     evidence: F(['v3app/findings_r121.mjs', 'tests/e2e/v3app-r121.spec.mjs']),
   }),
   F({
@@ -405,9 +447,7 @@ export const FEATURES = Object.freeze([
     outcomes: F(['success', 'missing', 'refused', 'error']),
     ai: F({ explain: true, open: true, prepare: false, note: null }),
     faq: F(['faq.data.sampleAccess']),
-    tour: null,
-    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
-    tour_note: 'egyetlen jelölt minta-szakasz egy meglévő lapon: nincs több lépése; a hozzáférés útját a `tour.scopeLifecycle` vezeti végig',
+    tour: 'tour.partners',
     evidence: F(['v3app/findings_r121.mjs', 'tests/e2e/v3app-r121.spec.mjs']),
   }),
   F({
@@ -501,6 +541,12 @@ export const FEATURES = Object.freeze([
     outcomes: F(['success']),
     ai: F({ explain: true, open: true, prepare: false, note: null }),
     faq: F(['faq.profile.edit']),
+    // A MUNKAFELÜLET KIMONDVA, ÉS A KÖZÖS ÚT DEKLARÁLVA (R166 §3). A `tour_note` eddig PRÓZÁBAN
+    // állította, hogy a nyelv-bemutató első lépése nyitja meg a profil-oldalt — a gép ezt NEM
+    // mérte, tehát az állítás hihető volt, nem igazolt. Deklarációként a feloldó ELLENŐRZI: ha a
+    // `tour.language/s1` lépés eltűnik vagy máshová mutat, a lefedés PIROS lesz (KUKA-050 · KUKA-207).
+    surface: 'profile',
+    shared_tour: F({ tour: 'tour.language', steps: F(['s1']) }),
     tour: null,
     // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
     tour_note: 'a profil-oldalt a nyelv-bemutató (`tour.language`) első lépése nyitja meg',
@@ -551,9 +597,7 @@ export const FEATURES = Object.freeze([
       note: 'ez maga a segéd: a helyi keresés modellhívás nélkül működik, az élő modell-válasz '
         + 'engedélyezett szolgáltatói csatlakozáshoz kötött — enélkül NEVEZETTEN nem elérhető' }),
     faq: F(['faq.chat.source', 'faq.chat.limits', 'faq.chat.secrets', 'faq.chat.offline']),
-    tour: null,
-    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
-    tour_note: 'a segéd MAGA a súgó Kérdezz nézete — a súgó-bemutató (`tour.help`) végigvezet rajta',
+    tour: 'tour.assistant',
     evidence: F(['tools/vs_verify_assistant.mjs', 'tools/v3_ai_kapcsolat_allapot.mjs']),
   }),
   F({
@@ -572,9 +616,7 @@ export const FEATURES = Object.freeze([
     outcomes: F(['success', 'empty', 'refused']),
     ai: F({ explain: true, open: true, prepare: false, note: null }),
     faq: F(['faq.mail.real']),
-    tour: null,
-    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
-    tour_note: 'a bemutató levél-fogadó a meghívás-bemutató (`tour.invite`) utolsó lépése',
+    tour: 'tour.outbox',
     evidence: F(['v3app/selfcheck.mjs']),
   }),
   F({
@@ -589,9 +631,7 @@ export const FEATURES = Object.freeze([
     outcomes: F(['success', 'empty']),
     ai: F({ explain: true, open: true, prepare: false, note: null }),
     faq: F(['faq.demo.whatIsReal', 'faq.demo.noFixture']),
-    tour: null,
-    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
-    tour_note: 'mintaadat-nézet: nincs benne művelet, amit végig lehetne vinni',
+    tour: 'tour.products',
     evidence: F(['tests/e2e/v3app-r85.spec.mjs']),
   }),
   F({
@@ -638,6 +678,108 @@ export const FEATURES = Object.freeze([
     // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
     tour_note: 'KIVEZETETT képesség: az utódja a `shell.sample_pages`',
     evidence: F(['docs/70_PLANNING/V3_R81_FELULET_KOZOS_KERET.md']),
+  }),
+  // ════════════════════════════════════════════════════════════════════════════════════════════
+  // R164/3 — A PÓTOLHATÓ LEFEDÉSI RÉSEK: LÉTEZŐ, MA IS DOLGOZÓ KÉPERNYŐK LEÍRÁS NÉLKÜL
+  //
+  // AZ R164/3 KIKÖTÉSE: *„ahol létező felülethez/funkcióhoz tartozik hiányzó HU/EN/DE
+  // leírás/GYIK/súgó/segéd/tutor/demo, ott pótolj; ahol a mögöttes üzleti képesség még nem létezik,
+  // az maradjon nevesített fejlesztési rés."*
+  //
+  // EZ A HAT BEJEGYZÉS A KETTÉOSZTÁS EREDMÉNYE. Öt képernyő MA IS dolgozik (listát rajzol valódi
+  // oszlopokkal, szűrővel, a jogosultsági kapun át) — csak a LEÍRÁSA hiányzott, és ezt pótoljuk.
+  // A hatodik (`personal.ownMatters`) TERVEZETT: a lap létezik és megnyílik, de a mögötte álló üzleti
+  // képesség nem — ezért `status: 'planned'`, és a hiány a `missing_capability` mezőben NEVESÍTVE áll.
+  //
+  // AMIT EZEK A LEÍRÁSOK NEM ÁLLÍTANAK (KUKA-050 · KUKA-224): egyik sem ígér ÍRÁST. Mindegyik
+  // kimondja, hogy olvasó nézet, és azt is, mi az, ami MA nem lehetséges — a terv nem tanítható kész
+  // szolgáltatásként.
+  // ════════════════════════════════════════════════════════════════════════════════════════════
+  F({
+    id: 'data.warehouses', module: 'data', version: '1.0.0', status: 'working',
+    surface: 'list-rows',
+    ui_actions: F(['clear-search', 'row-open']),
+    group: 'shell', scope: 'book', audience: 'signed_in', screen: 'warehouses', action: 'open.warehouses', entry: 'list-rows',
+    anchors: F(['nav-warehouses', 'list-search', 'list-rows']),
+    authority: F({ endpoint: 'GET /api/me', decided_by: 'v3app/public/demoData.mjs (DEM-01/DEM-02)',
+      reasons: F(['workspace_required']) }),
+    outcomes: F(['success', 'empty']),
+    ai: F({ explain: true, open: true, prepare: false, note: null }),
+    faq: F(['faq.warehouses.readOnly', 'faq.warehouses.itemCount']),
+    tour: 'tour.warehouses',
+    evidence: F(['v3app/public/app.js (ROW_DEF.warehouses)', 'tests/e2e/v3app-r85.spec.mjs']),
+  }),
+  F({
+    id: 'data.processes', module: 'data', version: '1.0.0', status: 'working',
+    surface: 'list-rows',
+    // A `process-state` HORGONY, nem művelet: `data-testid`, nem `data-action` (az L10 ellenőrzés
+    // mérte meg — a két fogalmat nem mossuk össze).
+    ui_actions: F(['clear-search', 'row-open']),
+    group: 'shell', scope: 'book', audience: 'signed_in', screen: 'processes', action: 'open.processes', entry: 'list-rows',
+    anchors: F(['nav-processes', 'list-search', 'list-rows', 'process-state']),
+    authority: F({ endpoint: 'GET /api/me', decided_by: 'v3app/public/demoData.mjs (DEM-01/DEM-02)',
+      reasons: F(['workspace_required']) }),
+    outcomes: F(['success', 'empty']),
+    ai: F({ explain: true, open: true, prepare: false, note: null }),
+    faq: F(['faq.processes.filter', 'faq.processes.readOnly']),
+    tour: 'tour.processes',
+    evidence: F(['v3app/public/app.js (ROW_DEF.processes + processState szűrő)', 'tests/e2e/v3app-r85.spec.mjs']),
+  }),
+  F({
+    id: 'data.stockcard', module: 'data', version: '1.0.0', status: 'working',
+    surface: 'stockcard-table',
+    group: 'plan', scope: 'book', audience: 'signed_in', screen: 'stockcard', action: 'open.stockcard', entry: 'stockcard-table',
+    anchors: F(['nav-stockcard', 'stockcard-table']),
+    authority: F({ endpoint: 'GET /api/data/stock', decided_by: 'v3ref/authz.mjs + resultScope.mjs (STK-01)',
+      reasons: F(['no_scope_grant', 'not_available', 'not_a_member', 'context_mismatch', 'network_error']) }),
+    outcomes: F(['success', 'empty', 'missing', 'refused', 'error']),
+    ai: F({ explain: true, open: true, prepare: false, note: null }),
+    faq: F(['faq.stockcard.sameGate', 'faq.stockcard.whichProduct']),
+    tour: 'tour.stockcard',
+    evidence: F(['v3app/public/app.js (stockCardPage — stockGate)', 'tests/e2e/v3app-r85.spec.mjs']),
+  }),
+  F({
+    id: 'data.movements', module: 'data', version: '1.0.0', status: 'working',
+    surface: 'movements-table',
+    group: 'plan', scope: 'book', audience: 'signed_in', screen: 'movements', action: 'open.movements', entry: 'movements-table',
+    anchors: F(['nav-movements', 'movements-table']),
+    authority: F({ endpoint: 'GET /api/data/stock', decided_by: 'v3ref/authz.mjs + resultScope.mjs (STK-01)',
+      reasons: F(['no_scope_grant', 'not_available', 'not_a_member', 'context_mismatch', 'network_error']) }),
+    outcomes: F(['success', 'empty', 'missing', 'refused', 'error']),
+    ai: F({ explain: true, open: true, prepare: false, note: null }),
+    faq: F(['faq.movements.sameGate', 'faq.movements.readOnly']),
+    tour: 'tour.movements',
+    evidence: F(['v3app/public/app.js (movementsPage — stockGate)', 'tests/e2e/v3app-r85.spec.mjs']),
+  }),
+  F({
+    id: 'account.settings', module: 'account', version: '1.0.0', status: 'working',
+    surface: 'section-account',
+    group: 'account', scope: 'book', audience: 'signed_in', screen: 'account', action: 'open.account', entry: 'section-account',
+    anchors: F(['nav-account', 'section-account', 'representation-note']),
+    authority: F({ endpoint: 'GET /api/me', decided_by: 'v3app/server.mjs (/api/me) + v3ref/authz.mjs',
+      reasons: F(['workspace_required']) }),
+    outcomes: F(['success']),
+    ai: F({ explain: true, open: true, prepare: false, note: null }),
+    faq: F(['faq.account.notChecked', 'faq.account.whoChanges']),
+    tour: 'tour.accountSettings',
+    evidence: F(['v3app/public/app.js (accountPage)', 'tests/e2e/v3app-r81-ux.spec.mjs']),
+  }),
+  F({
+    id: 'personal.ownMatters', module: 'shell', version: '1.0.0', status: 'planned',
+    group: 'shell', scope: 'person', audience: 'signed_in', screen: 'personal', action: 'open.personal', entry: null,
+    anchors: F([]),
+    authority: F({ endpoint: null, decided_by: null, reasons: F([]) }),
+    outcomes: F(['missing']),
+    ai: F({ explain: true, open: false, prepare: false,
+      note: 'nincs AI-művelet: a képesség még nem létezik, tervet nem tanítunk kész szolgáltatásként' }),
+    faq: F(['faq.personal.whyEmpty']),
+    // A NEVESÍTETT FEJLESZTÉSI RÉS (R164/3). A `missing_capability` nem próza: a lefedési őr
+    // osztályozása EBBŐL dönti el, hogy a hiány „fejlesztési rés"-e, vagy osztályozatlan piros.
+    missing_capability: 'a SAJÁT ÜGYEK listája még nem létezik: nincs olyan adatkör, amit a belépett ember a saját nevében rögzíthetne vagy lekérhetne (sem ügy, sem kérés, sem bizonylat) — a lap ma megnyílik, és KIMONDJA, hogy üres',
+    tour: null,
+    // A `tour: null` NEM teljesítés: a hiány INDOKA itt áll (R91/F91-01).
+    tour_note: 'TERVEZETT képesség: a lap üres állapotot mutat, nincs mit végigkattintani — a bemutató tervet tanítana kész szolgáltatásként (KUKA-224)',
+    evidence: F(['v3app/public/app.js (case \'personal\' — emptyBox, és a lap ezt kimondja)']),
   }),
 ]);
 
@@ -731,28 +873,73 @@ export const TOURS = Object.freeze({
     // `requires_demo`, és éles üzemben NEM kínáljuk fel. Nem azért, mert elrejtjük: azért, mert
     // amit nem lehet végigvinni, azt nem szabad felkínálni (KUKA-041 · F91-01). A funkció leírása,
     // súgója és GYIK-je éles üzemben is a helyén marad.
-    requires_demo: true,
+    requires_dev_mailbox: true, requires_story_data: 'pending_invite', requires_demo: true,
     steps: Object.freeze([
       Object.freeze({ id: 's1', target: 'nav-members', task: null, role: 'admin' }),
       Object.freeze({ id: 's2', target: 'members-tab-invites', task: null, role: 'admin' }),
       Object.freeze({ id: 's3', target: 'invites-table', task: null, appears_after: 'members-tab-invites', role: 'admin' }),
-      Object.freeze({ id: 's4', target: 'invites-table', task: 'invite.revoked', appears_after: 'members-tab-invites', role: 'admin' }),
+      Object.freeze({ id: 's4', target: 'invites-table', task: 'invite.revoked', appears_after: 'members-tab-invites', role: 'admin', story_bound: true }),
       Object.freeze({ id: 's5', target: 'invites-table', task: null, appears_after: 'members-tab-invites', role: 'admin' }),
-      Object.freeze({ id: 's6', target: 'actor-switch', task: 'actor.switched', switch_actor: true }),
+      Object.freeze({ id: 's6', target: 'actor-switch', task: 'actor.switched', switch_actor: true, switch_axis: 'subject', switch_to: 'story_actor' }),
       Object.freeze({ id: 's7', target: 'demo-mail-open', task: null }),
       Object.freeze({ id: 's8', target: 'mailbox', task: null, appears_after: 'demo-mail-open' }),
-      Object.freeze({ id: 's9', target: 'invite-observe', task: null, appears_after: 'mailbox' }),
-      Object.freeze({ id: 's10', target: 'actor-switch', task: 'actor.switched', role: 'admin', switch_actor: true }),
+      Object.freeze({ id: 's9', target: 'invite-observe', task: null, appears_after: 'mailbox', story_ref: true }),
+      Object.freeze({ id: 's10', target: 'actor-switch', task: 'actor.switched', role: 'admin', switch_actor: true, switch_axis: 'subject', switch_to: 'origin_actor' }),
+      /**
+       * A HIÁNYZÓ LÉPÉS — A VISSZATÉRŐ FIÓKKEZELŐNEK A CÉGRE IS ÁT KELL VÁLTANIA (R176 §1, MÉRVE).
+       *
+       * A LELET. A valódi felületen a szereplő-váltás valódi KI- ÉS BELÉPÉS, és a kiszolgáló a
+       * belépőt a SZEMÉLYES körébe léptetve fogadja. A következő lépés célja (`nav-members`) viszont
+       * CSAK céges fiókban létezik — a bemutató tehát egy ÉP képernyőn, NEVEZETTEN megszakadt:
+       * „az útmutatóban megnevezett elem nem látható ezen a képernyőn". MÉRVE a valódi felületen:
+       * a 18 lépésből 10 futott le, a 11. szakadt meg. Ez az a hiány, amit az R164/3 átadási
+       * jegyzete „19-ből 18 lépés"-ként nevezett meg — egyetlen lépés volt.
+       *
+       * A VÁLASZ UGYANAZ A MÁR MEGLÉVŐ MINTA, amit a `tour.reentry` s9 lépése használ: a FIÓK-váltás
+       * is nézet-váltás (`KUKA-208`: a kontextus PÁR — alany ÉS könyv), tehát a lépés a fejléc
+       * fiókválasztójára áll, és a kiszolgáló igazolt válaszára zárul. Nem új mechanizmus: a
+       * meglévő szabályt alkalmazza ott is, ahol eddig kimaradt (`KUKA-003`).
+       */
+      Object.freeze({ id: 's10b', target: 'account-switcher', task: 'actor.switched', role: 'admin', switch_actor: true, switch_axis: 'book' }),
       Object.freeze({ id: 's11', target: 'nav-members', task: null, role: 'admin' }),
       Object.freeze({ id: 's12', target: 'invite-open', task: null, role: 'admin' }),
-      Object.freeze({ id: 's13', target: 'invite-submit', task: 'invite.created', appears_after: 'invite-open', role: 'admin' }),
-      Object.freeze({ id: 's14', target: 'actor-switch', task: 'actor.switched', switch_actor: true }),
+      Object.freeze({ id: 's13', target: 'invite-submit', task: 'invite.created', appears_after: 'invite-open', role: 'admin', story_rebind: true }),
+      Object.freeze({ id: 's14', target: 'actor-switch', task: 'actor.switched', switch_actor: true, switch_axis: 'subject', switch_to: 'story_actor' }),
       Object.freeze({ id: 's15', target: 'demo-mail-open', task: null }),
       Object.freeze({ id: 's16', target: 'mailbox', task: null, appears_after: 'demo-mail-open' }),
-      Object.freeze({ id: 's17', target: 'invite-actions', task: 'invite.redeemed', appears_after: 'mailbox' }),
+      Object.freeze({ id: 's17', target: 'invite-actions', task: 'invite.redeemed', appears_after: 'mailbox', story_bound: true }),
       Object.freeze({ id: 's18', target: 'account-switcher', task: null }),
     ]),
   }),
+  // ════════════════════════════════════════════════════════════════════════════════════════════
+  // R164/3 — A VALÓDI, ALKALMAZÁSON BELÜLI ÁTADÁS: MEGÉPÍTVE, MÉRVE, ÉS NEVEZETTEN VISSZAÁLLÍTVA
+  //
+  // A MEGÁLLÁS, AMIT EZ LEZÁR (az R158 jelentés 7/1. nyitott tétele, SAJÁT nevesítés): *„A két
+  // szereplős történet az alkalmazás-héjban nem végigvihető. Ahhoz DEKLARÁLT váltás-vezérlő kellene
+  // (a kijelentkezés ma lenyitható menüben áll, tehát a lépésnek saját feltáró-mezőre volna
+  // szüksége), és a váltás VALÓDI ki- és belépés a másik emberrel."* Az R164/3 ezt kifejezetten
+  // engedélyezte: *„a túra tárja fel a szükséges menüt és adjon végrehajtható átadást … ne építs
+  // jogosultságot megkerülő szereplőváltást."*
+  //
+  // AMIT MEGÉPÍTETTEM ÉS MEGMÉRTEM. A hat váltás-lépés célját a VALÓDI kijelentkezésre állítottam
+  // (`target: 'logout'`, `appears_after: 'profile'` — a bemutató kiemeli a profil-menüt, megvárja,
+  // hogy a felhasználó megnyissa, és nem kattint helyette), és beírtam a belépés utáni FIÓKVÁLTÁS
+  // lépéseit is, mert a valódi kiszolgáló a SZEMÉLYES körbe léptet be. A végigjárás ezen az úton
+  // 19-ből 18 lépést ért el az asztali szélességen — tehát az út járható, de NEM teljes.
+  //
+  // AMIÉRT MÉGIS A BEMUTATÓ-VEZÉRLŐ ÁLL ITT MA. A bemutató-lap rövidítő gombja nem csak kilép és
+  // belép: a végén ÚJRATÖLTI a lapot tiszta címre — és az átadás ezen az újratöltésen megy át
+  // (`pagehide` → `saveTourHandover`, induláskor `resumeTourAfterSwitch`). Az alkalmazáson belüli,
+  // ÚJRATÖLTÉS NÉLKÜLI átadás más út, és azon MÉRTEN két állapot-szivárgás állt (mindkettőt
+  // JAVÍTOTTAM: a kilépés nem a közös ürítőn ment át, és az előző ember meghívó-jegyét nem törölte),
+  // a harmadik — a futás elvesztése a meghívás ELFOGADÁSA után — ebben a csomagban nem záródott le.
+  //
+  // A DÖNTÉS: egy KÖTELEZŐ kiadási kaput (`verify:browser-gate` → `proof:demo-walk`) nem hagyunk
+  // pirosan egy félig megépített képességért (KUKA-091: a javítás iránya nem az őr lazítása). A
+  // lépések ezért a mai, végigvihető útra állnak vissza, a maradék munka pedig NEVESÍTVE megy
+  // tovább a jelentésben — mért tünettel, nem érzéssel (R158 7/1. tétel marad nyitva).
+  // ════════════════════════════════════════════════════════════════════════════════════════════
+
   // R132 §6/2. TÖRTÉNET — ELTÁVOLÍTOTT MUNKATÁRS → ÚJBÓLI MEGHÍVÁS. A lezárás TÉNYLEGES sikerhez
   // kötött (`reinvite.sent`): a „Tovább" gomb nem küld meghívást a felhasználó helyett (KUKA-231).
   'tour.reentry': Object.freeze({
@@ -761,23 +948,48 @@ export const TOURS = Object.freeze({
     // UGYANAZ AZ OK, MINT AZ „A" TÖRTÉNETNÉL (R140 — ACT-01): a visszatérés tanulsága a VÉGÉN van
     // (tagság igen, adat nem; és a külön jogadás UTÁN mennyiség igen, ár nem), és ehhez két élő
     // munkamenet kell. Éles üzemben nem kínáljuk fel, mert nem volna végigvihető.
-    requires_demo: true,
+    requires_dev_mailbox: true, requires_story_data: 'other_member', requires_demo: true,
+    /**
+     * A TÖRTÉNET TANULSÁGA EGY ADATKÖR KIADÁSÁN FORDUL MEG, ÉS EZT A REGISZTER MONDJA KI (R186 §5).
+     *
+     * A felkínálás a kezelő delegálási PLAFONJÁHOZ méri: ha ez az adatkör nincs a plafonján, a
+     * történet a MEGVONÓ lépés után akadna el (`outside_basis_scopes`) — tehát a bemutató kárt
+     * hagyna maga után. A `null` vagy a hiányzó mező ZÁR (`KUKA-236`).
+     */
+    story_scope: 'keszlet',
     steps: Object.freeze([
       Object.freeze({ id: 's1', target: 'nav-members', task: null, role: 'admin' }),
       Object.freeze({ id: 's2', target: 'members-list', task: null, role: 'admin' }),
-      Object.freeze({ id: 's3', target: 'member-revoke', task: 'member.revoked', appears_after: 'members-list', role: 'admin' }),
-      Object.freeze({ id: 's4', target: 'reinvite-form', task: 'reinvite.sent', appears_after: 'members-list', role: 'admin' }),
-      Object.freeze({ id: 's5', target: 'actor-switch', task: 'actor.switched', switch_actor: true }),
+      Object.freeze({ id: 's3', target: 'member-revoke', task: 'member.revoked', appears_after: 'members-list', role: 'admin', story_bound: true }),
+      /**
+       * A 4. LÉPÉS KÉT DOLGOT KÖT (R186 §5, külső review P2): a MŰVELET a történet TAGJÁRA szól
+       * (`story_bound` → `story.ref`), az ÁLTALA kiállított meghívó jelölőjét pedig a MÁSODIK
+       * rekeszbe írja (`story_rebind: 'invite_ref'`). A meghívott oldalán az ELFOGADÁS ERRE a
+       * jelölőre szól (`s8`) — enélkül a néző a levélfogadóban álló MÁS meghívót is beváltotta
+       * volna, és a lap mégis „elvégezve"-t írt volna (nem létező munkatér-tagság keletkezhetett).
+       */
+      Object.freeze({ id: 's4', target: 'reinvite-form', task: 'reinvite.sent', appears_after: 'members-list', role: 'admin', story_bound: true, story_rebind: 'invite_ref' }),
+      Object.freeze({ id: 's5', target: 'actor-switch', task: 'actor.switched', switch_actor: true, switch_axis: 'subject', switch_to: 'story_actor' }),
       Object.freeze({ id: 's6', target: 'demo-mail-open', task: null }),
       Object.freeze({ id: 's7', target: 'mailbox', task: null, appears_after: 'demo-mail-open' }),
-      Object.freeze({ id: 's8', target: 'invite-actions', task: 'invite.redeemed', appears_after: 'mailbox' }),
-      Object.freeze({ id: 's9', target: 'account-switcher', task: 'actor.switched', switch_actor: true }),
+      Object.freeze({ id: 's8', target: 'invite-actions', task: 'invite.redeemed', appears_after: 'mailbox', story_bound: 'invite_ref' }),
+      Object.freeze({ id: 's9', target: 'account-switcher', task: 'actor.switched', switch_actor: true, switch_axis: 'book' }),
       Object.freeze({ id: 's10', target: 'nav-stock', task: null }),
       Object.freeze({ id: 's11', target: 'data-stock', task: null }),
-      Object.freeze({ id: 's12', target: 'actor-switch', task: 'actor.switched', role: 'admin', switch_actor: true }),
+      Object.freeze({ id: 's12', target: 'actor-switch', task: 'actor.switched', role: 'admin', switch_actor: true, switch_axis: 'subject', switch_to: 'origin_actor' }),
+      /**
+       * A VISSZAVÁLTÁS UTÁN A SZEMÉLYES KÖRBEN ÁLLUNK (R176 — ugyanaz a hiány, mint a `s10b`-nél).
+       *
+       * A belépés a SZEMÉLYES körbe visz, a jogadás és a készlet képernyői viszont a cég fiókjában
+       * élnek. A fiókváltás tehát a történet SAJÁT lépése, nem a próba néma kényelme: e nélkül a
+       * következő lépés célja (`nav-members`, illetve `nav-stock`) nem létezik, és a végigvezetés
+       * `targetMissing`-gel megszakad — MÉRVE a bemutató-lap bejárásán, mindkét szélességen.
+       */
+      Object.freeze({ id: 's12b', target: 'account-switcher', task: 'actor.switched', role: 'admin', switch_actor: true, switch_axis: 'book' }),
       Object.freeze({ id: 's13', target: 'nav-members', task: null, role: 'admin' }),
-      Object.freeze({ id: 's14', target: 'member-scope-row-keszlet', task: 'grant.saved', appears_after: 'members-list', role: 'admin' }),
-      Object.freeze({ id: 's15', target: 'actor-switch', task: 'actor.switched', switch_actor: true }),
+      Object.freeze({ id: 's14', target: 'member-scope-row-keszlet', task: 'grant.saved', appears_after: 'members-list', role: 'admin', story_bound: true }),
+      Object.freeze({ id: 's15', target: 'actor-switch', task: 'actor.switched', switch_actor: true, switch_axis: 'subject', switch_to: 'story_actor' }),
+      Object.freeze({ id: 's15b', target: 'account-switcher', task: 'actor.switched', switch_actor: true, switch_axis: 'book' }),
       Object.freeze({ id: 's16', target: 'nav-stock', task: null }),
       Object.freeze({ id: 's17', target: 'data-stock-btn', task: null }),
       Object.freeze({ id: 's18', target: 'data-price', task: null }),
@@ -792,7 +1004,10 @@ export const TOURS = Object.freeze({
     ]),
   }),
   'tour.register': Object.freeze({
-    id: 'tour.register', version: '1.0.0', audience: 'public', requires_anonymous: true, feature: 'auth.register', page: null,
+    // A belépési nézet KIMONDVA (R166 §3): eddig a futtató feltételezte, hogy a belépés előtti
+    // útmutató mindig a regisztráció — a feltételezés EGY útmutatóból általánosított (KUKA-227).
+    id: 'tour.register', version: '1.0.0', audience: 'public', requires_anonymous: true,
+    auth_view: 'register', feature: 'auth.register', page: null,
     steps: Object.freeze([
       Object.freeze({ id: 's1', target: 'register-email', task: null }),
       Object.freeze({ id: 's2', target: 'register-password', task: null }),
@@ -833,7 +1048,232 @@ export const TOURS = Object.freeze({
       Object.freeze({ id: 's4', target: 'help-tab-sitemap', task: null, appears_after: 'help-open' }),
     ]),
   }),
+  // ── R164/3 — A PÓTOLT BEMUTATÓK. Mind a HÁROM olyan lapra épül, ami ENGEDÉLY NÉLKÜL is megnyílik
+  // (a fiók bemutató-adatát rajzolja, illetve a fiók saját adatait), ezért éles üzemben is
+  // végigvihető — nem `requires_demo`. Feladat-lépés egyikben sem kell: a nézetek OLVASÓK, és a
+  // bemutató nem kattint a felhasználó helyett (KUKA-231).
+  'tour.warehouses': Object.freeze({
+    /**
+     * A MINTAADATHOZ KÖTÖTT TÁBLA-ÚTMUTATÓK FELTÉTELE KIMONDVA (R166, külső review, Codex, P2 · KUKA-413).
+     *
+     * A LELET: a bemutató-mintából KETTŐ van (`bemutato-A` · `bemutato-B`), tehát egy létrehozó
+     * HARMADIK (vagy későbbi) vállalkozásánál az `assignDemoFixture()` NULL-t ad. A tábla-lap ilyenkor
+     * az ÜRES ÁLLAPOT panelt rajzolja (`demo-empty`), és a `list-rows` meg a `list-search` SOHA nem
+     * jön létre — a három útmutató viszont MINDEN céges tagnak felkínálódott, tehát a második lépésén
+     * nevezetten megszakadt. Ugyanaz az osztály, mint a KUKA-397/407/409: amit nem lehet végigvinni,
+     * azt nem kínáljuk fel.
+     *
+     * A FELTÉTELT A DARAB DEKLARÁLJA, A TÉNYT A KISZOLGÁLÓ MÉRI (`demo_fixture`) — nem a felirat,
+     * és nem a tagság.
+     */
+    id: 'tour.warehouses', version: '1.1.0', audience: 'signed_in', requires_demo_fixture: true, feature: 'data.warehouses', page: 'warehouses',
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'nav-warehouses', task: null }),
+      Object.freeze({ id: 's2', target: 'list-rows', task: null }),
+      Object.freeze({ id: 's3', target: 'list-search', task: null }),
+    ]),
+  }),
+  'tour.processes': Object.freeze({
+    id: 'tour.processes', version: '1.1.0', audience: 'signed_in', requires_demo_fixture: true, feature: 'data.processes', page: 'processes',
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'nav-processes', task: null }),
+      Object.freeze({ id: 's2', target: 'list-rows', task: null }),
+      Object.freeze({ id: 's3', target: 'list-search', task: null }),
+    ]),
+  }),
+  // ── R166 §3 — A TIZENKÉT PÓTOLT BEMUTATÓ. Mindegyik VALÓDI, bejárható út egy MŰKÖDŐ funkción;
+  // egyik sem tölt ki üres tartalmat, és egyik sem minősít át pótolható tételt fejlesztési résnek.
+  // A lépés-CÉLOK a funkciók MÁR DEKLARÁLT horgonyai (a `nav-` és `sample-` sablon-családokból),
+  // tehát a `verify:tutor` TUT05 mindegyiket a FORRÁSBAN méri. Feladat-lépés egyikben sem kell: a
+  // nézetek OLVASÓK, és a bemutató nem kattint a felhasználó helyett (KUKA-231).
+  //
+  // KIMONDOTT KORLÁT, ami a `tour_note`-okból ide költözik: az ENGEDÉLYHEZ KÖTÖTT két nézet
+  // (`tour.stockcard` · `tour.movements`) a megnyíló táblát csak kiadott készlet-engedéllyel
+  // rajzolja — a jogadás a `tour.grant` útja, és ez a bemutató NEM ad jogot a felhasználó helyett.
+  'tour.verify': Object.freeze({
+    // A LEVÉL-FOGADÓ a `devSurface` mögött él — telepített környezetben nincs cél (R166 P2).
+    id: 'tour.verify', version: '1.0.0', audience: 'public', requires_dev_mailbox: true,
+    feature: 'auth.verify', page: null,
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'demo-mail-open', task: null }),
+      Object.freeze({ id: 's2', target: 'mailbox', task: null, appears_after: 'demo-mail-open' }),
+    ]),
+  }),
+  'tour.login': Object.freeze({
+    // Belépve a célok (a belépési űrlap mezői) nincsenek a lapon — tehát NEVEZETT kizárás, nem
+    // `targetMissing`-gel megszakadó útmutató (F91-01 · KUKA-391).
+    id: 'tour.login', version: '1.0.0', audience: 'public', requires_anonymous: true,
+    auth_view: 'login', feature: 'auth.login', page: null,
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'login-email', task: null }),
+      Object.freeze({ id: 's2', target: 'login-password', task: null }),
+      Object.freeze({ id: 's3', target: 'login-submit', task: null }),
+    ]),
+  }),
+  'tour.resend': Object.freeze({
+    // AZ ÚTMUTATÓ ELŐBB ODAVISZ (R166 §3 — MÉRT lelet a böngészőben). Az első alakom a `resend-email`
+    // mezőre állt, ami a BELÉPÉSI képernyőn nem létezik: az útmutató NEVEZETTEN megszakadt („az
+    // útmutatóban megnevezett elem nem látható ezen a képernyőn"). Ez a `KUKA-232` osztálya — és
+    // pontosan az, amit az R166 §3 „ténylegesen bejárható" szava kizár. A feltáró vezérlőt az első
+    // lépés nevezi meg, a további célok `appears_after`-rel hozzá kötve: amit az útmutató nem nyom
+    // meg helyettünk, arra VÁRNI kell (KUKA-228).
+    // A kiinduló képernyő a BELÉPÉSI lap: onnan nyílik az újraküldés (az első lépés a feltáró gomb).
+    id: 'tour.resend', version: '1.1.0', audience: 'public', requires_anonymous: true,
+    /**
+     * AZ ÚTMUTATÓ OTT INDUL, AHOL A CÉLJAI VANNAK (R166, külső review nyomán MÉRT SAJÁT lelet · KUKA-409).
+     *
+     * A LELET: az előző alak `auth_view: 'login'`-ban indult, és az ELSŐ lépése a nézet-váltó gombra
+     * (`auth-resend-open`) állt. Ez a gomb CSAK a belépési nézetben létezik — megnyomva a lap átvált
+     * az újraküldő nézetre, és a gomb MEGSZŰNIK. A `checkRun` ilyenkor az ELSŐ lépésen ad
+     * `targetMissing`-et: a buborék azt írja, hogy „az útmutatóban megnevezett elem nem látható ezen a
+     * képernyőn" — egy teljesen ép lapon, pont azután, hogy a felhasználó azt tette, amit kértünk.
+     * Zsákutca működő folytatás nélkül (KUKA-201), ugyanaz az osztály, mint a `tour.logout`-nál.
+     *
+     * A kattintó bejáró MÉRTE KI (a korábbi alak átlépett a kattintás felett), és ez a bizonyíték arra,
+     * hogy a szigorítás nem formalitás volt.
+     */
+    auth_view: 'resend', feature: 'auth.resend', page: null,
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'resend-email', task: null }),
+      Object.freeze({ id: 's2', target: 'resend-submit', task: null }),
+    ]),
+  }),
+  'tour.logout': Object.freeze({
+    // AZ ÚT A PROFIL-MENŰN MEGY (R166 §3 — MÉRT lelet a böngészőben). Az első alakom a `nav-security`
+    // menüpontra állt; a CÉGES térben viszont ilyen menüpont NINCS (a Belépés és biztonság a személyes
+    // menü része), tehát az útmutató ott azonnal NEVEZETTEN megszakadt. A profil-menü MINDKÉT térben
+    // ott van, és benne áll a lapra vezető gomb ÉS a kilépés is — így az útmutató tényleg bejárható,
+    // és a lapot is TÉNYLEGESEN meglátogatja (nem puszta `page` deklaráció).
+    id: 'tour.logout', version: '1.1.0', audience: 'signed_in', feature: 'auth.logout', page: 'security',
+    /**
+     * AZ ÚTMUTATÓ A PROFIL-MENŰBŐL NEM LÉP KI (R166, külső review, Codex, P2 · KUKA-407).
+     *
+     * A LELET: a korábbi alak középen a `profile-menu-security` vezérlőre állt. Ha a felhasználó —
+     * ahogy egy kiemelt gombnál természetes — MEGNYOMTA, a `go('security')` BEZÁRTA a profil-menüt
+     * (`pr.open = false`), a kijelentkezés horgonya (`logout`) viszont CSAK ebben a menüben
+     * létezik: a harmadik lépés nevezetten megszakadt. A biztonsági lap kijelentkezés-gombja nem
+     * hordozza ugyanazt a horgonyt, és nem is kaphat másodikat (a cél egyértelmű maradjon).
+     *
+     * EZÉRT KÉT LÉPÉS, EGY HELYEN: a menü megnyitása, majd a kijelentkezés gombja. A biztonsági lap
+     * bemutatása nem ennek az útmutatónak a dolga — a kilépés útja a profil-menű (KUKA-231: amit a
+     * bemutató nem nyom meg helyettünk, arra VÁRNI kell; és az ÚTON nem lehet elveszíteni a célt).
+     */
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'profile', task: null }),
+      Object.freeze({ id: 's2', target: 'logout', task: null, appears_after: 'profile' }),
+    ]),
+  }),
+  'tour.personalAccount': Object.freeze({
+    id: 'tour.personalAccount', version: '1.0.0', requires_story_data: 'own_personal_book', audience: 'signed_in', feature: 'account.personal', page: 'overview',
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'header-workspace', task: null }),
+      Object.freeze({ id: 's2', target: 'account-switcher', task: null }),
+    ]),
+  }),
+  'tour.documents': Object.freeze({
+    // ÉS A MINTAADAT IS ELŐFELTÉTEL (R166 P2, HETEDIK KÖR · `KUKA-414`): a lépés célja csak a
+    // kiosztott bemutató-mintával jön létre — a HARMADIK vállalkozásban a lap az ÜRES ÁLLAPOTOT
+    // rajzolja, és az útmutató a második lépésén nevezetten megszakadt volna.
+    id: 'tour.documents', version: '1.1.0', audience: 'signed_in', requires_demo_fixture: true,
+    feature: 'data.documentSample', page: 'documents',
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'nav-documents', task: null }),
+      Object.freeze({ id: 's2', target: 'sample-document', task: null }),
+      Object.freeze({ id: 's3', target: 'sample-document-full', task: null }),
+    ]),
+  }),
+  'tour.partners': Object.freeze({
+    // ÉS A MINTAADAT IS ELŐFELTÉTEL (R166 P2, HETEDIK KÖR · `KUKA-414`): a lépés célja csak a
+    // kiosztott bemutató-mintával jön létre — a HARMADIK vállalkozásban a lap az ÜRES ÁLLAPOTOT
+    // rajzolja, és az útmutató a második lépésén nevezetten megszakadt volna.
+    id: 'tour.partners', version: '1.1.0', audience: 'signed_in', requires_demo_fixture: true,
+    feature: 'data.supplierSample', page: 'partners',
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'nav-partners', task: null }),
+      Object.freeze({ id: 's2', target: 'sample-supplier', task: null }),
+    ]),
+  }),
+  'tour.assistant': Object.freeze({
+    id: 'tour.assistant', version: '1.0.0', audience: 'signed_in', feature: 'shell.assistant', page: null,
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'help-open', task: null }),
+      // A FELTÁRÓ LÁNC PONTOS (R166 §3 — MÉRT lelet): a kérdés-mező nem a súgó megnyitásával jelenik
+      // meg, hanem a Kérdezz FÜL megnyitásával. A pontatlan feltáró-deklaráció a bejárást a már
+      // nyitott panel újbóli megnyitására küldte — vagyis a feltevés, nem a felület szerint ment.
+      Object.freeze({ id: 's2', target: 'help-tab-ask', task: null, appears_after: 'help-open' }),
+      Object.freeze({ id: 's3', target: 'chat-input', task: null, appears_after: 'help-tab-ask' }),
+      Object.freeze({ id: 's4', target: 'chat-send', task: null, appears_after: 'help-tab-ask' }),
+    ]),
+  }),
+  'tour.products': Object.freeze({
+    id: 'tour.products', version: '1.1.0', audience: 'signed_in', requires_demo_fixture: true, feature: 'shell.sample_pages', page: 'products',
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'nav-products', task: null }),
+      Object.freeze({ id: 's2', target: 'list-rows', task: null }),
+      Object.freeze({ id: 's3', target: 'list-search', task: null }),
+    ]),
+  }),
+  'tour.stockcard': Object.freeze({
+    // A TÁBLA csak kiadott készlet-adatkörrel rajzol: a felkínálás az ÉLŐ jogon áll (R166 P2).
+    // ÉS A MINTAADAT IS ELŐFELTÉTEL (R166 P2, HETEDIK KÖR · `KUKA-414`): a lépés célja csak a
+    // kiosztott bemutató-mintával jön létre — a HARMADIK vállalkozásban a lap az ÜRES ÁLLAPOTOT
+    // rajzolja, és az útmutató a második lépésén nevezetten megszakadt volna.
+    id: 'tour.stockcard', version: '1.1.0', audience: 'signed_in', requires_stock_access: true,
+    requires_demo_fixture: true,
+    feature: 'data.stockcard', page: 'stockcard',
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'nav-stockcard', task: null }),
+      Object.freeze({ id: 's2', target: 'stockcard-table', task: null }),
+    ]),
+  }),
+  'tour.movements': Object.freeze({
+    // ÉS A MINTAADAT IS ELŐFELTÉTEL (R166 P2, HETEDIK KÖR · `KUKA-414`): a lépés célja csak a
+    // kiosztott bemutató-mintával jön létre — a HARMADIK vállalkozásban a lap az ÜRES ÁLLAPOTOT
+    // rajzolja, és az útmutató a második lépésén nevezetten megszakadt volna.
+    id: 'tour.movements', version: '1.1.0', audience: 'signed_in', requires_stock_access: true,
+    requires_demo_fixture: true,
+    feature: 'data.movements', page: 'movements',
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'nav-movements', task: null }),
+      Object.freeze({ id: 's2', target: 'movements-table', task: null }),
+    ]),
+  }),
+  'tour.outbox': Object.freeze({
+    id: 'tour.outbox', version: '1.0.0', audience: 'signed_in', requires_dev_mailbox: true,
+    feature: 'shell.demo_mail', page: 'outbox',
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'nav-outbox', task: null }),
+      // A FELTÁRÓ CSAK KORÁBBI LÉPÉS CÉLJA LEHET — a `verify:tutor` jogosan szólt: a megnyitó
+      // vezérlő SAJÁT lépést kap, és a levél-fogadó utána jön (KUKA-228: amit az útmutató nem nyom
+      // meg helyettünk, arra várni kell).
+      Object.freeze({ id: 's2', target: 'demo-mail-open', task: null }),
+      Object.freeze({ id: 's3', target: 'mailbox', task: null, appears_after: 'demo-mail-open' }),
+    ]),
+  }),
+  'tour.accountSettings': Object.freeze({
+    id: 'tour.accountSettings', version: '1.0.0', audience: 'signed_in', feature: 'account.settings', page: 'account',
+    steps: Object.freeze([
+      Object.freeze({ id: 's1', target: 'nav-account', task: null }),
+      Object.freeze({ id: 's2', target: 'section-account', task: null }),
+      Object.freeze({ id: 's3', target: 'representation-note', task: null }),
+    ]),
+  }),
 });
+
+/**
+ * A SZEREPLŐ-VÁLTÓ LÉPÉSEK — A DEFINÍCIÓBÓL, NEM KÉZI LISTÁBÓL (R164/3 · KUKA-045).
+ *
+ * MIÉRT VAN EZ. Két bemutató ÁTÍVEL a szereplőkön: a felkínálásuk NEM attól függ, hogy a kiszolgáló
+ * bemutató-környezetben áll (`requires_demo` — az ADAT feltétele), hanem attól, hogy a BETÖLTÖTT
+ * FELÜLET ad-e „váltás a másik nézetére" vezérlőt (a VEZÉRLŐ feltétele). A kettő nem ugyanaz: az
+ * alkalmazás-héj bemutató-környezetben is a VALÓDI héj, amiben ilyen vezérlő nincs. Ezért a kapu a
+ * lépés SAJÁT `switch_actor` jelét olvassa, és a lépés `target`-jét kéri a felülettől — kézzel írt
+ * bemutató-azonosító-lista nincs, tehát egy ÚJ szereplő-váltó bemutató sem maradhat ki a kapuból.
+ */
+export function actorSwitchSteps(tour) {
+  const steps = tour && Array.isArray(tour.steps) ? tour.steps : [];
+  return steps.filter((s) => s && s.switch_actor === true);
+}
 
 export const TUD_CONTRACT = Object.freeze({
   id: 'TUD-01',

@@ -24,6 +24,18 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 /** A lépés HÁROM állapota — az „átugrott" nem „elvégezett". */
 export const STEP_STATES = Object.freeze(['pending', 'done', 'skipped']);
 
+/**
+ * A TÁJÉKOZTATÓ VÁRAKOZÁS — EGY OTTHON, MERT HÁROM OLVASÓJA VAN (R158/2 · KUKA-003 · KUKA-039).
+ *
+ * A `tour-pending` eddig EGYET jelentett: „a felhasználónak tennie kell valamit". Az elvégzett lépés
+ * becsukott panelje viszont NEM teendő, csak tájékoztatás — a dolga megtörtént, a Tovább visz. Ezt a
+ * különbséget HÁROM hely olvassa: a lap (a mondat), és KÉT próba-járó (`tests/e2e/v3app-r93.spec.mjs`
+ * és `tools/v3_demo_walk_proof.mjs`). MÉRVE: amíg a különbség nem állt a DOM-ban, mindkét járó a
+ * kezelőt hívta újra meg újra, és a pörgés-őrön bukott ki — a lelet helyett a mérő hibájáról beszélt.
+ * Ezért a tény a KIMENETBEN áll (`data-actionable`), és a lista ITT, egy helyen.
+ */
+export const INFORMATIONAL_PENDING = Object.freeze(['targetPendingDone']);
+
 /** A bemutató futó állapota. `null` = nincs futó bemutató. */
 export function newTourRun({ def, view, role }) {
   if (!def || !Array.isArray(def.steps) || !def.steps.length) return null;
@@ -41,6 +53,39 @@ export function newTourRun({ def, view, role }) {
     at: 0,
     // A NÉZET, AMIBEN INDULT — a bemutató ehhez tartozik, és nézet-váltásnál MEGÁLL (KTX-03 alakja).
     view: { book: view.book ?? null, subject: view.subject ?? null },
+    /**
+     * ÉS A TÖRTÉNET OTTHONA KÜLÖN IS MEGMARAD (R176, külső review P2 · `KUKA-441`).
+     *
+     * A `view` a futás közben ÁTKÖTŐDIK (`rebindView`), tehát nem mondja meg, HOL indult a
+     * történet. A FIÓK-tengelyes lépések célja viszont mind ugyanaz: a történet CÉGE — oda tér
+     * vissza a belépő a személyes köréből. Ez a mező ezért a KEZDŐ könyvet őrzi, és SOHA nem
+     * kötődik át: a fiók-váltó kapu ehhez mér.
+     */
+    origin_book: view.book ?? null,
+    /**
+     * ÉS A KEZDŐ ALANY IS MEGMARAD (R186 §2) — ugyanaz az indok, mint az `origin_book`-nál.
+     *
+     * A `view.subject` a futás közben ÁTKÖTŐDIK (`rebindView`), tehát nem mondja meg, KI indította
+     * a történetet. A VISSZATÉRŐ váltás-lépések célja viszont pontosan ő: a kezelő, aki a meghívást
+     * visszavonta, majd a levél megtekintése után visszajön. Ez a mező ezért a KEZDŐ alanyt őrzi,
+     * és SOHA nem kötődik át — a személy-tengelyes kapu ehhez mér, ha a lépés `origin_actor`-t kér.
+     */
+    origin_subject: view.subject ?? null,
+    /**
+     * A TÖRTÉNET CÉL-KÖTÉSE — a SZERVER választotta ki, a lap csak hordozza (R186 §2 · AST-01).
+     *
+     * `{ kind: 'invite' | 'member', ref, actor }`. A `ref` a választott meghívó stabil jelölője
+     * (a token sha256-lenyomatának első tíz jegye — a token NEM állítható vissza belőle), illetve a
+     * választott tag azonosítója; az `actor` a történetben VÁRT résztvevő. Jogot egyik sem ad: a
+     * bemutató állapota nem jogosultság, a szerver saját ellenőrzése minden műveleten lefut
+     * (`KUKA-227`). Nyilatkozat nélkül `null`, és akkor a rá épülő kapuk ZÁRNAK (`KUKA-236`).
+     */
+    story: def.story && typeof def.story === 'object'
+      ? { kind: def.story.kind ?? null, ref: def.story.ref ?? null, actor: def.story.actor ?? null,
+        // A MÁSODIK KÖTÉS-REKESZ (R186 §5): a történet SAJÁT lépése által kiállított meghívó
+        // jelölője. A kiszolgáló ezt NEM adja — a futás közben születik, igazolt művelet után.
+        invite_ref: null }
+      : null,
     role: role ?? null,
     endedBy: null,
   };
@@ -56,10 +101,29 @@ export function newTourRun({ def, view, role }) {
  * ott a másik ember a SAJÁT eszközén lép be. A szemantikus horgony tehát nem kibúvó a testid alól:
  * a cél NEVE a szerződés, a megvalósítója a lapé. Egy feloldó, négy hívó (KUKA-003 · KUKA-039).
  */
+/**
+ * …ÉS A SZEMANTIKUS HORGONYT TÖBB VEZÉRLŐ IS BETÖLTHETI — A LÁTHATÓ AZ ÉRVÉNYES (R176 §1, MÉRVE).
+ *
+ * A LELET. A szereplő-váltás vezérlője az alkalmazás-héjban a profil-menü kijelentkezése, a
+ * MEGHÍVÓ-KÉPERNYŐN viszont a saját „kijelentkezés és belépés más fiókkal" gombja — ugyanaz a
+ * SZEREP, két képernyő, két elem. A régi alak az ELSŐ találatot adta vissza, a `targetOf` pedig a
+ * rejtett elemre `null`-t ad: a bemutató így a meghívó-képernyőn a HÉJ (épp rejtett) gombját
+ * találta meg, és a váltás-lépés egy ÉP képernyőn vált elérhetetlenné. MÉRVE: a két szereplős
+ * történet a 9. lépésén állt meg, pont a visszaváltás előtt.
+ *
+ * A VÁLASZ: a horgony SZEREP, és egy képernyőn pontosan egy vezérlő tölti be — tehát a feloldó a
+ * LÁTHATÓT választja. Ha egy sincs látható, az ELSŐ találat jön vissza változatlanul: így a
+ * „rejtett cél" és a „nem létező cél" különbsége megmarad (`targetPending` vs `targetMissing`),
+ * és az egy-jelöltes eset viselkedése betűre ugyanaz (`KUKA-003`: egy feloldó, négy hívó).
+ */
 function elementFor(name) {
   if (!name) return null;
-  return document.querySelector(`[data-testid="${name}"]`)
-    || document.querySelector(`[data-tour-anchor="${name}"]`);
+  const jeloltek = [
+    ...document.querySelectorAll(`[data-testid="${name}"]`),
+    ...document.querySelectorAll(`[data-tour-anchor="${name}"]`),
+  ];
+  if (jeloltek.length === 0) return null;
+  return jeloltek.find((el) => isShown(el)) || jeloltek[0];
 }
 
 /**
@@ -71,9 +135,31 @@ function elementFor(name) {
  * „látszik"-ra, akkor keletkezik olyan állapot, amiben a cél nem cél, de feltárni sem kell —
  * és a bemutató egy ÉP képernyőn áll meg. Ezért innentől egy név.
  */
+/**
+ * A „LÁTSZIK" EGY SZÓ — ÉS MOSTANTÓL A BÖNGÉSZŐ MONDJA KI (R176, külső review P2 — MÉRVE).
+ *
+ * A LELET. Ez a feloldó eddig HEURISZTIKÁVAL döntött (`hidden` · `offsetParent` · kliens-keret), és
+ * egy CSUKOTT `<details>` ezt megcsalja: a lenyíló tartalma MEGTARTJA a layout-keretét. MÉRVE a
+ * profilmenü kijelentkezés-gombján, csukott menü mellett: `hidden=false` · `offsetParent≠null` ·
+ * `rects=1` · `box=258×42` · `visibility=visible` — tehát a régi alak szerint „LÁTSZIK", miközben a
+ * böngésző hiteles válasza `checkVisibility() = false`, és a Playwright is `latszik=false`-ot mond.
+ *
+ * A KÁR. Az R176 §1-ben a szereplő-váltó horgony a VALÓDI kijelentkezés lett — az pedig ebben a
+ * csukott menüben áll. A `targetOf` így a REJTETT gombot adta célként, a buborék KIEMELTE, és azt
+ * írta, hogy „válts át a kiemelt gombbal" — egy olyan vezérlőre, amit a néző nem lát és nem tud
+ * megnyomni. Zsákutca, pontosan a `KUKA-335` tünetével, csak egy ÚJ ajtón. A saját bejáró próbám
+ * ELREJTETTE, mert maga nyitotta ki a menüt (`KUKA-120`).
+ *
+ * MOSTANTÓL a kérdést a BÖNGÉSZŐ dönti el (`Element.checkVisibility`), és a heurisztika csak
+ * TARTALÉK azokra a futtatókra, ahol az API nincs meg — mérni kell, nem kitalálni (`KUKA-215`).
+ */
 function isShown(el) {
   if (!el) return false;
-  return !(el.hidden || (el.offsetParent === null && el.getClientRects().length === 0));
+  if (el.hidden) return false;
+  if (typeof el.checkVisibility === 'function') {
+    return el.checkVisibility({ contentVisibilityAuto: true, opacityProperty: true, visibilityProperty: true });
+  }
+  return !(el.offsetParent === null && el.getClientRects().length === 0);
 }
 
 /** A célelem a MAI képernyőn — `null`, ha nem látható (akkor a bemutató nevezetten megáll). */
@@ -107,6 +193,32 @@ export function revealerOf(run) {
     if (!el) return null;
     if (!isShown(el)) return null;
     return el;
+  }
+  /**
+   * A CSUKOTT LENYÍLÓ NYITÓJA IS FELTÁRÓ (R176, külső review P2 — MÉRVE).
+   *
+   * A LELET (chatgpt-codex, az `fb231e6` fejen): az R176 §1-ben a szereplő-váltó horgonyt a VALÓDI
+   * kijelentkezésre tettem — az viszont a profilmenü `<details>`-ében áll, ami ALAPBÓL CSUKOTT.
+   * A `targetOf` így nem látja, a két addigi feltáró-ág (deklarált `appears_after` · bal menü) nem
+   * fogja meg, tehát a lépés `targetMissing`-gel megszakadt: a buborék egy olyan vezérlőre küldte a
+   * nézőt, ami a lapon OTT VAN, de egy csukott lenyíló belsejében — és a saját bejáró próbám ezt
+   * ELREJTETTE, mert maga nyitotta ki a menüt. MÉRVE: a próba a néző útján 15 s lejárattal bukott,
+   * pontosan a `KUKA-335` tünetével.
+   *
+   * A SZABÁLY UGYANAZ, MINT A MOBIL MENÜNÉL, csak általánosabban: ha a cél egy CSUKOTT `<details>`
+   * belsejében van, és a NYITÓJA látszik, akkor a nyitó a feltáró. Így a profilmenü, a fiókválasztó
+   * és minden későbbi lenyíló EGY szabályból kap feltárást (`KUKA-003` · `KUKA-039`), és a bemutató
+   * továbbra sem kattint a néző helyett (`KUKA-228`).
+   */
+  {
+    const t0 = elementFor(step.target);
+    if (t0 && !isShown(t0)) {
+      const d = t0.closest('details');
+      if (d && d.open !== true) {
+        const sum = d.querySelector('summary');
+        if (sum && isShown(sum)) return sum;
+      }
+    }
   }
   // ── A MOBIL MENÜ UGYANEZ A FOGALOM (R138, MÉRVE 390 px-en) ─────────────────────────────────
   //
@@ -232,9 +344,49 @@ export function checkRun(run, { view, role }) {
    * Ugyanaz a hiba-osztály, mint az R138-ban: ha egy szabály két ágon igaz, EGY helyen álljon
    * (KUKA-003 · KUKA-039), különben a következő ág megint kimarad.
    */
-  if (step.state === 'done') return { ok: true, why: null, pending: null };
+  if (step.state === 'done') {
+    // ── DE AZ ELVÉGZETT LÉPÉS SEM HALLGAT EL (R158/2 — a SAJÁT R89-06 pirosunk, MÉRVE) ──────────
+    //
+    // A LELET. A meghívás elküldése után a lépés IGAZOLTAN elvégzett, és a felhasználó Esc-cel
+    // becsukja a panelt. A buborék ilyenkor a FELTÁRÓ gombot emelte ki (`highlight` ezt teszi), de
+    // MONDATOT nem írt hozzá: a lap némán állt egy olyan kiemelés mellett, aminek a felhasználó nem
+    // tudta az okát. „Kiemel VAGY nevezetten vár" — a némaság a harmadik, meg nem engedett válasz
+    // (KUKA-228 · KUKA-201: a nemleges válasz is vigye a MŰKÖDŐ folytatást).
+    //
+    // ÉS A MONDAT MÁS, MERT A HELYZET MÁS (KUKA-050: a szöveg a valóságot követi). A `targetPending`
+    // azt mondja, hogy „ez a lépés még nem érhető el" — egy MÁR ELVÉGZETT lépésről ez hazugság
+    // volna. Ezért külön mondat (`targetPendingDone`): elvégzett, a részlete a bezárt panelben van,
+    // és a Tovább VISZ (a `advance` a `done` lépést átengedi) — a kiút tehát kimondott.
+    if (step.switch_actor !== true && isPending(run)) {
+      return { ok: true, why: null, pending: 'targetPendingDone' };
+    }
+    return { ok: true, why: null, pending: null };
+  }
 
   if (step.switch_actor === true) {
+    // ── A VÁLTÁS-VEZÉRLŐNEK LÉTEZNIE KELL, KÜLÖNBEN A MONDAT HAZUDIK (R158/2, MÉRVE) ────────────
+    //
+    // A LELET. A `actorPending` mondata azt írja ki, hogy „válts át a KIEMELT gombbal" — a kiemelés
+    // viszont a `targetOf() || revealerOf()` elemre kerül, és ha a váltás-vezérlő nincs a lapon
+    // (az alkalmazás-héjban nincs „váltás a másik nézetére" gomb — ezt a `requires_demo` kapu
+    // indoklása maga mondja ki), akkor a buborék egy NEM LÉTEZŐ gombra küldi a felhasználót.
+    // Zsákutca, működő folytatás nélkül (KUKA-201), és a szöveg nem a valóságot követi (KUKA-050).
+    // MÉRVE: a `tour.inviteRevoke` s6 lépése a héjban pontosan ezt tette, és a próba-járó 15
+    // másodperces időtúllépéssel bukott — a LELET helyett a mérő hibájáról beszélt.
+    //
+    // A VÁLASZ: NEVEZETT megszakítás. A `targetMissing` szó szerint azt mondja, ami igaz — „az
+    // útmutatóban megnevezett elem nem látható ezen a képernyőn" —, és a lezáró lap kiírja a
+    // folytatást (a leírás a Súgóban olvasható marad).
+    if (!targetOf(run) && !revealerOf(run)) return { ok: false, why: 'targetMissing' };
+    /**
+     * ÉS HA A VÁLTÓ VEZÉRLŐ CSAK REJTVE VAN, A MONDAT IS MÁST MOND (R176, külső review P2).
+     *
+     * Az `actorPending` szövege: „válts át a KIEMELT gombbal". Egy csukott lenyíló nyitójára ez
+     * HAMIS volna — a nyitó nem vált, hanem feltár. Ezért amíg a vezérlő nincs kint, a már meglévő
+     * `targetPending` mondat jár („előbb nyisd meg a kiemelt gombbal"), és a váltás mondata csak
+     * akkor, amikor a vezérlő TÉNYLEGESEN ott van (`KUKA-050` · `KUKA-201`).
+     */
+    if (sameView && !targetOf(run)) return { ok: true, why: null, pending: 'targetPending' };
     if (sameView) return { ok: true, why: null, pending: 'actorPending' };
     if (wantRole && role !== wantRole) return { ok: true, why: null, pending: 'actorWrongRole' };
     return { ok: true, why: null, pending: null };
@@ -252,6 +404,27 @@ export function checkRun(run, { view, role }) {
     if (navIntentFulfilled(run)) return { ok: true, why: null, pending: null };
     return { ok: false, why: 'targetMissing' };
   }
+  /**
+   * ÉS A TÖRTÉNET CÉLJÁHOZ KÖTÖTT KÉPERNYŐ A VÁLASZTOTT MEGHÍVÓT MUTATJA (R186 §2).
+   *
+   * A LELET HARMADIK FELE (külső review, Codex, R176 — P2 · a jelentés 7.5/c pontja): a levél-fogadó
+   * MINDEN levelet kilistáz. Két függő meghívó mellett a néző az EGYIKET vonja vissza, a bemutató
+   * viszont a MÁSIK, még ÉLŐ levelet nyithatja meg — és azt állítja róla, hogy a visszavont meghívó.
+   * A visszavonás kötése (`story_bound`) ezt NEM fogja meg: ott a MŰVELET szól egy célra, itt a
+   * KÉPERNYŐ.
+   *
+   * A LÉPÉS KIMONDJA (`story_ref`), hogy a célnak a történet meghívóját kell hordoznia, és a
+   * jelölőt a LAP írja ki arról a képernyőről, amit a szerver a bizonyított címzettnek adott
+   * (`data-ref`). Eltérésnél NEVEZETT megszakítás — nem csendes továbbmenés (`KUKA-012`).
+   *
+   * FAIL-CLOSED, ÉS KIMONDOTTAN: ha nincs cél-kötés, vagy a képernyő nem hordoz jelölőt, a kapu
+   * ZÁR. A „nem tudom" nem eshet némán „jó lesz"-re (`KUKA-049` · `KUKA-236`).
+   */
+  if (step.story_ref === true) {
+    const kell = (run.story && run.story.ref) || null;
+    const kint = targetOf(run).getAttribute('data-ref') || null;
+    if (!kell || !kint || String(kint) !== String(kell)) return { ok: false, why: 'storyTargetMismatch' };
+  }
   return { ok: true, why: null, pending: null };
 }
 
@@ -260,6 +433,89 @@ export function checkRun(run, { view, role }) {
  * NEM elég, hogy a szerep stimmel: az ALANYNAK is másnak kell lennie, különben a „váltás" egy
  * helyben állás volna (KUKA-129: a nyugtának is igazat kell mondania).
  */
+/**
+ * A VÁLTÁS TENGELYEINEK ZÁRT KÉSZLETE (R176 · `KUKA-423`): `subject` = MÁS EMBER nézete,
+ * `book` = ugyanaz az ember MÁSIK fiókja. Egy új érték új, MÉRT szabályt kíván — addig a kapu zár.
+ */
+export const SWITCH_AXES = Object.freeze(['subject', 'book']);
+
+/**
+ * KIT VÁR A SZEMÉLY-TENGELYES VÁLTÁS — ZÁRT KÉSZLET (R186 §2 · `KUKA-236`).
+ *
+ * A LELET (külső review, Codex, R176 — P2 · a jelentés 7.5/a pontja): a személy-váltó lépésen a
+ * kapu BÁRMELY másik belépett embert elfogadta, pedig a két átívelő történet a MEGNEVEZETT
+ * résztvevőt kéri. Ha ugyanabban a fülben egy HARMADIK fiókkal lépnek be, a visszaállás ELHASZNÁLJA
+ * az átadást, az `actor.switched` elvégzettnek könyvelődik, a futás ahhoz a fiókhoz kötődik, és
+ * később a meghívás-feladatnál elakad — a SZÁNT résztvevő pedig már nem tudja folytatni.
+ *
+ * A `actorSwitchReady` SAJÁT megjegyzése ezt előre ki is mondta: *„AMIT EZ NEM ÁLLÍT: hogy a
+ * SZEMÉLY-tengelyre is deriválható a cél. A következő SZEREPLŐ kilétét ma semmi nem deklarálja."*
+ * Az R186 §2 döntött: épüljön meg. A deklaráció ezért a LÉPÉSÉ, zárt készletből:
+ *   · `story_actor`  — a történetben VÁRT résztvevő (a választott meghívó címzettje, illetve a
+ *                      választott tag). A futás a szerver cél-kötéséből tudja (`run.story.actor`).
+ *   · `origin_actor` — AKI a történetet INDÍTOTTA (a kezelő, aki visszajön). `run.origin_subject`.
+ * Új érték új, MÉRT szabályt kíván — addig a kapu ZÁR.
+ */
+export const SWITCH_TO = Object.freeze(['story_actor', 'origin_actor']);
+
+/**
+ * KI A VÁRT RÉSZTVEVŐ EZEN A LÉPÉSEN — `null`, ha a lépés nem nyilatkozik vagy nem tudható.
+ *
+ * FAIL-CLOSED, ÉS EZ KIMONDOTT: ha a lépés `switch_to`-t deklarál, de a futás nem tudja, kit
+ * jelent (nincs cél-kötés, vagy a kezdő alany ismeretlen), akkor `null` — és a hívó kapu ZÁR.
+ * Enélkül a „nem tudom" némán „bárki jó"-ra esne vissza, ami pont a lelet (`KUKA-049`).
+ */
+export function expectedActorOf(run) {
+  if (!run) return null;
+  const step = run.steps[run.at];
+  if (!step) return null;
+  const kit = step.switch_to ?? null;
+  if (!SWITCH_TO.includes(kit)) return null;
+  if (kit === 'origin_actor') return run.origin_subject ?? null;
+  return (run.story && run.story.actor) || null;
+}
+
+/**
+ * A KILÉPÉS MINT ÁTADÁSI HATÁR — EGY FELOLDÓ, MÉRHETŐEN (R176, külső review P2 · `KUKA-433`).
+ *
+ * Ez a döntés eddig a lap belső `saveTourHandover`-ében, zárt függvényben állt — tehát próba nem
+ * tudta MEGHÍVNI, csak forrás-mintával hinni (`KUKA-207`). Ezért a szabály ITT áll, a többi
+ * bemutató-szabály mellett, és a lap INNEN kérdezi.
+ *
+ * MIT MOND: a NEM kilépéses nézet-váltás (belépés · fiókváltás · az elfogadás utáni frissítés)
+ * határát a hívó felsőbb feltétele adja (az ELSŐ váltás-lépés elérése, `KUKA-416`); a KILÉPÉS
+ * viszont a SZEMÉLYT váltja, tehát csak ott átadás, ahol a történet ÉPP SZEMÉLY-váltást kér.
+ * Nyilatkozat nélkül ZÁRVA (`KUKA-236`).
+ */
+/**
+ * AZOK A FELADATOK, AMELYEK IGAZOLT SIKERE A NÉZETET IS ELMOZDÍTJA (R176, külső review P2 · `KUKA-435`).
+ *
+ * A LELET: a futás új nézethez kötése eddig abból következtetett okozatisságra, hogy az ELŐZŐ
+ * lépés feladathoz kötött volt és `done` — az pedig MARADÓ ÁLLAPOT. Egy későbbi, a bemutatótól
+ * FÜGGETLEN fiók- vagy személyváltás (például egy másik fülben) tehát úgy látszott, mintha a
+ * korábbi feladat mozdította volna el, és a bemutató a ROSSZ fiókban folytatódott — ott, ahol a
+ * következő lépés célja is létezik (`nav-stock` · `data-stock`), tehát még csak meg sem állt.
+ *
+ * A SZABÁLY: nem minden igazolt feladat mozdítja el a nézetet — MÉRVE a lapon pontosan KETTŐ:
+ *   · `invite.redeemed`     — a kiszolgáló az elfogadót a MÁSIK könyvbe állítja;
+ *   · `workspace.created`   — a `refreshMe` az ÚJ cégre vált.
+ * Minden más feladat (`invite.created` · `grant.saved` · `member.revoked` · `plan.saved` …) a
+ * nézetet HELYBEN hagyja, és az `actor.switched`-et a váltás-kapu kezeli, nem ez.
+ * Nyilatkozat nélkül a visszakötés ZÁRVA (`KUKA-236`), és a jegy EGYSZER használható (`KUKA-424`
+ * lecke: a feltétel az ÁTMENETRE szól, nem az ÁLLAPOTRA).
+ */
+export const VIEW_MOVING_TASKS = Object.freeze(['invite.redeemed', 'workspace.created']);
+
+export function viewMovingTask(taskId) {
+  return typeof taskId === 'string' && VIEW_MOVING_TASKS.includes(taskId);
+}
+
+export function handoverBoundaryOk(step, { kilepes = false } = {}) {
+  if (!kilepes) return true;
+  if (!step || step.switch_actor !== true) return false;
+  return step.switch_axis === 'subject';
+}
+
 export function actorSwitchReady(run, { view, role }) {
   if (!run) return false;
   const step = run.steps[run.at];
@@ -276,7 +532,81 @@ export function actorSwitchReady(run, { view, role }) {
    * fiók-váltást pedig az alany-váltás őre MEGSZAKÍTÁSNAK minősítené. A nézet a KETTŐ EGYÜTT:
    * alany ÉS fiók (KUKA-208: a kontextus PÁR).
    */
-  return (view.subject ?? null) !== run.view.subject || (view.book ?? null) !== run.view.book;
+  /**
+   * …DE A LÉPÉS KIMONDJA, MELYIK TENGELYEN (R176, külső review P2 — `KUKA-423`).
+   *
+   * A LELET: a „vagy" alak MINDEN váltást minden váltásnak elfogadott. Egy SZEMÉLY-váltó lépésen
+   * (`actor-switch`) elég volt FIÓKOT váltani — tehát UGYANAZ a fiókkezelő mehetett tovább a
+   * meghívott lépésein (levél, elfogadás) a MÁSIK ember helyett; és fordítva: egy FIÓK-váltó
+   * lépésen (`account-switcher`) egy belépés-csere is teljesítette, a kért cég kiválasztása nélkül.
+   * A nézet továbbra is PÁR (`KUKA-208`), de hogy MELYIK felének kell változnia, azt a LÉPÉS
+   * deklarálja — zárt készletből, nyilatkozat nélkül ZÁRVA (`KUKA-236`).
+   */
+  /**
+   * …ÉS A PÁR NEM MOZGÓ FELÉT IS MEGMÉRJÜK (R176, külső review P2 — `KUKA-432`).
+   *
+   * A LELET, MÉRVE. A fenti alak a FIÓK-tengelyen CSAK azt kérdezte meg, hogy a könyv más lett-e.
+   * Egy másik EMBER belépése viszont a könyvet is megváltoztatja (a belépő a saját személyes
+   * körében landol) — tehát egy `switch_axis: 'book'` lépésen a KILÉPÉS + MÁS EMBER BELÉPÉSE is
+   * „teljesített”-nek számított. MÉRVE: `actorSwitchReady` = `true` arra az átmenetre, ahol
+   * `S_bela → S_anna` és `B_sajat → B_anna_sajat`. A futás ekkor a ROSSZ emberhez kötődik át
+   * (`rebindView`), az `actor.switched` elvégzettnek könyvelődik, és a történet a következő,
+   * céges képernyőn szakad meg — egy nevezett hibával, a HELYES út közepén.
+   *
+   * A SZABÁLY: a váltás a pár EGYIK felét mozgatja, a MÁSIKAT pedig HELYBEN tartja (`KUKA-208`
+   * teljes alakja). A két tengely ezért NEM tükrös, és ez mért tény, nem kényelem:
+   *   · `book`    — UGYANAZ az ember vált a SAJÁT másik fiókjára: az alanynak HELYBEN kell maradnia.
+   *     A négy fiók-tengelyes lépés (`s9` · `s10b` · `s12b` · `s15b`) mind ezt kéri: a belépés a
+   *     személyes körbe visz, a történet folytatása viszont a cég fiókjában áll.
+   *   · `subject` — MÁS ember lép be: a könyv ilyenkor JOGGAL más lesz, tehát a könyv
+   *     állandóságát NEM követeljük meg — azért lett a párból tengely (`KUKA-423`).
+   */
+  const tengely = step.switch_axis ?? null;
+  if (!SWITCH_AXES.includes(tengely)) return false;
+  /**
+   * A SZEMÉLY-TENGELY: A VÁLTÁS TÉNYE KEVÉS — A VÁRT RÉSZTVEVŐ KELL (R186 §2).
+   *
+   * A korábbi alak annyit kért, hogy az alany MÁS legyen. Egy HARMADIK ember belépése tehát
+   * teljesítette a váltást: elhasználta az átadást, az `actor.switched` elvégzettnek könyvelődött,
+   * a futás ahhoz a fiókhoz kötődött át (`rebindView`), és a történet később, a meghívás-feladatnál
+   * akadt el — a SZÁNT résztvevő pedig már nem tudta folytatni.
+   *
+   * MOSTANTÓL a lépés KIMONDJA, kit vár (`switch_to`), és a kapu AHHOZ mér. FAIL-CLOSED: ha nem
+   * nyilatkozik, vagy a várt résztvevő nem tudható, a kapu ZÁR (`expectedActorOf` → `null`) — a
+   * „nem tudom" nem eshet némán „bárki jó"-ra (`KUKA-049`).
+   */
+  if (tengely === 'subject') {
+    const most = view.subject ?? null;
+    if (most === run.view.subject) return false;   // a váltás TÉNYE: az alany MÁS lett
+    const vart = expectedActorOf(run);
+    if (!vart) return false;                       // nyilatkozat vagy ismeret nélkül ZÁRUNK
+    return most === vart;                          // és pontosan a VÁRT résztvevő lépett be
+  }
+  /**
+   * …ÉS A FIÓK-TENGELYEN A CÉL SEM BÁRMI (R176, külső review P2 · `KUKA-441`).
+   *
+   * A LELET: a kapu eddig csak azt kérte, hogy a könyv MÁS legyen (és az alany ugyanaz). Aki több
+   * cégben tag, az viszont a `s9` · `s10b` · `s12b` · `s15b` lépésen BÁRMELYIK másik fiókot
+   * kiválaszthatta — a `rebindView` aztán azt az IDEGEN céget vette át, és mivel a következő
+   * lépés célja (`nav-stock` · `data-stock`) ott is létezik, a bemutató a ROSSZ fiókban
+   * folytatódott — és még csak meg sem állt.
+   *
+   * A CÉL VISZONT DERIVÁLHATÓ, és ez mért tény (`as31`): mind a négy fiók-tengelyes lépés a
+   * történet CÉGÉBE vezet vissza — abba a könyvbe, amelyben a bemutató INDULT. Ezért a futás a
+   * kezdő könyvet külön őrzi (`origin_book`), és a kapu AHHOZ mér. Nyilatkozat nélkül (ha a
+   * kezdő könyv ismeretlen) a kapu ZÁR (`KUKA-236`).
+   *
+   * A PÁRJA MA MÁR ZÁRVA (R186 §2 — a szöveg a valóságot követi, `KUKA-050`). Ez a bekezdés
+   * korábban azt mondta, hogy „a SZEMÉLY-tengelyre nem deriválható a cél, a következő szereplő
+   * kilétét ma semmi nem deklarálja". Az R186 §2 ezt megépíttette: a lépés `switch_to`-t
+   * deklarál, a szerver a cél-kötésben átadja a várt résztvevőt, és a személy-tengelyes ág AHHOZ
+   * mér (lásd fentebb). A két tengely tehát ma UGYANAZON az elven áll: a váltás a pár egyik felét
+   * mozgatja egy NEVEZETT célra, a másikat helyben tartja.
+   */
+  if ((view.subject ?? null) !== run.view.subject) return false;
+  const cel = run.origin_book ?? null;
+  if (!cel) return false;
+  return (view.book ?? null) !== run.view.book && (view.book ?? null) === cel;
 }
 
 /**
@@ -334,10 +664,107 @@ export function back(run) {
  * A FELADAT IGAZOLÁSA. Az `app.js` hívja, a SZERVER válasza után — nem a kattintás után. Ha a futó
  * lépés épp erre a feladatra vár, `done` lesz; különben nem történik semmi (nem „előre" igazolunk).
  */
-export function taskDone(run, taskId) {
+/**
+ * …ÉS A TÖRTÉNETHEZ KÖTÖTT LÉPÉS CSAK A VÁLASZTOTT CÉLON TELJESÜL (R186 §2).
+ *
+ * A LELET (külső review, Codex, R176 — P2 · a jelentés 7.5/c pontja): a `doRevokeInvite`
+ * BÁRMELYIK sikeres visszavonásra készre könyvelte az `invite.revoked` feladatot. KÉT függő
+ * meghívó mellett tehát a néző az EGYIKET vonta vissza, a bemutató viszont a MÁSIK, még ÉLŐ levelet
+ * nyitotta meg — és azt állította róla, hogy a visszavont meghívó. Az R186 §2: *„A visszavonás, a
+ * levél és az elfogadás ugyanarra a megfelelő meghívóra vonatkozzon."*
+ *
+ * A LÉPÉS KIMONDJA, hogy a történet céljához kötött (`story_bound`), és akkor a nyugtának a
+ * VÁLASZTOTT cél jelölőjét kell hoznia. FAIL-CLOSED: cél-kötés nélkül (`run.story.ref` hiányzik) a
+ * lépés NEM teljesül — a „nem tudom" nem eshet némán „bármi jó"-ra (`KUKA-049` · `KUKA-236`).
+ *
+ * ÉS AMIT EZ NEM VÁLLAL: nem jogosultság. A visszavonást a szerver a saját plafon-ellenőrzésével
+ * engedi vagy tiltja, tőlünk függetlenül (`KUKA-227`); ez itt a BEMUTATÓ elszámolása.
+ */
+/**
+ * A KÖTÉS-REKESZEK ZÁRT KÉSZLETE (R186 §5). A `true` a FŐ célt jelenti; a szöveg egy megnevezett
+ * rekeszt. Ami nincs a készletben, az NEM rekesz — és a hívó fail-closed zár (`KUKA-236`).
+ */
+export const STORY_SLOTS = Object.freeze(['ref', 'invite_ref']);
+/**
+ * A REKESZ FELOLDÓJA EGY HELYEN — ÉS A HATÁRON IS EZ DÖNT (`KUKA-467` · `D-VS-3249`).
+ *
+ * A LELET (külső review, Codex, P2): a nyilatkozat REKESZT nevezhet meg (`STORY_SLOTS`), a
+ * HTTP-határ szerializálója viszont `=== true`-val mérte — tehát a `'invite_ref'` SZÖVEG a
+ * böngszőbe `false`-ként érkezett, és a nevezett rekesz NÉMÁN kikapcsolt. Ezért a feloldó
+ * EXPORTÁLT: a motor, a lap ÉS a határ UGYANEZT kérdezi (`KUKA-003` · `KUKA-039` · `KUKA-227`).
+ *
+ * A KÉSZLET ZÁRT (`KUKA-236`): a `true` a `ref` rekeszt jelenti (visszamenős alak), egy ismert
+ * rekesz-név önmagát, minden más — kitalált név, tömb, szám — `null`, és a hívói oldalon ZÁR.
+ */
+export function storySlotOf(decl) {
+  if (decl === true) return 'ref';
+  if (typeof decl === 'string' && STORY_SLOTS.includes(decl)) return decl;
+  return null;
+}
+const rekeszOf = storySlotOf;
+
+export function taskDone(run, taskId, { ref = null, auth = null } = {}) {
   if (!run) return false;
   const step = run.steps[run.at];
   if (!step || step.task !== taskId) return false;
+  /**
+   * A KÖTÉS-NYILATKOZAT REKESZT NEVEZHET MEG (R186 §5, külső review P2).
+   *
+   * `true` → a történet FŐ célja (`story.ref`); egy SZÖVEG → a megnevezett rekesz (ma:
+   * `invite_ref`, a történet saját lépése által kiállított meghívó). A visszatérés-történetben a
+   * két kötés KÜLÖN jár: a megvonás és az újbóli meghívás a TAGRA szól, az elfogadás viszont az
+   * ÉPPEN KIÁLLÍTOTT meghívóra — egy rekeszben a kettő nem fér el. Zárt készlet, fail-closed: egy
+   * kitalált rekesz-név nem esik némán engedélyre (`KUKA-236`).
+   */
+  if (step.story_bound) {
+    const rekesz = rekeszOf(step.story_bound);
+    if (!rekesz) return false;
+    const kell = (run.story && run.story[rekesz]) || null;
+    if (!kell) return false;
+    if (String(ref ?? '') !== String(kell)) return false;
+  }
+  /**
+   * ÉS A TÖRTÉNET SAJÁT VÁLASZTÁSI LÉPÉSE ÁTKÖTI A CÉLT (R186 §2).
+   *
+   * Az R186 §2 ezt nevezetten megengedi: *„Indításkor VAGY a történet saját, egyértelmű választási
+   * lépésében azonosítsd az alkalmas célt."* A visszavonás-történet a 13. lépésen ÚJ meghívót állít
+   * ki — innentől az a történet célja, és az elfogadásnak (`s17`) ERRE kell szólnia. A kötés tehát
+   * a történet ELŐREHALADÁSÁVAL mozog, de MINDIG egy nevezett, IGAZOLT művelet eredményére — soha
+   * nem „bármire" (`KUKA-231`: csak igazolt siker után).
+   */
+  /**
+   * …ÉS AZ ÁTKÖTÉS A CÉL MINDKÉT FELÉT KÉRI (R186 §5, külső review P2).
+   *
+   * A LELET: az átkötés csak a JELÖLŐT mozdította. Ha a kezelő a 13. lépésen MÁS ember címét írja
+   * be, a kiállítás sikeres, a lépés `done` lett, a futás viszont a RÉGI várt résztvevőnél maradt:
+   * a 14. lépés attól az embertől kért belépést, aki az ÚJ meghívót nem válthatja be, az ÚJ
+   * címzettet pedig a váltás-kapu elutasítja. A történet tehát KÉT emberre hasadt — és a lépés
+   * mégis teljesítésnek látszott.
+   *
+   * A VÁLASZ: az átkötés a KISZOLGÁLÓ saját válaszához van kötve (`auth` — a friss
+   * `/api/assistant/status` cél-kötése). Két dolgot kell igazolnia: hogy a kiszolgáló UGYANEZT a
+   * most kiállított meghívót választotta (`auth.ref === ref`), és hogy az UGYANARRA az emberre
+   * szól, akit a történet eddig követett (`auth.actor === run.story.actor`). Ha bármelyik nem áll,
+   * NINCS átkötés és NINCS teljesítés: a lépés `pending` marad, és a bemutató nevezetten megáll
+   * (`KUKA-012` · `KUKA-049`) — nem „jó lesz"-re esik.
+   *
+   * ÉS AMIT EZ NEM TESZ: új mezőt NEM kér a kiállítás válaszából, tehát NEM lesz belőle fiók-létet
+   * eláruló jel (`KUKA-084`). A cél-kötést a bemutató-kapu amúgy is csak a két átívelő történetnél
+   * számolja ki, demó-jel és fejlesztői levélfogadó mellett.
+   */
+  if (step.story_rebind) {
+    const rekesz = rekeszOf(step.story_rebind);
+    if (!rekesz) return false;
+    if (!run.story) return false;
+    const h = auth && typeof auth === 'object' ? auth : null;
+    if (!h || typeof h.ref !== 'string' || !h.ref) return false;
+    if (String(h.actor ?? '') !== String(run.story.actor ?? '')) return false;
+    // A FŐ CÉL ÁTKÖTÉSÉNÉL a lépés `ref` argumentuma MAGA az új cél, tehát a kiszolgáló
+    // választásának EGYEZNIE kell vele. A MÁSODIK rekesznél a `ref` a `story_bound`-ot szolgálja
+    // (a történet tagját), ezért ott ez az egyezés nem értelmezhető — a résztvevő kötése marad.
+    if (rekesz === 'ref' && String(h.ref) !== String(ref ?? '')) return false;
+    run.story = { ...run.story, [rekesz]: h.ref };
+  }
   step.state = 'done';
   return true;
 }
@@ -459,11 +886,20 @@ export function tourHtml(run, { blocked, pending } = {}) {
   const total = run.steps.length;
   const last = run.at + 1 >= total;
   const stateWord = { pending: TOURUI.pending, done: TOURUI.done, skipped: TOURUI.skipped };
-  return `<div class="tourhead"><small data-testid="tour-progress">${esc(run.text && run.text.title ? run.text.title : run.id)} · ${esc(String(n))}/${esc(String(total))}</small>
+  /**
+   * A CÉL-KÖTÉS A KIMENETBEN IS LÁTSZIK (R186 §2 · `KUKA-131`).
+   *
+   * MIÉRT: a történet cél-kötése (`run.story`) a futás belsejében él, tehát egy mérés CSAK a
+   * következményeit látta (a lépés teljesül-e), az OKÁT nem. Egy eltérésnél így nem volt
+   * megállapítható, hogy a KÉPERNYŐ mutat más meghívót, vagy a KÖTÉS csúszott el. A nyersanyagot
+   * ezért kiírjuk: a jelölő NEM titok (egyirányú lenyomat, jogot nem ad — `KUKA-006`), és nélküle a
+   * verdikt nem ellenőrizhető.
+   */
+  return `<div class="tourhead" data-story-ref="${esc((run.story && run.story.ref) || '')}"><small data-testid="tour-progress">${esc(run.text && run.text.title ? run.text.title : run.id)} · ${esc(String(n))}/${esc(String(total))}</small>
       <button type="button" class="x" data-action="tour-exit" aria-label="${esc(TOURUI.exit)}" data-testid="tour-exit">×</button></div>
     <h3 data-testid="tour-step-title">${esc(title)}</h3>
     <p data-testid="tour-step-body">${esc(body)}</p>
-    ${pending ? `<p class="notice" data-testid="tour-pending" data-why="${esc(pending)}">${esc(TOURUI[pending] || TOURUI.targetPending)}</p>` : ''}
+    ${pending ? `<p class="notice" data-testid="tour-pending" data-why="${esc(pending)}" data-actionable="${INFORMATIONAL_PENDING.includes(pending) ? 'false' : 'true'}">${esc(TOURUI[pending] || pending)}</p>` : ''}
     ${blocked ? `<p class="notice warn" data-testid="tour-blocked">${esc(TOURUI[blocked] || blocked)}</p>` : ''}
     <ol class="tourlist" data-testid="tour-steps" aria-label="${esc(TOURUI.stepList)}">
       ${run.steps.map((s, i) => `<li data-testid="tour-step-${esc(s.id)}" data-state="${esc(s.state)}" ${i === run.at ? 'aria-current="step"' : ''}>

@@ -213,8 +213,50 @@ for (const p of selected) {
   // gyermek-korlát fölé nőttek (mérve: 14 033 … 14 905 ms, az E02/E03 időtúllépésbe futott). A
   // deklarált, MÉRT darabszámot (`batteryUnits.mjs`) ezért a futtató adja át a környezetben; a
   // program a saját `VS_BATTERY_UNITS` olvasóján veszi, a kézi felülírás továbbra is lehetséges.
+  /**
+   * A PROGRAM-KERET A MÉRT KÖLTSÉGHEZ IGAZODIK (R164/3 — SAJÁT LELET, MÉRVE).
+   *
+   * A LELET. A keret 600 000 ms volt, és ez EGY feltevésen állt: hogy egy program legfeljebb egyszer
+   * futtatja végig a mutációs battériát, és az belefér tíz percbe. MÉRVE az R164-ben: a battéria 253
+   * mutációra és 69 mag-próbára nőtt, és a 15 000 ms-os KÜLSŐ egység-korlát betartásához 40 egység
+   * kell (egység 11 960 ms) — egy TELJES battéria-pass így ~8 perc, mert minden egység újra felállítja
+   * a próba-környezetet. Az a két program, amelyik KÉT battéria-passzt futtat (`r81core` · `r83core`),
+   * ezért a kereten HALT MEG: `kilépés null · 600 107 ms`, részletes eredmény nélkül — vagyis a lánc
+   * IDŐ-okból mondott eltérést egy olyan programra, aminek a TARTALMÁRÓL semmit nem mért.
+   *
+   * A KÉT KORLÁT EGYMÁSNAK FESZÜL, ÉS EZT KI KELL MONDANI: a külső fél EGYSÉG-korlátja (15 000 ms)
+   * finomabb darabolást kér, a finomabb darabolás viszont NÖVELI a teljes időt (egységenkénti
+   * indulási költség). A helyes feloldás nem az egység-korlát lazítása (az a külső fél szava,
+   * KUKA-091), hanem a SAJÁT keretünk igazítása a MÉRT költséghez — nevezetten, nem csendben.
+   *
+   * AMIT EZ NEM ÁLLÍT: nem „gyorsabb lett". A lánc EZÉRT hosszú, és ezért nem fut a söprésben
+   * (KUKA-307). A mért keret: két battéria-pass (~16 perc) + a programok saját munkája.
+   */
+  /**
+   * A KERET AZ R186 §3 ÁLTAL ENGEDÉLYEZETT PLAFONON ÁLL — ÉS KIMONDOTTAN NEM EZ VOLT A BAJ.
+   *
+   * AZ R186 §3 ENGEDÉLYE: *„konkrétan engedélyezek legfeljebb 120 percet programonként a meglévő
+   * futtatón, kizárólag szervezési keretként. Ez plafon, nem futásidő-becslés."* Ezért 120 perc.
+   *
+   * ÉS AMIT A MÉRÉS KIMONDOTT, MIELŐTT EZT A SZÁMOT HOZZÁNYÚLTAM (ez a §3 lényege): a lánc öt
+   * `spawnSync … ETIMEDOUT`-ja NEM a keretből és NEM a gép gyengeségéből jött, hanem a SAJÁT
+   * darabolásunkból. A deklarált 40-es bontás egysége ezen a gépen 13 271 ms-ot kért — a
+   * `mutate.mjs` saját 12 000 ms-os költségvetése FÖLÖTT —, ezért az `adaptiveUnitPlan` minden
+   * hívónál finomított, és a finomítás a TELJES battériát futtatja újra: 40 → 80 → 160 egység,
+   * összesen ~41 perc. A bontás mért-jóra állítása után (`batteryUnits.mjs`: 64 egység, 9 728 ms)
+   * az `r57a` a VÁLTOZATLAN, 30 perces kereten **9/9 eset zölddel, 21,1 perc alatt** lefutott.
+   *
+   * A KERET EMELÉSE TEHÁT NEM A JAVÍTÁS, HANEM TARTALÉK a KÉT battéria-passzt futtató programoknak
+   * (`r81core` · `r83core`): egy passz MÉRVE 10,4 perc (64 egység), kettő 21 perc, és efölé jön a
+   * program saját munkája. A plafon azért a megengedett maximum, mert egy ALACSONYABB keret csak
+   * újabb vak, tartalom nélküli időtúllépést termelne — amit a §3 nevezetten tilt.
+   *
+   * AMIT EZ NEM LAZÍT: a külső fél 15 000 ms-os EGYSÉG-korlátja és a `mutate.mjs` 12 000 ms-os saját
+   * költségvetése VÁLTOZATLAN (`KUKA-091`), és egyetlen program szövegéhez sem nyúltunk (`KUKA-054`).
+   */
+  const PROGRAM_BUDGET_MS = 7_200_000;
   const q = spawnSync(process.execPath, [join(dir, p.file)], {
-    cwd: dir, encoding: 'utf8', timeout: 600_000, maxBuffer: 64 * 1024 * 1024,
+    cwd: dir, encoding: 'utf8', timeout: PROGRAM_BUDGET_MS, maxBuffer: 64 * 1024 * 1024,
     env: { ...process.env, VS_BATTERY_UNITS: String(batteryUnits()) },
   });
   const ms = Date.now() - t0;
@@ -318,7 +360,9 @@ for (const p of selected) {
   }
   console.log(`            mit mér:   ${p.what}`);
   console.log(`            elvárt:    ${p.cases.length} eset (${p.cases.join(' · ')}) — forrás: ${p.cases_source}`);
-  console.log(`            eredmény:  ${cases ? `${audit.present.length - audit.failed.length}/${p.cases.length} eset zöld` : 'NINCS részletes eredmény'}`
+  // A ZÖLD SZÁM A SZEMLÉBŐL JÖN, NEM ITT SZÜLETIK KIVONÁSSAL (R186 §3 · `KUKA-003` · `KUKA-009`):
+  // a korábbi `present - failed` a HIÁNYZÓ esetet kétszer számolta be (lásd az `auditCases` fejét).
+  console.log(`            eredmény:  ${cases ? `${audit.green.length}/${p.cases.length} eset zöld` : 'NINCS részletes eredmény'}`
     + ` · részletes fájl: ${artifact.present ? `megvan (kötés: ${artifact.pin ? `${artifact.pin.slice(0, 12)}…` : 'NINCS'})` : 'HIÁNYZIK'}`
     + ` · kilépés ${q.status} · ${ms} ms`);
   for (const w of audit.problems) console.log(`            ELTÉRÉS:   ${w}`);

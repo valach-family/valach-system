@@ -80,6 +80,7 @@ export const TPL = Object.freeze({
   scopeGrantUnchanged: '{ki} eddig is megtekinthette {mit} — nem változott semmi.',
   scopeRevokeUnchanged: '{ki} eddig sem látta {mit} — nem változott semmi.',
   memberRevoked: '{ki} hozzáférése megszűnt ehhez a fiókhoz: {nev}',
+  memberRevokeUnchanged: '{ki} hozzáférése már korábban megszűnt ehhez a fiókhoz ({nev}), tehát most nem történt változás. Ha másik lapon vagy másik kezelő közben elvégezte, a lista frissítése után a mai állapotot látod.',
   memberAccessTitle: '{ki} hozzáférése',
   revokeTitle: 'Megszünteted {ki} hozzáférését?',
   revokeLead: '{ki} tagsága megszűnik ebben a fiókban: {nev}. Ezután nem nyithatja meg a fiók adatait. A személyes fiókja és a korábbi műveletek története megmarad.',
@@ -134,9 +135,14 @@ export const REASON = Object.freeze({
   feature_not_in_plan: 'Ez a funkció nincs benne a fiók jelenlegi csomagjában. A fiókkezelő a Beállításokban válthat olyan csomagra, amely tartalmazza.',
   not_a_member: 'Ennek a fióknak nem vagy tagja. Válassz másik fiókot a fejléc fiókválasztójában, vagy kérj meghívást a fiókkezelőtől.',
   admin_required: 'Ehhez a művelethez fiókkezelői jogosultság kell.',
-  role_not_delegable: 'Ezt a szerepkört nem adhatod tovább.',
+  role_not_delegable: 'Ezt a szerepkört a saját hatásköröd nem engedi továbbadni, ezért az újbóli meghívás nem indul el. Válassz szűkebb szerepet, vagy kérd meg erre azt, akinek bővebb a hatásköre.',
+  reentry_undecidable_clock: 'A visszatérés nem dönthető el, mert a tárolt időbélyegek között ellentmondás van. Ezt üzemeltetői vizsgálat tisztázza — addig az újbóli meghívás nem indul el.',
+  reentry_time_undecidable: 'A visszatérés nem dönthető el, mert a megvonás időpontja nem értelmezhető. Ezt üzemeltetői vizsgálat tisztázza — addig az újbóli meghívás nem indul el.',
+  delegation_ceiling_empty: 'Neked most nincs olyan szerep vagy adatkör, amit továbbadhatnál, ezért újbóli meghívást sem adhatsz ki. Kérd meg a fő fiókkezelőt, hogy adja meg a hiányzó felhatalmazást.',
+  parent_limit_undecidable: 'A te felhatalmazásod korlátja most nem állapítható meg, ezért újbóli meghívást nem adhatsz ki. Kérd meg a fő fiókkezelőt, hogy újra adja meg a felhatalmazást.',
+  role_not_recognised: 'A kért szerep nem szerepel a rendszer ismert szerepei között, ezért az újbóli meghívás nem indul el. Válassz a felajánlott szerepek közül.',
   scope_not_delegable: 'Ezt az adatkört nem adhatod tovább.',
-  authority_not_established: 'Ezt a módosítást nem végezheted el.',
+  authority_not_established: 'Ezt a módosítást nem végezheted el: a jogok megváltoztatásához külön hatáskör kell, és azt a tagság — akár kezelői szerepben is — nem adja meg. Kérd meg erre a főfiókkezelőt, vagy kérj hatáskört tőle.',
   outside_basis_operations: 'Ez a művelet nincs a felhatalmazásod körében.',
   context_mismatch: 'A módosítást nem mentettük, mert közben másik fiókra váltottál.',
   tax_id_value_required: 'Add meg az adóazonosítót. Csak szóköz vagy kötőjel nem elegendő.',
@@ -144,6 +150,9 @@ export const REASON = Object.freeze({
   invalid_value: 'A megadott érték nem választható.',
   missing_field: 'Egy kötelező mező hiányzik.',
   unknown_field: 'Az elküldött adatok között nem várt mező volt. Frissítsd az oldalt, és próbáld újra.',
+  at_capacity: 'A meghívó-folytatást most nem tudtuk megőrizni, mert a rendszer megtelt. Próbáld meg újra néhány perc múlva, vagy lépj be először, és utána nyisd meg újra a meghívó hivatkozását.',
+  session_gone: 'A meghívó-folytatást nem őriztük meg, mert közben kiléptek ebből a munkamenetből (vagy másik fiókra váltottak). Lépj be újra, és nyisd meg ismét a meghívó hivatkozását.',
+  no_session_presented: 'Ehhez a kéréshez nem tartozott tárolt munkamenet, tehát megőrzött meghívó-folytatás sem — a meghívó képernyőjét el lehet hagyni.',
   invite_expired: 'Ez a meghívás lejárt. Kérj új meghívót attól, aki küldte.',
   invite_already_redeemed: 'Ezt a meghívót már felhasználták.',
   invite_unknown: 'Ehhez a hivatkozáshoz nem tartozik beváltható meghívás.',
@@ -208,6 +217,7 @@ export const REASON = Object.freeze({
   reentry_blocked_retroactive_invalidity: 'Ezt a tagságot visszamenőleges érvénytelenség zárta le. Az ilyen döntés felülvizsgálata külön eljárás, nem újbóli meghívás.',
   reentry_not_after_revocation: 'Az újbóli belépés nem lehet a megszüntetéssel egyidejű. Próbáld újra egy pillanat múlva.',
   reentry_target_has_no_address: 'Ehhez a személyhez nincs rögzített e-mail-cím, amire az új meghívás szólhatna.',
+  reentry_target_channel_unproven: 'Ennek a személynek a címe nincs igazolva, ezért a meghívást nem tudná beváltani — a rendszer ezért nem is küldi el. Kérd meg, hogy előbb igazolja az e-mail-címét a fiókjában, utána az újbóli meghívás működik.',
   outside_basis_roles: 'Ezt a szerepkört nem adhatod tovább: a saját felhatalmazásod ennél szűkebb.',
   outside_basis_scopes: 'Ezt az adatkört nem adhatod tovább: a saját felhatalmazásod ennél szűkebb.',
   scope_grant_other_period: 'Ez a hozzáférés egy korábbi, már lezárt tagsági időszakhoz tartozott. Új belépés után újra meg kell adni.',
@@ -445,6 +455,14 @@ export const UI = Object.freeze({
   inviteGenericTitle: 'Meghívás',
   inviteWhatHappens: 'Az elfogadással tagja leszel ennek a fióknak. Az adatok megtekintését a fiókkezelő ezután külön engedélyezi.',
   inviteNotSignedIn: 'Még nem vagy belépve.',
+  // A FOLYTATÁS SORA — MINDEN meghívó-állapotra (R166 §1). A meghívó lapja eddig ZSÁKUTCA volt:
+  // lecseréli a teljes alkalmazás-héjat, tehát profil-menü és kilépés-vezérlő sem rajzolódott ki.
+  inviteBackToApp: 'Vissza a fiókomba',
+  inviteBackToStart: 'Vissza a kezdőlapra',
+  inviteSignOutSwitch: 'Kilépés és belépés más fiókkal',
+  inviteLeaveUncertain: 'Nem tudjuk biztosan, hogy a visszalépés rögzült. A meghívó képernyőjén maradtál — próbáld újra.',
+  signOutUncertain: 'Nem tudjuk biztosan, hogy a kilépés rögzült a kiszolgálón. A képernyődön maradsz, és a meghívó hivatkozása sem tűnt el — próbáld újra.',
+  inviteLeaveNote: 'A visszalépés nem fogadja el és nem veszi el a meghívást — a hivatkozás később is megnyitható.',
   inviteFaqOpen: 'Gyakori kérdések',
   inviteTourStart: 'Mutasd meg lépésről lépésre',
   inviteAcceptedLead: 'Elfogadtad a meghívást.',
@@ -616,9 +634,12 @@ export const TOURUI = Object.freeze({
   stepList: 'Az útmutató lépései',
   simulationNote: 'Az útmutató nem ment, nem hív meg senkit és nem töröl semmit. Ezeket te végzed el a rendes felületen.',
   targetMissing: 'Ez a lépés most nem folytatható: az útmutatóban megnevezett elem nem látható ezen a képernyőn.',
+  storyTargetMismatch: 'Ez a lépés a történet saját meghívására szól, ez a képernyő viszont egy másikat mutat. Nyisd meg annak a meghívásnak a levelét, amelyiket az útmutatóban visszavontad — vagy indítsd újra az útmutatót.',
   targetMissingNext: 'Az útmutatót bezárhatod vagy újraindíthatod. A leírás a Súgó → Leírások fülön továbbra is elolvasható.',
   // FELTÁRÁSRA VÁRÁS: a cél még nem jelent meg (panel · választás), a felhasználó nyitja meg.
   targetPending: 'Ez a lépés még nem érhető el: előbb nyisd meg a kiemelt gombbal. Az útmutató nem nyomja meg helyetted.',
+  // ELVÉGZETT lépés, bezárt panel: a mondat nem állíthatja, hogy „még nem érhető el" (KUKA-050).
+  targetPendingDone: 'Ezt a lépést elvégezted. A részletei a bezárt panelben vannak — a kiemelt gombbal újra megnyithatod, vagy lépj tovább.',
   actorPending: 'Ez a lépés a másik szereplő nézetében folytatódik: válts át a kiemelt gombbal. Az útmutató nem vált helyetted.',
   actorWrongRole: 'Átváltottál, de nem arra a szereplőre, akit ez a lépés kér. Válts a kiemelt gombbal arra, akinek a nézete most következik.',
   // A ZÁRÁS KÉT MONDATA: a „végére értél" CSAK akkor, ha semmi nem maradt ki (F91-01).
@@ -873,7 +894,7 @@ export const KB = Object.freeze({
     result: 'Tagság születik, és megnyílik a fiók. Az adatok megtekintését a fiókkezelő ezután külön engedélyezi.',
     outcomes: Object.freeze({
       success: 'Csatlakoztál. A menüben megjelennek a fiók képernyői.',
-      refused: 'A meghívó lejárt, felhasználták, más címre szól, vagy időközben megváltoztak a feltételei.',
+      refused: 'A meghívó lejárt, felhasználták, más címre szól, vagy időközben megváltoztak a feltételei. A képernyőről visszalépsz a fiókodba vagy a kezdőlapra, és ki is tudsz lépni, hogy más fiókkal jelentkezz be.',
       uncertain: 'Nem tudjuk biztosan, megtörtént-e a csatlakozás. Nézd meg a fiókválasztót.',
       error: 'Ehhez a hivatkozáshoz most nem tartozik beváltható meghívás.',
     }),
@@ -1097,6 +1118,72 @@ export const KB = Object.freeze({
     result: 'Nincs: ez a felület nem létezik többé.',
     outcomes: Object.freeze({}),
   }),
+  // ── R164/3 — A PÓTOLT LEÍRÁSOK. Mind az öt képernyő MA IS dolgozik; a szöveg KIMONDJA, hogy olvasó
+  // nézet, és azt is, mi az, ami ma NEM lehetséges (KUKA-050: a szöveg a valóságot követi).
+  'data.warehouses': Object.freeze({
+    title: 'Raktárak',
+    purpose: 'Megmutatja a raktárakat, és raktáranként azt, hány tétel tartozik hozzájuk. Olvasó nézet: raktárat itt ma nem lehet felvenni, átnevezni vagy megszüntetni.',
+    prereq: 'Megnyitott fiók. Külön adat-engedély nem kell hozzá: ez a lap a fiók mintaadatait mutatja.',
+    result: 'A raktárak listája. A tételszám azt mondja meg, a fiók mintaadatából hány termék tartozik az adott raktárhoz.',
+    outcomes: Object.freeze({
+      success: 'A raktárak listája megjelent.',
+      empty: 'Ehhez a fiókhoz nem tartozik mintaadat. Az elrendezés így is megnézhető.',
+    }),
+  }),
+  'data.processes': Object.freeze({
+    title: 'Folyamatok',
+    purpose: 'Megmutatja a folyamatokat: azonosító, megnevezés, állapot és időpont. Állapot szerint szűrhetsz. Olvasó nézet: folyamatot itt ma nem lehet indítani, módosítani vagy lezárni.',
+    prereq: 'Megnyitott fiók. Külön adat-engedély nem kell hozzá: ez a lap a fiók mintaadatait mutatja.',
+    result: 'A folyamatok listája. A szűrő a megjelenített sorokat szűkíti — a fiókban semmi nem változik tőle.',
+    outcomes: Object.freeze({
+      success: 'A folyamatok listája megjelent.',
+      empty: 'Ehhez a fiókhoz nem tartozik mintaadat. Az elrendezés így is megnézhető.',
+    }),
+  }),
+  'data.stockcard': Object.freeze({
+    title: 'Termékkarton',
+    purpose: 'Egy termék adatait mutatja egy lapon: megnevezés, azonosító, jelleg, mennyiség és raktár. Ugyanaz az engedély dönt róla, mint a Készletegyenlegről.',
+    prereq: 'Tagság a fiókban, és a fiókkezelő engedélye a készletadatokra.',
+    result: 'A termék kartonja, és egy gomb, amely a Készletmozgásokra visz. Ahol a mennyiség nem ismert, ott ezt írjuk ki — nem nullát.',
+    outcomes: Object.freeze({
+      success: 'A termékkarton betöltve.',
+      empty: 'Ehhez a fiókhoz nem tartozik mintaadat. Az elrendezés így is megnézhető.',
+      missing: 'Ahol a mennyiség nem ismert, ott ezt írjuk ki — nem nullát. A „Nem ismert” azt jelenti, hogy senki nem mérte meg; a „Nincs megadva” azt, hogy senki nem írta be.',
+      refused: 'Ehhez az adathoz még nincs hozzáférésed. A fiókkezelő tudja engedélyezni.',
+      error: 'A készletadatokat nem sikerült betölteni. Semmi nem változott a fiókban.',
+    }),
+  }),
+  'data.movements': Object.freeze({
+    title: 'Készletmozgások',
+    purpose: 'Megmutatja a mozgásokat időrendben: mikor, melyik termék, milyen művelet és mennyi. Ugyanaz az engedély dönt róla, mint a Készletegyenlegről. Olvasó nézet: mozgást itt ma nem lehet rögzíteni.',
+    prereq: 'Tagság a fiókban, és a fiókkezelő engedélye a készletadatokra.',
+    result: 'A mozgások listája időrendben, a sorok számával a lap alján.',
+    outcomes: Object.freeze({
+      success: 'A mozgások listája megjelent.',
+      empty: 'Ehhez a fiókhoz nem tartozik mintaadat. Az elrendezés így is megnézhető.',
+      missing: 'Ahol a mennyiség nem ismert, ott ezt írjuk ki — nem nullát.',
+      refused: 'Ehhez az adathoz még nincs hozzáférésed. A fiókkezelő tudja engedélyezni.',
+      error: 'A készletadatokat nem sikerült betölteni. Semmi nem változott a fiókban.',
+    }),
+  }),
+  'account.settings': Object.freeze({
+    title: 'A fiók adatai',
+    purpose: 'Megmutatja a megnyitott fiók nevét, a te szerepedet benne, az előfizetést és a megadott vállalkozási adatokat. Olvasó nézet: a vállalkozási adatokat itt ma nem lehet módosítani.',
+    prereq: 'Megnyitott fiók.',
+    result: 'A fiók lapja. A vállalkozási adatról kimondjuk: megadott adat, nem ellenőrzött — hatóságnál nem igazoltuk.',
+    outcomes: Object.freeze({
+      success: 'A fiók adatai megjelentek.',
+    }),
+  }),
+  'personal.ownMatters': Object.freeze({
+    title: 'Saját ügyek',
+    purpose: 'Ide a saját nevedben indított ügyeid kerülnek majd — nem a fiók adatai, hanem a tieid. A képesség még nem létezik: a lap ma megnyílik, és kimondja, hogy üres.',
+    prereq: 'Belépés. Fiók nem kell hozzá: ez a lap rólad szól, nem a vállalkozásról.',
+    result: 'Ma egy üres állapot, ami megmondja, mi fog ide kerülni. Nem hibajelzés: nincs mit megjeleníteni.',
+    outcomes: Object.freeze({
+      missing: 'A saját ügyek listája még nem létezik. Ez nem hiba és nem jogosultsági kérdés: a képesség nincs megépítve.',
+    }),
+  }),
 });
 
 /** A GYAKORI KÉRDÉSEK — kereshetők, és modellhívás nélkül működnek (R89 §6). */
@@ -1306,6 +1393,51 @@ export const FAQ = Object.freeze({
     q: 'Az újonnan létrehozott fiókom üres. Elromlott?',
     a: 'Nem. A mintaadat két céghez van rögzítve; az új fiók szándékosan üresen indul. Az elrendezés így is megnézhető.',
   }),
+  // ── R164/3 — a pótolt funkciókhoz tartozó gyakori kérdések.
+  'faq.warehouses.readOnly': Object.freeze({
+    q: 'Hogyan vegyek fel új raktárat?',
+    a: 'Ma nem lehet: ez a lap olvasó nézet. A raktár-felvétel még nincs megépítve — nem engedély kérdése, és nem is hiba. Amíg nincs, a lap a fiók mintaadatát mutatja.',
+  }),
+  'faq.warehouses.itemCount': Object.freeze({
+    q: 'Mit jelent a raktár melletti tételszám?',
+    a: 'Azt, hogy a fiók mintaadatából hány termék tartozik ehhez a raktárhoz. Nem mennyiség és nem készletérték: darabszámban a termékek száma.',
+  }),
+  'faq.processes.filter': Object.freeze({
+    q: 'Mit tesz az állapot-szűrő a Folyamatoknál?',
+    a: 'Csak a megjelenített sorokat szűkíti. A fiókban semmi nem változik tőle, és a szűrés nem küld semmit — a szűrő kiürítésével újra mindent látsz.',
+  }),
+  'faq.processes.readOnly': Object.freeze({
+    q: 'Hogyan indítsak vagy zárjak le egy folyamatot?',
+    a: 'Ma nem lehet: ez a lap olvasó nézet. A folyamat indítása és lezárása még nincs megépítve. A lap ezt kimondja, nem úgy tesz, mintha menne.',
+  }),
+  'faq.stockcard.sameGate': Object.freeze({
+    q: 'Miért nem látom a Termékkartont, ha a Készletegyenleget sem látom?',
+    a: 'Mert ugyanaz az engedély dönt mind a kettőről, és a Készletmozgásokról is. A fiókkezelő egy helyen adja ki a készletadatokat — onnantól mind a három megnyílik.',
+  }),
+  'faq.stockcard.whichProduct': Object.freeze({
+    q: 'Melyik termék kartonját látom?',
+    a: 'A fiók mintaadatának első termékét. A termék-választás még nincs megépítve; a karton elrendezése így is megnézhető.',
+  }),
+  'faq.movements.sameGate': Object.freeze({
+    q: 'Miért nem látom a Készletmozgásokat?',
+    a: 'Mert a készletadatokra szóló engedély dönt róla — ugyanaz, mint a Készletegyenlegnél és a Termékkartonnál. A fiókkezelő tudja kiadni.',
+  }),
+  'faq.movements.readOnly': Object.freeze({
+    q: 'Hogyan rögzítsek egy készletmozgást?',
+    a: 'Ma nem lehet: ez a lap olvasó nézet. A mozgás-rögzítés még nincs megépítve, ezért a lap nem is kínál rá gombot.',
+  }),
+  'faq.account.notChecked': Object.freeze({
+    q: 'A fiók lapján azt írja, hogy a vállalkozási adat „nem ellenőrzött". Mit jelent ez?',
+    a: 'Azt, hogy amit megadtak, azt rögzítettük, de hatóságnál nem igazoltuk. Nem azt jelenti, hogy hibás — azt, hogy nem mi állítjuk a helyességét.',
+  }),
+  'faq.account.whoChanges': Object.freeze({
+    q: 'Hogyan módosítsam a fiók vállalkozási adatait?',
+    a: 'Ma nem lehet: ez a lap olvasó nézet. A módosítás még nincs megépítve. A fiók nevét és az előfizetést a fiókkezelő tudja kezelni a saját lapjain.',
+  }),
+  'faq.personal.whyEmpty': Object.freeze({
+    q: 'Miért üres a Saját ügyek lap?',
+    a: 'Mert a képesség még nem létezik: nincs olyan adatkör, amit a saját nevedben rögzíthetnél vagy lekérhetnél. Ez nem jogosultsági kérdés és nem hiba — a lap megmondja, mi fog ide kerülni.',
+  }),
 });
 
 /** A BEMUTATÓK LÉPÉS-SZÖVEGE. A kulcs: `<bemutató>.<lépés>` — a lépések a `TOURS` regiszterben. */
@@ -1369,11 +1501,12 @@ export const TOUR = Object.freeze({
     s3: Object.freeze({ title: 'Keresd meg a függő meghívást', body: 'Béla sora „Elfogadásra vár” állapotban áll. A sor végén van a visszavonás gombja.' }),
     s4: Object.freeze({ title: 'Vond vissza a meghívást', body: 'A sor „Meghívás visszavonása” gombja, majd a megerősítés. Ez a lépés csak tényleges visszavonás után halad tovább.' }),
     s5: Object.freeze({ title: 'Nézd meg a megváltozott állapotot', body: 'A sor most „Visszavonva”, és a művelet oszlopa üres: ugyanazt a meghívást másodszor nem lehet visszavonni.' }),
-    s6: Object.freeze({ title: 'Válts át Béla nézetére', body: 'A próbafelület sávjában a „Váltás Béla nézetére” gomb. Ez valódi ki- és belépés: innentől az ő munkamenetében vagy. Ha panel van nyitva, előbb zárd be — a sáv csak akkor érhető el.' }),
+    s6: Object.freeze({ title: 'Válts át Béla nézetére', body: 'A kiemelt vezérlő a kijelentkezés — ez valódi váltás, nem megszemélyesítés. Nyomd meg, majd Béla lépjen be a saját fiókjával ugyanitt; vagy nyissa meg a meghívót a saját böngészőjében. Az útmutató akkor folytatódik, amikor a kiszolgáló már az ő nézetét adja — a haladásod addig megmarad. Ha panel van nyitva, előbb zárd be.' }),
     s7: Object.freeze({ title: 'Nyisd meg a próbaüzeneteket', body: 'Itt állnak a próbafelület levelei. A korábban kiküldött meghívó is köztük van.' }),
     s8: Object.freeze({ title: 'Nyisd meg a korábbi meghívó hivatkozását', body: 'Ez az a hivatkozás, amit Béla korábban megkapott. Kattints rá: a meghívó képernyője nyílik meg.' }),
     s9: Object.freeze({ title: 'A régi meghívó megnyitva', body: 'A képernyő kimondja: ezt a meghívást visszavonták, ezért nem fogadható el. Elfogadás gomb sincs — a hivatkozás elhalt.' }),
     s10: Object.freeze({ title: 'Válts vissza Anna nézetére', body: 'A fiókkezelőnek új meghívást kell kiadnia — a régi hivatkozás már nem éleszthető fel.' }),
+    s10b: Object.freeze({ title: 'Válts át a cég fiókjára', body: 'A belépés után a saját személyes körödben állsz — a Felhasználók képernyő csak a cég fiókjában létezik. A fejléc fiókválasztójában válaszd a céget.' }),
     s11: Object.freeze({ title: 'Nyisd meg újra a Felhasználókat', body: 'A váltás után az áttekintésen állsz. A meghívás a Felhasználók képernyőről indul.' }),
     s12: Object.freeze({ title: 'Nyisd meg a meghívás űrlapját', body: 'A „Felhasználó meghívása” gomb a képernyő tetején.' }),
     s13: Object.freeze({ title: 'Adj ki új meghívást Bélának', body: 'A „Felhasználó meghívása” gomb, majd a cím és az adatkör megadása után az elküldés. Ez a lépés csak tényleges elküldés után halad tovább.' }),
@@ -1390,7 +1523,7 @@ export const TOUR = Object.freeze({
     s2: Object.freeze({ title: 'Nézd meg Béla mai állapotát', body: 'A listán látszik a tagsága és az is, mely adatkörökhöz fér hozzá. Jegyezd meg: a készletadatokat most látja.' }),
     s3: Object.freeze({ title: 'Szüntesd meg a tagságát', body: 'Nyisd meg a sorát a „Hozzáférés kezelése” gombbal, majd szüntesd meg a hozzáférést. Ez a lépés csak tényleges megszüntetés után halad tovább.' }),
     s4: Object.freeze({ title: 'Küldd el az új meghívást', body: 'Az „Újbóli belépés” szakaszban az „Újra meghívás” gomb. A megerősítés kimondja: a korábbi adat-hozzáférései nem állnak vissza.' }),
-    s5: Object.freeze({ title: 'Válts át Béla nézetére', body: 'A próbafelület sávjában a „Váltás Béla nézetére” gomb. Ez valódi ki- és belépés. Ha panel van nyitva, előbb zárd be — a sáv csak akkor érhető el.' }),
+    s5: Object.freeze({ title: 'Válts át Béla nézetére', body: 'A kiemelt vezérlő a kijelentkezés — ez valódi váltás, nem megszemélyesítés. Nyomd meg, majd Béla lépjen be a saját fiókjával ugyanitt; vagy nyissa meg a levelét a saját böngészőjében. Az útmutató akkor folytatódik, amikor a kiszolgáló már az ő nézetét adja — a haladásod addig megmarad. Ha panel van nyitva, előbb zárd be.' }),
     s6: Object.freeze({ title: 'Nyisd meg a próbaüzeneteket', body: 'Az újbóli meghívás levele ide érkezett.' }),
     s7: Object.freeze({ title: 'Nyisd meg a meghívó hivatkozását', body: 'A levélben lévő hivatkozás a meghívó képernyőjére visz.' }),
     s8: Object.freeze({ title: 'Fogadd el a meghívást', body: 'Béla saját műveletével. A tagság ettől jön létre — és csak a tagság.' }),
@@ -1398,9 +1531,11 @@ export const TOUR = Object.freeze({
     s10: Object.freeze({ title: 'Nyisd meg a Készletegyenleget', body: 'Béla már tag, tehát a cég képernyői elérhetők neki.' }),
     s11: Object.freeze({ title: 'Tagság van, készletadat nincs', body: 'A képernyő kimondja, hogy nincs hozzáférés. A régi jog nem jött vissza a tagsággal együtt.' }),
     s12: Object.freeze({ title: 'Válts vissza Anna nézetére', body: 'Az adatkört a fiókkezelő adja meg, külön művelettel.' }),
+    s12b: Object.freeze({ title: 'Válts át a cég fiókjára', body: 'A belépés után a saját személyes körödben állsz — a jogadás a cég fiókjában megy. A fejléc fiókválasztójában válaszd a céget.' }),
     s13: Object.freeze({ title: 'Nyisd meg újra a Felhasználókat', body: 'A váltás után az áttekintésen állsz. A jogadás a Felhasználók képernyőről megy.' }),
     s14: Object.freeze({ title: 'Add meg a készletadatok jogát', body: 'Béla sorában a „Készletadatok” kör engedélyezése. Ez a lépés csak tényleges megadás után halad tovább.' }),
     s15: Object.freeze({ title: 'Válts át újra Béla nézetére', body: 'Most már látnia kell a készletet — de csak azt, amire jogot kapott.' }),
+    s15b: Object.freeze({ title: 'Válts át a cég fiókjára', body: 'Belépés után itt is a személyes kör jön elő — a készlet képernyői a cég fiókjában vannak. Válaszd a céget a fejlécben.' }),
     s16: Object.freeze({ title: 'Nyisd meg újra a Készletegyenleget', body: 'Ugyanaz a képernyő, mint az előbb — csak most van hozzá jog.' }),
     s17: Object.freeze({ title: 'A mennyiség látszik', body: 'Kérd le a készletet: a képernyő kiírja a mennyiséget. A most megadott jog hatályos.' }),
     s18: Object.freeze({ title: 'Az ár viszont nem', body: 'Az árak külön adatkör, és azt nem adtuk meg. A képernyő kimondja a hiányt — nem üres mezőt mutat.' }),
@@ -1440,6 +1575,106 @@ export const TOUR = Object.freeze({
     s2: Object.freeze({ title: 'Leírások', body: 'Az adott képernyőhöz tartozó témák kerülnek előre. Minden téma megmondja, mire való, mi kell hozzá, és mi lehet a kimenete.' }),
     s3: Object.freeze({ title: 'Gyakori kérdések', body: 'Kereshető kérdés–válasz lista. MI-szolgáltató nélkül működik.' }),
     s4: Object.freeze({ title: 'Oldaltérkép', body: 'Megmutatja, mely menüpontok érhetők el neked ebben a fiókban — a listát a rendszer a jogosultságaid alapján állítja össze.' }),
+  }),
+  'tour.warehouses': Object.freeze({
+    title: 'A Raktárak lap',
+    lead: 'Három lépés. Olvasó nézet: semmit nem mentünk el közben.',
+    s1: Object.freeze({ title: 'Nyisd meg a Raktárakat', body: 'A Törzsadatok csoportban találod. A lap a fiók mintaadatát mutatja.' }),
+    s2: Object.freeze({ title: 'A lista', body: 'Raktár, jelleg, és hány tétel tartozik hozzá. A tételszám a termékek száma, nem mennyiség.' }),
+    s3: Object.freeze({ title: 'A kereső', body: 'Szűkítheted a listát. Csak a megjelenített sorokra hat — a fiókban semmi nem változik.' }),
+  }),
+  'tour.processes': Object.freeze({
+    title: 'A Folyamatok lap',
+    lead: 'Három lépés. Olvasó nézet: folyamatot itt ma nem lehet indítani vagy lezárni.',
+    s1: Object.freeze({ title: 'Nyisd meg a Folyamatokat', body: 'A Műveletek csoportban találod. A lap a fiók mintaadatát mutatja.' }),
+    s2: Object.freeze({ title: 'A lista', body: 'Azonosító, megnevezés, állapot és időpont. Az állapot jelvényként látszik.' }),
+    s3: Object.freeze({ title: 'A kereső és a szűrő', body: 'Szűkítheted a listát szövegre vagy állapotra. A fiókban semmi nem változik tőle.' }),
+  }),
+  // ── R166 §3 — A TIZENKÉT PÓTOLT LÉPÉSENKÉNTI ÚTMUTATÓ SZAVAI ────────────────────────────────
+  'tour.verify': Object.freeze({
+    title: 'A cím megerősítése',
+    lead: 'Két lépés. A megerősítő hivatkozást te nyitod meg a levélből — helyetted nem kattintunk.',
+    s1: Object.freeze({ title: 'Nyisd meg a Próbaüzeneteket', body: 'A fejlécben találod. Ez a próbafelület levél-fogadója: a rendszer levelei itt jelennek meg, valódi postafiók nélkül.' }),
+    s2: Object.freeze({ title: 'A megerősítő levél', body: 'Nyisd meg a legutóbbi levelet, és kattints a benne lévő hivatkozásra. A cím ettől lesz megerősítve; belépni csak utána lehet.' }),
+  }),
+  'tour.login': Object.freeze({
+    title: 'Belépés',
+    lead: 'Három lépés. A jelszót te írod be — helyetted nem lépünk be.',
+    s1: Object.freeze({ title: 'Az e-mail cím', body: 'Azt a címet add meg, amellyel regisztráltál, és amelyet megerősítettél.' }),
+    s2: Object.freeze({ title: 'A jelszó', body: 'A „Jelszó megjelenítése” jelölővel ellenőrizheted, mit írtál be.' }),
+    s3: Object.freeze({ title: 'Belépés', body: 'Ha a cím vagy a jelszó nem jó, a rendszer nem mondja meg, melyik — ez védi a fiókokat.' }),
+  }),
+  'tour.resend': Object.freeze({
+    title: 'Új megerősítő levél kérése',
+    lead: 'Két lépés. Akkor kell, ha a korábbi levél lejárt, vagy nem találod.',
+    s1: Object.freeze({ title: 'Az e-mail cím', body: 'Ugyanazt a címet add meg, amellyel regisztráltál.' }),
+    s2: Object.freeze({ title: 'Küldés', body: 'Mindig a legutóbbi levél hivatkozását használd: az új levél érvényteleníti a korábbit.' }),
+  }),
+  'tour.logout': Object.freeze({
+    title: 'Kilépés',
+    lead: 'Két lépés. A kilépés a saját eszközödön zárja a munkamenetet.',
+    s1: Object.freeze({ title: 'Nyisd meg a profil-menüt', body: 'A fejléc jobb szélén, a címed alatt. Ez a menü minden fiókban ott van — a személyes és a vállalkozási nézetben is.' }),
+    s2: Object.freeze({ title: 'Kilépés', body: 'A profil-menüben találod. A kilépés után a böngészőben nem marad a fiókodhoz tartozó adat — a következő belépő nem a te nézetedet látja.' }),
+  }),
+  'tour.personalAccount': Object.freeze({
+    title: 'A személyes fiókod',
+    lead: 'Két lépés. Olvasó nézet: semmit nem mentünk el közben.',
+    s1: Object.freeze({ title: 'Melyik fiókban vagy', body: 'A fejléc mindig megmutatja, melyik fiók adatát látod. A személyes fiók a belépéssel megvan — nem kell létrehozni.' }),
+    s2: Object.freeze({ title: 'A fiókválasztó', body: 'Itt váltasz a személyes fiókod és a vállalkozások között, és itt tudsz újat létrehozni. A tagság és a megtekintési engedély két külön állapot.' }),
+  }),
+  'tour.documents': Object.freeze({
+    title: 'A Bizonylatok lap',
+    lead: 'Három lépés. Olvasó nézet: bizonylatot itt ma nem lehet kiállítani.',
+    s1: Object.freeze({ title: 'Nyisd meg a Bizonylatokat', body: 'A Műveletek csoportban találod. A lap a fiók mintaadatát mutatja.' }),
+    s2: Object.freeze({ title: 'A minta-bizonylat', body: 'A szakasz jelölve van: ez minta, nem a fiók valódi bizonylata.' }),
+    s3: Object.freeze({ title: 'A teljes minta', body: 'A részletes alak a sorokat is megnyitja. A valódi bizonylatok megtekintéséhez a fiókkezelő külön engedélyt ad.' }),
+  }),
+  'tour.partners': Object.freeze({
+    title: 'A Partnerek lap',
+    lead: 'Két lépés. Olvasó nézet: partnert itt ma nem lehet felvenni.',
+    s1: Object.freeze({ title: 'Nyisd meg a Partnereket', body: 'A Törzsadatok csoportban találod. A lap a fiók mintaadatát mutatja.' }),
+    s2: Object.freeze({ title: 'A minta-beszállító', body: 'A szakasz jelölve van: ez minta. A valódi partner-adatokhoz a fiókkezelő ad engedélyt.' }),
+  }),
+  'tour.assistant': Object.freeze({
+    title: 'A segéd — Kérdezz',
+    lead: 'Négy lépés. A segéd elmagyaráz és eligazít; helyetted nem kattint.',
+    s1: Object.freeze({ title: 'Nyisd meg a súgót', body: 'A fejléc súgó-gombja nyitja. A súgó füleken áll, és az egyik a Kérdezz.' }),
+    s2: Object.freeze({ title: 'A Kérdezz fül', body: 'Itt a saját szavaiddal kérdezhetsz. A segéd csak arról beszél, amiről tudása van.' }),
+    s3: Object.freeze({ title: 'A kérdés', body: 'Több sort is írhatsz: az Enter sortörés, a kérdést a küldés viszi el.' }),
+    s4: Object.freeze({ title: 'Küldés', body: 'A válasz csak az átadott tudásra hivatkozhat. Ha nincs rá forrás, a segéd ezt kimondja, és nem talál ki választ.' }),
+  }),
+  'tour.products': Object.freeze({
+    title: 'A Termékek lap',
+    lead: 'Három lépés. Olvasó nézet: terméket itt ma nem lehet felvenni.',
+    s1: Object.freeze({ title: 'Nyisd meg a Termékeket', body: 'A Törzsadatok csoportban találod. A lap a fiók mintaadatát mutatja.' }),
+    s2: Object.freeze({ title: 'A lista', body: 'Megnevezés, azonosító és a hozzá tartozó adatok. A sorok mintaadatok, és jelölve vannak.' }),
+    s3: Object.freeze({ title: 'A kereső', body: 'Szűkítheted a listát. Csak a megjelenített sorokra hat — a fiókban semmi nem változik tőle.' }),
+  }),
+  'tour.stockcard': Object.freeze({
+    title: 'A Készletkarton lap',
+    lead: 'Két lépés. Engedélyhez kötött nézet: a karton csak akkor rajzol, ha a fiókkezelő kiadta a készletadatokat. Helyetted nem adunk jogot — a jogadás útját a Hozzáférés megadása útmutató vezeti végig.',
+    s1: Object.freeze({ title: 'Nyisd meg a Készletkartont', body: 'A Kimutatások csoportban találod.' }),
+    s2: Object.freeze({ title: 'A karton', body: 'Egy termék mozgásai időrendben. Ha a készlet-adatkör nincs kiadva, a lap ezt kimondja, és nem mutat sorokat.' }),
+  }),
+  'tour.movements': Object.freeze({
+    title: 'A Mozgások lap',
+    lead: 'Két lépés. Ugyanazon a kapun áll, mint a Készletegyenleg: a mozgások csak kiadott készlet-engedéllyel rajzolnak. Helyetted nem adunk jogot.',
+    s1: Object.freeze({ title: 'Nyisd meg a Mozgásokat', body: 'A Kimutatások csoportban találod.' }),
+    s2: Object.freeze({ title: 'A mozgás-tábla', body: 'Bevét és kiadás időrendben. Engedély nélkül a lap kimondja, hogy nincs mit mutatnia — nem üres táblát ad.' }),
+  }),
+  'tour.outbox': Object.freeze({
+    title: 'A Próbaüzenetek lap',
+    lead: 'Három lépés. Ez a próbafelület levél-fogadója: a rendszer leveleit valódi postafiók nélkül lehet megnyitni.',
+    s1: Object.freeze({ title: 'Nyisd meg a Próbaüzeneteket', body: 'A Műveletek csoportban találod. A lap kimondja, mire jó ez a nézet.' }),
+    s2: Object.freeze({ title: 'A megnyitó gomb', body: 'A fejlécben is ott van, minden lapon. Ez tárja fel a levél-fogadót.' }),
+    s3: Object.freeze({ title: 'A levél-fogadó', body: 'A meghívó- és megerősítő levelek itt jelennek meg. A bennük lévő hivatkozást te nyitod meg.' }),
+  }),
+  'tour.accountSettings': Object.freeze({
+    title: 'A fiók adatai',
+    lead: 'Három lépés. Olvasó nézet: itt ma nem módosítasz semmit.',
+    s1: Object.freeze({ title: 'Nyisd meg a fiók lapját', body: 'A Beállítások csoportban találod. Azt a fiókot mutatja, amelyik most meg van nyitva.' }),
+    s2: Object.freeze({ title: 'Mit látsz', body: 'A fiók neve, a te szereped benne, az előfizetés és a megadott vállalkozási adat.' }),
+    s3: Object.freeze({ title: 'A kimondott határ', body: 'A vállalkozási adatról kiírjuk: megadott adat, nem ellenőrzött — hatóságnál nem igazoltuk.' }),
   }),
 });
 
@@ -1545,6 +1780,12 @@ export const KB_SOURCE = Object.freeze({
   'profile.edit': Object.freeze({ source_version: '1.0.0', review: 'source' }),
   'security.password_change': Object.freeze({ source_version: '1.0.0', review: 'source' }),
   'shell.numbered_probe': Object.freeze({ source_version: '1.1.0', review: 'source' }),
+  'data.warehouses': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'data.processes': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'data.stockcard': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'data.movements': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'account.settings': Object.freeze({ source_version: '1.0.0', review: 'source' }),
+  'personal.ownMatters': Object.freeze({ source_version: '1.0.0', review: 'source' }),
 });
 
 /**
@@ -1591,6 +1832,12 @@ export const SEARCH = Object.freeze({
   'profile.edit': 'profil szerkesztése saját adatok módosítása átírás',
   'security.password_change': 'jelszó megváltoztatása jelszócsere új jelszó',
   'shell.numbered_probe': 'régi felület számozott próbafelület kivezetve',
+  'data.warehouses': 'raktár raktárak raktárlista telephely raktárfelvétel tételszám',
+  'data.processes': 'folyamat folyamatok állapot beérkezés lezárva folyamatban állapotszűrő folyamatindítás',
+  'data.stockcard': 'termékkarton karton termékadatlap mennyiség raktár készletkarton',
+  'data.movements': 'készletmozgás készletmozgások mozgáslista időrend mozgásrögzítés bevét kivét',
+  'account.settings': 'fiókadatok fiókbeállítások szerep előfizetés adószám adóazonosító vállalkozási adat',
+  'personal.ownMatters': 'saját ügyek ügyeim személyes ügyek üres lap',
 });
 
 /**

@@ -36,15 +36,25 @@ import { bootstrapOf, workspacesOf, ensurePersonalSpace, personalSpaceOf, provis
 // visszahozná a rögzítőt egy olvasó útra, annak előbb újra be kell húznia.
 import { inviteColleague, grantScopeToMember, revokeScopeFromMember, revokeDelegationsOf,
   delegationCeilingOf, reinviteMember } from '../v3ref/delegation.mjs';
-import { observeInvite, redeemInvite, rememberIntent, resumeIntent,
-  revokeInvite, inviteRevocationAt, reentryOfferFor } from '../v3ref/invite.mjs';
+import { observeInvite, redeemInvite, rememberIntent, resumeIntent, forgetIntent, purgeExpiredIntents,
+  intentTtlMs, revokeInvite, inviteRevocationAt, reentryOfferFor } from '../v3ref/invite.mjs';
 import { rightAt, revokeMembership, KNOWN_ROLES } from '../v3ref/authz.mjs';
-import { submitCommand, readCommandResult } from '../v3ref/command.mjs';
+import { submitCommand, readCommandResult, commandResultReadable } from '../v3ref/command.mjs';
 import { KNOWN_DATA_SCOPES, declaredScopesOfType } from '../v3ref/resultScope.mjs';
 import { scopeReleaseDecision, scopeGrantLiveAt } from '../v3ref/releaseScope.mjs';
 import { entitlementFor, twoGateVerdict, setEntitlementProfile, PLANS } from '../v3ref/entitlement.mjs';
 import { businessIdentityOf, businessIdentityProblem, JURISDICTION_PROFILES } from '../v3ref/externalId.mjs';
 import { membershipAsOf, membershipPeriodsOf, closedMembershipPeriodOf } from '../v3ref/bitemporal.mjs';
+// A VISSZATÉRÉSI KIZÁRÁSOK ÍRÁSMENTES FELOLDÓJA (`KUKA-442`): a történet-indí­tó adat UGYANEZT
+// kérdezi, amit az írás-út (`reinviteMember`) — egy fogalom, egy otthon (`KUKA-003`).
+import { reentryExclusionsAt } from '../v3ref/reentryGate.mjs';
+// A FELKÍNÁLÁS AZ ÍRÁS-ÚT FELTÉTELEIT KÉRDEZI, NEM A SAJÁT KÖZELÍTÉSÉT (R186 §5, külső review P2):
+// a meghívó megfigyelése BIZONYÍTOTT csatornát kíván (`hasProvenChannel`), az újbóli meghívás pedig
+// EGYETLEN tárolt címet (`addressOfSubject`) — mindkettő írás-mentes feloldó (KUKA-003 · KUKA-039).
+import { hasProvenChannel } from '../v3ref/invite.mjs';
+import { addressOfSubject, reinviteFeasibility } from '../v3ref/delegation.mjs';
+// A VEGREHAJTHATO HATASKOR ugyanabbol a feloldobol, amit az IRAS-UT kerdez (`KUKA-469`).
+import { executableRightAt } from '../v3ref/authority.mjs';
 import { readScopeGrantAt } from '../v3ref/scopeGrant.mjs';
 import { representationCheck } from '../v3ref/representation.mjs';
 import { validateRequest, schemaForEndpoint, isGated, endpointsWithoutSchema, CONTEXT_FIELD, CONTEXT_SUBJECT_FIELD } from './httpSchema.mjs';
@@ -52,10 +62,16 @@ import { validateRequest, schemaForEndpoint, isGated, endpointsWithoutSchema, CO
 // amiket a böngésző — egy fogalom, egy otthon (KUKA-018 · KUKA-207: a próba ugyanazt hívja).
 import { FEATURES, TOURS, ACTIONS } from './knowledge/features.mjs';
 import { dictFor } from './public/i18n/dict.mjs';
+// A REKESZ-FELOLDÓ A HATÁRON IS UGYANAZ (`KUKA-467`): a nyilatkozatot nem ítjuk át booleánra.
+import { storySlotOf } from './public/tour.mjs';
 import { enabledLanguages, normalizeLanguage, dirOf, allLanguages, resolveLanguage } from './public/i18n/languages.mjs';
 import {
   LIMITS as AST_LIMITS, checkQuestion, injectionFindings, visibleFeaturesFor, allowedActionsFor,
-  allowedToursFor, acceptAction, selectKnowledge, localAnswer, AST_CONTRACT, verifyModelAnswer,
+  allowedToursFor,
+  // A VÁLTÁS UTÁN FOLYTATHATÓ bemutatók (R176 §1): a lépés-listát a kiszolgáló adja a
+  // visszaálláshoz is, nem csak az indításhoz — jogot viszont NEM ad (AST-01).
+  resumableToursFor,
+  acceptAction, selectKnowledge, localAnswer, AST_CONTRACT, verifyModelAnswer,
   composeBlockAnswer, ANSWER_SECTIONS,
   // AST-06 · AST-07 (R142 §6): a modell-hívás NEVEZETT döntése, és a megjelölt következtetés.
   modelNeed, groundedAnswer, BLOCK_MARKERS,
@@ -198,13 +214,80 @@ function sameSecret(a, b) {
 // EZÉRT A BIZALOM KIMONDOTT: a fejlécet CSAK akkor olvassuk, ha a környezet azt mondja, hogy
 // proxy mögött futunk (`VS_APP_TRUST_PROXY=1`, amit a telepítés állít be) — és akkor is a
 // LÁNC ELSŐ elemét vesszük. Proxy nélkül a kapcsolat címe az igazság.
-export function clientIpOf(req, env = process.env) {
-  const trust = String(env.VS_APP_TRUST_PROXY || '').trim() === '1';
-  if (trust) {
-    const xff = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
-    if (xff) return xff;
+//
+// ÉS AMI EBBŐL KIMARADT (R164, KÜLSŐ REVIEW, Codex, P1 — `KUKA-376` · `D-VS-3184`). Az `X-Forwarded-For`
+// nem az EGYETLEN alak: a szolgáltató más fejlécben is adhatja a látogató címét (a reviewer a Railway
+// dokumentációját idézi: ott `X-Real-IP`). Ha a bízott proxy NEM ír `X-Forwarded-For`-t, akkor a fenti
+// kód a PROXY kapcsolat-címére esett vissza — vagyis MINDEN látogató UGYANABBA a kéréskorlát-kosárba
+// került, és már szerény összforgalom is kizárta az EGÉSZ szolgáltatást. A kéréskorlát így nem a
+// találgatót fogta meg, hanem a felhasználókat.
+//
+// A VÁLASZ: A TELEPÍTÉS DEKLARÁLJA, MELYIK FEJLÉC HORDOZZA A CÍMET — mert ez az EGYETLEN dolog, amit
+// a kérés nem tud hamisítani (konfiguráció, nem kérés-adat). `VS_APP_CLIENT_IP_HEADER=<név>` esetén
+// KIZÁRÓLAG azt olvassuk. Deklaráció nélkül a történelmi sorrend áll (`x-forwarded-for` →
+// `x-real-ip`), de a feloldás ALAPJA ilyenkor „kikövetkeztetett", nem „deklarált" — a jelentés tudja,
+// hogy a bizalom gyengébb, mint amilyennek látszik (KUKA-216).
+//
+// ÉS AMIKOR A BÍZOTT PROXY MÖGÜL EGYETLEN CÍM-FEJLÉC SEM JÖN: ez KONFIGURÁCIÓS HIBA, és NEM azt
+// jelenti, hogy „a proxy a látogató". Ilyenkor a kosár kulcsa NEVEZETTEN más (`proxy-cim-nelkul:`
+// előtaggal), hogy a diagnosztikában ne lehessen valódi látogató-címnek olvasni, és a szolgáltatás
+// EGYSZER kimondja a hibát — nem kérésenként (KUKA-290: a védelem költsége ne nőjön a forgalommal).
+
+/** A látogató címét hordozó fejlécek — DEKLARÁLT sorrend, nem találgatás (NET-04). */
+export const CLIENT_IP_HEADERS = Object.freeze(['x-forwarded-for', 'x-real-ip']);
+
+/** A kéréskorlát kulcsának ELŐTAGJA, ha a bízott proxy mögül nem jött cím — nevezetten NEM cím. */
+export const PROXY_WITHOUT_ADDRESS_PREFIX = 'proxy-cim-nelkul:';
+
+/**
+ * A LÁTOGATÓ CÍMÉNEK FELOLDÁSA — ÉS AZ ALAP KIMONDVA.
+ *
+ * Visszaad: `{ key, basis, header, decided }`.
+ *   · `basis: 'kapcsolat'`              — nincs proxy-bizalom: a kapcsolat címe az igazság
+ *   · `basis: 'deklaralt-fejlec'`       — a telepítés megnevezte a fejlécet, és az hozta a címet
+ *   · `basis: 'kikovetkeztetett-fejlec'`— deklaráció nélkül, a történelmi sorrendből
+ *   · `basis: 'proxy-nincs-cim'`        — bízott proxy, de EGYETLEN cím-fejléc sem jött (`decided: false`)
+ */
+export function clientAddressOf(req, env = process.env) {
+  const socket = req?.socket?.remoteAddress || 'ismeretlen';
+  if (String(env.VS_APP_TRUST_PROXY || '').trim() !== '1') {
+    return Object.freeze({ key: socket, basis: 'kapcsolat', header: null, decided: true });
   }
-  return req.socket?.remoteAddress || 'ismeretlen';
+  const deklaralt = String(env.VS_APP_CLIENT_IP_HEADER || '').trim().toLowerCase();
+  const sorrend = deklaralt ? [deklaralt] : CLIENT_IP_HEADERS;
+  for (const fejlec of sorrend) {
+    const nyers = req?.headers?.[fejlec];
+    const ertek = String(Array.isArray(nyers) ? (nyers[0] ?? '') : (nyers ?? '')).split(',')[0].trim();
+    if (ertek) {
+      return Object.freeze({ key: ertek, header: fejlec, decided: true,
+        basis: deklaralt ? 'deklaralt-fejlec' : 'kikovetkeztetett-fejlec' });
+    }
+  }
+  return Object.freeze({ key: `${PROXY_WITHOUT_ADDRESS_PREFIX}${socket}`,
+    basis: 'proxy-nincs-cim', header: null, decided: false });
+}
+
+export function clientIpOf(req, env = process.env) { return clientAddressOf(req, env).key; }
+
+/**
+ * A KONFIGURÁCIÓS HIBA KIMONDÁSA — EGYSZER EGY FOLYAMATBAN.
+ *
+ * Kérésenkénti naplózás pont a terhelés alatt volna a legdrágább, és pont akkor hallgatna el, amikor
+ * a leginkább kellene (KUKA-290). Ezért a jelzés EGYSZERI és NEVEZETT: megmondja, mit állítson be az,
+ * aki telepít. A `resetProxyWarning` CSAK a mérésnek kell — a próba nem hiheti el a hallgatást
+ * attól, hogy egy korábbi próba már elhasználta a jelzést (KUKA-207).
+ */
+let proxyHibaKimondva = false;
+export function proxyWarningSaid() { return proxyHibaKimondva; }
+export function resetProxyWarning() { proxyHibaKimondva = false; }
+export function mondjaKiEgyszerAProxyHibat(warn = (m) => console.warn(m)) {
+  if (proxyHibaKimondva) return false;
+  proxyHibaKimondva = true;
+  warn('[v3app] VS_APP_TRUST_PROXY=1, de a kérésben EGYETLEN látogató-cím fejléc sem jött '
+    + `(${CLIENT_IP_HEADERS.join(' · ')}). A kéréskorlát így MINDEN látogatót egy kosárba tenne, `
+    + 'tehát az egész szolgáltatást korlátozná. Állítsd be a VS_APP_CLIENT_IP_HEADER értékét arra a '
+    + 'fejlécre, amit a szolgáltató ír (a Railway dokumentációja a reviewer idézete szerint: x-real-ip).');
+  return true;
 }
 
 /** HTTPS-en érkezett-e — a proxy mögött ezt is a fejléc mondja meg, ugyanazzal a bizalommal. */
@@ -236,27 +319,718 @@ export function isHttpsRequest(req, env = process.env) {
  * A SZABÁLY: a kéréskorlát TELEPÍTETT környezet védelme (R146 §5 ott is kérte). Helyben alapból
  * KI, és mindkét irányban kifejezetten felülírható (`VS_APP_RATE_MAX=0` kikapcsol).
  */
-export function rateLimitConfig(env = process.env) {
+export function rateLimitConfig(env = process.env, warn = (m) => console.warn(m)) {
+  /**
+   * A BEÁLLÍTÁS ALAKJA IS MÉRT (F158-07, külső review, Codex, P2) — UGYANAZ A SZABÁLY, MINT A
+   * MUNKAMENET-KORLÁTNÁL (F154-41 · KUKA-328). Ott már egyszer kijavítottuk, ide nem jutott el:
+   * klasszikus fél őr (KUKA-039).
+   *
+   * MÉRVE a régi alakon: `VS_APP_RATE_WINDOW_MS=bogus` → `NaN` ablak, tehát `now - t < NaN` MINDIG
+   * hamis: minden kérés eldobta az előző bélyegeket, és a korlát CSENDBEN kikapcsolt. A `0` és a
+   * `-1` ugyanide vezet. Fordítva: `VS_APP_RATE_MAX=0.5` „engedélyezett" korlátot adott, de
+   * `arr.length <= 0.5` SOHA nem teljesül — a teljes alkalmazás 429-et adott volna.
+   *
+   * A HIBÁS ÉRTÉK NEM NÉMA: a napló megnevezi, és az alapértelmezés áll be. A KIMONDOTT kivétel
+   * marad: a `VS_APP_RATE_MAX=0` KIKAPCSOLÁS (dokumentált érték), nem hibás alak.
+   */
+  const posInt = (raw, fallback, nev) => {
+    const txt = String(raw ?? '').trim();
+    if (!txt) return fallback;
+    const n = Number(txt);
+    if (Number.isSafeInteger(n) && n > 0) return n;
+    warn(`[v3app] a ${nev} értéke NEM pozitív egész szám (${Number.isFinite(n) ? 'tört vagy nem pozitív' : 'nem szám'}), `
+      + `ezért az alapértelmezést használom: ${fallback}`);
+    return fallback;
+  };
   const deployed = DEPLOYED_ENVS.includes(String(env.VS_APP_ENV || '').trim().toLowerCase());
   const explicit = String(env.VS_APP_RATE_MAX || '').trim();
-  const max = explicit === '' ? (deployed ? 240 : 0) : Number(explicit);
+  // A NULLA KIMONDOTT KIKAPCSOLÁS, minden más értéknek pozitív EGÉSZNEK kell lennie.
+  const max = explicit === '' ? (deployed ? 240 : 0)
+    : (explicit === '0' ? 0 : posInt(explicit, deployed ? 240 : 0, 'VS_APP_RATE_MAX'));
   return {
-    enabled: Number.isFinite(max) && max > 0,
+    enabled: Number.isSafeInteger(max) && max > 0,
     max,
-    windowMs: Number(env.VS_APP_RATE_WINDOW_MS || 60000),
+    windowMs: posInt(env.VS_APP_RATE_WINDOW_MS, 60000, 'VS_APP_RATE_WINDOW_MS'),
   };
 }
 
-export function makeRateLimiter({ windowMs = 60000, max = 240 } = {}) {
+/**
+ * A SOR HOSSZA IS KORLÁTOS — A VÉDELEM NEM LEHET A TÁMADÁS ERŐSÍTŐJE (NET-04, F154-01).
+ *
+ * A LELET, MÉRVE (saját, R154): a korábbi alak MINDEN bélyeget megtartott egy címhez, és minden
+ * kérésnél VÉGIGSZŰRTE a sort. Egyetlen címről 60 000 kérés `count=60000`-t adott 240-es korlát
+ * mellett, és **29,0 másodperc** tiszta CPU-t kért; 120 000 kérés 225,3 másodpercet — négyszeres
+ * kérésre 7,8-szoros idő, vagyis a költség a kérések SZÁMÁNAK KVADRATIKUS függvénye. Egy
+ * egyszálú folyamatban ez azt jelenti, hogy az elárasztást a KÉRÉSKORLÁT maga váltja üzemzavarra:
+ * a jóhiszemű kérések is megállnak, miközben a napló „megfogtuk" állapotot mutat.
+ *
+ * A JAVÍTÁS: a verdikthez a LEGFRISSEBB `max + 1` bélyeg ELÉG — ha ennyi mind az ablakban van, a
+ * kérés már biztosan túl van a korláton; ha nincs, akkor nem. A régebbieket nem a döntés miatt
+ * tartottuk, hanem mert senki nem dobta el őket. A verdikt BETŰRE ugyanaz marad.
+ *
+ * ÉS A SZÁM IGAZAT MOND (KUKA-129): vágás után a `count` már ALSÓ KORLÁT, nem pontos darabszám —
+ * ezért a válasz ezt `capped`-ként KIMONDJA, nem hallgatja el.
+ */
+export const RATE_LIMIT_KEY_CAP = 5000;
+export function makeRateLimiter({ windowMs = 60000, max = 240, keyCap = RATE_LIMIT_KEY_CAP, warn = () => {} } = {}) {
   const hits = new Map();
+  const keep = Math.max(1, max + 1);
+  let lastKeyWarn = null;                        // a kulcs-plafon figyelmeztetése ablakonként EGYSZER
   return function take(key, now = Date.now()) {
     const arr = (hits.get(key) || []).filter((t) => now - t < windowMs);
     arr.push(now);
+    // ELŐBB VÁGUNK, AZTÁN TÁROLUNK: így a KÖVETKEZŐ kérés szűrése is rövid soron fut.
+    const capped = arr.length > keep;
+    if (capped) arr.splice(0, arr.length - keep);
+    // A TÉRKÉP SORRENDJE MAGA A LRU-LISTA (F158-12): a `Map` a BESZÚRÁSI sorrendet tartja, tehát ha a
+    // kulcsot minden találatnál ÚJRA beszúrjuk, az elején mindig a LEGRÉGEBBEN látott kulcs áll —
+    // rendezés NÉLKÜL. A törlés+beszúrás két `Map`-művelet, vagyis állandó költség.
+    hits.delete(key);
     hits.set(key, arr);
-    // A TÉRIGÉNY IS KORLÁTOS: a lejárt kulcsok kitakarítása nélkül a térkép korlátlanul nőne —
-    // egy memória-szivárgás a védelem nevében (KUKA-120).
-    if (hits.size > 5000) for (const [k, v] of hits) if (!v.length || now - v[v.length - 1] > windowMs) hits.delete(k);
-    return { allowed: arr.length <= max, count: arr.length, max, retry_after_s: Math.ceil(windowMs / 1000) };
+    /**
+     * A KULCSOK SZÁMA IS KEMÉNY KORLÁT (F158-08, külső review, Codex, P2).
+     *
+     * A LELET: a korábbi takarítás CSAK a LEJÁRT kulcsokat vitte el — ha egy ablakon belül 5000-nél
+     * több KÜLÖNBÖZŐ cím érkezik, egyik sem lejárt, tehát a takarítás nullát törölt, és a térkép a
+     * forgalommal egyenesen nőtt. A megjegyzés közben „korlátos térigényt" állított: a szöveg a
+     * valóság előtt járt (KUKA-050). A kéréskorlát a hitelesítés ELŐTT fut, tehát ezt a költséget
+     * hitelesítés nélküli, cím-rotáló forgalom közvetlenül ránk tudja terhelni.
+     *
+     * A VÁLASZ: a LEGRÉGEBBEN LÁTOTT kulcsok mennek — akkor is, ha frissek. A csere KIMONDVA: egy
+     * eldobott kulcs számlálója újraindul, tehát a korlát a LEGCSENDESEBB címekre nézve lazul. Ez
+     * tudatos: aki épp nem küld kérést, annak a védelme ér a legkevesebbet, és a memória-korlát nélkül
+     * az EGÉSZ kiszolgálás esik el (KUKA-091: a javítás iránya nem az őr lazítása, hanem a kár kisebb
+     * fele).
+     *
+     * ── ÉS A TAKARÍTÁS ÁLLANDÓ KÖLTSÉGŰ (F158-12, külső review, Codex, P1) ───────────────────────
+     *
+     * AZ ELSŐ JAVÍTÁSOM EBBE A CSAPDÁBA ESETT: telt plafonnál MINDEN új kulcs lemásolta, leképezte és
+     * RENDEZTE a teljes térképet, és közben naplósort is írt — tehát a VÉDELEM maga lett a támadás
+     * erősítője, pontosan az a hiba-osztály (KUKA-290), amit ebben a PR-ben én magam vezettem ki a
+     * kéréskorlát sorából. MÉRVE a reviewer gépén: 20 000 különböző kulcs ~9,5 s CPU ebben az egy
+     * függvényben. A javítás nem újabb ellenőrzés, hanem a SORREND kihasználása: a `Map` iterációja
+     * már LRU-sorrendben jön (lásd a `delete`+`set` fentebb), tehát az ELEJÉRŐL törlünk annyit,
+     * amennyi a plafon fölött van — rendezés nélkül, kérésenként tipikusan EGY törlés.
+     *
+     * ÉS A NAPLÓ SEM ERŐSÍTŐ: a figyelmeztetés ablakonként LEGFELJEBB EGYSZER megy ki.
+     */
+    if (hits.size > keyCap) {
+      let vinni = hits.size - keyCap;
+      let dobott = 0;
+      for (const k of hits.keys()) {
+        if (vinni <= 0) break;
+        if (k === key) continue;                 // a MOSTANI kérés kulcsát nem dobjuk el
+        hits.delete(k); vinni -= 1; dobott += 1;
+      }
+      if (dobott > 0 && (lastKeyWarn === null || now - lastKeyWarn >= windowMs)) {
+        lastKeyWarn = now;
+        warn(`[v3app] a kéréskorlát kulcs-plafonja (${keyCap}) betelt: a legrégebben látott címek `
+          + 'számlálója újraindul — a térigény korlátos marad (ez a figyelmeztetés ablakonként egyszer megy ki)');
+      }
+    }
+    return { allowed: arr.length <= max, count: arr.length, max, capped, retry_after_s: Math.ceil(windowMs / 1000) };
+  };
+}
+
+/**
+ * A MUNKAMENET-TÁR KORLÁTOS (SES-01, F154-03).
+ *
+ * A LELET, MÉRVE (saját, R154): a tár egy sima `Map` volt, és MINDEN süti nélküli kérés új sort
+ * tett bele; törölni egyedül a be- és kilépés törölt. 10 000 süti nélküli `GET /api/me` után a tár
+ * 10 000 sort tartott — vagyis egy robot, egy süti nélküli figyelő vagy egy elárasztás korlátlanul
+ * növeli a folyamat memóriáját, és a növekedés SOHA nem áll meg magától.
+ *
+ * KÉT KIMONDOTT KORLÁT, mert egy nem elég:
+ *   · TÉTLENSÉGI IDŐ — amit `idleMs`-ig nem érintettek, az elenyészik. Ez egyúttal azt is
+ *     megszünteti, hogy egy munkamenet-süti ÖRÖKKÉ érvényes legyen.
+ *   · PLAFON — a sorok száma `maxSessions` fölé nem megy. Fölötte a LEGRÉGEBBEN LÁTOTT sorok
+ *     mennek előbb, és a NÉVTELENEK ELŐBB, mint a belépettek: az elárasztás névtelen sorokat
+ *     gyárt, tehát a kár ott keletkezik, és az őr ott áll (KUKA-202).
+ *
+ * A PLAFON ALÁ ALSÓ VÍZSZINTIG söprünk, nem pontosan a plafonig: különben tartós terhelés mellett
+ * MINDEN kérés egy rendezést fizetne — az a javítás lenne a következő F154-01 (KUKA-130).
+ *
+ * A KISZORÍTÁS NEM NÉMA: a belépett munkamenet kiesése NAPLÓBAN nevezett sor, mert az a
+ * felhasználónak kiléptetés — és egy néma kiléptetés megmagyarázhatatlan hibajelentést szül.
+ */
+export const SESSION_LIMITS = Object.freeze({ idle_ms: 12 * 60 * 60 * 1000, max_sessions: 20000 });
+
+/**
+ * A KÉT KORLÁT A KÖRNYEZETBŐL ÁLLÍTHATÓ — és ezért MÉRHETŐ (KUKA-207).
+ *
+ * Nem kényelmi kapcsoló: egy 20 000-es plafont élő HTTP-n nem lehet próbában megtölteni, tehát a
+ * korlát csak a feloldó KÖZVETLEN hívásából látszana — és amit a próba nem tud a HATÁRON meghívni,
+ * azt bizalomból hisszük. Üzemeltetési haszna is van: a plafon a példány memóriájához tartozik.
+ */
+export function sessionLimits(env = process.env, warn = (m) => console.warn(m)) {
+  /**
+   * A DARABSZÁM EGÉSZ SZÁM (F154-41, külső review, Codex, tizedik kör).
+   *
+   * A LELET: a korábbi feloldó minden pozitív számot elfogadott, tehát `VS_APP_SESSION_MAX=0.5`
+   * ÉRVÉNYESNEK számított — az első beszúrás után viszont `map.size > maxSessions`, így a névtelen sor
+   * azonnal kiesett, a belépett pedig a végső elutasításra futott: a szolgáltatás EGYETLEN munkamenetet
+   * sem tudott megtartani, miközben a beállítás „átment az ellenőrzésen". Egy nem egész darabszám nem
+   * szigorúbb korlát, hanem MŰKÖDÉSKÉPTELEN állapot.
+   *
+   * A hibás értéket NEM nyeljük el csendben: a napló megnevezi, és az alapértelmezés áll be — mert a
+   * memória-korlát nélkül nem indulhat a kiszolgálás, egy indulás-megtagadás viszont a mai üzemben
+   * nagyobb kárt tenne, mint a kimondott visszaállás (KUKA-049).
+   */
+  const posInt = (raw, fallback, nev) => {
+    const txt = String(raw ?? '').trim();
+    if (!txt) return fallback;
+    const n = Number(txt);
+    if (Number.isSafeInteger(n) && n > 0) return n;
+    warn(`[v3app] a ${nev} értéke NEM pozitív egész szám (${Number.isFinite(n) ? 'tört vagy nem egész' : 'nem szám'}), `
+      + `ezért az alapértelmezést használom: ${fallback}`);
+    return fallback;
+  };
+  return {
+    idleMs: posInt(env.VS_APP_SESSION_IDLE_MS, SESSION_LIMITS.idle_ms, 'VS_APP_SESSION_IDLE_MS'),
+    maxSessions: posInt(env.VS_APP_SESSION_MAX, SESSION_LIMITS.max_sessions, 'VS_APP_SESSION_MAX'),
+  };
+}
+
+/**
+ * HÁROM JAVÍTÁS A KÜLSŐ REVIEW (Codex, R154) MÉRT LELETEIRE — mindhárom a FENTI javítás hibája volt,
+ * és mindhármat REPRODUKÁLTAM, mielőtt javítottam:
+ *
+ * F154-07 — A LEJÁRT MUNKAMENETET AZ OLVASÁS FELÉLESZTETTE. A `get` lejárat-ellenőrzés NÉLKÜL adta
+ * vissza a sort, a kérés-ciklus pedig rögtön `touch`-olta. MÉRVE (1 s tétlenségi korlát, 5 s
+ * tétlenség): `get` VISSZAADTA, a `touch` után a söprés MEGHAGYTA. Mivel a tétlenségi söprés csak
+ * ÚJ sor beszúrásakor futott, egy alvó vagy ELLOPOTT süti egy csendes példányon korlátlanul
+ * feléleszthető volt — tehát a tétlenségi korlát pont arra az esetre nem működött, amiért van.
+ *
+ * F154-08 — A MEGHÍVOTT FOLYTATÁSA ELVESZETT. A kiszorítás MINDEN névtelen sort szemétnek vett,
+ * holott a belépés ELŐTTI meghívó-szándék a `pending_intent` táblában ÉPP a munkamenet
+ * azonosítójához kötött. MÉRVE élő HTTP-n: 300 névtelen kérés után a meghívott munkamenete kiesett,
+ * a böngésző ÚJ azonosítót kapott, a DB-sor pedig ott maradt ELÉRHETETLENÜL, és az
+ * `invite_context` eltűnt. A tényt ezért a KANONIKUS otthona mondja meg (`protectedIds`), nem egy
+ * kézzel tett bélyeg — különben a következő, munkamenethez kötött tábla írója NEM TUDNÁ, hogy be
+ * kell jelentenie magát (KUKA-013 · KUKA-227).
+ *
+ * F154-09 — A FRISSEN BESZÚRT SOR A SAJÁT BESZÚRÁSÁTÓL ESETT KI. MÉRVE: 37 belépett + 3 névtelen
+ * 40-es plafonon; az ÚJ sor beszúrása a négy névtelent (köztük MAGÁT) és egy belépettet vitte el.
+ * A `newSession()` ilyenkor egy olyan objektumot adott vissza, ami NINCS a tárban: a belépés 200-at
+ * és sütit adott, a következő kérés viszont kiléptetett. Ezért (1) a söprés a BESZÚRT sort SOHA nem
+ * veszi el, és (2) a belépés munkamenete BELÉPETTEN születik (`newSession(subjectId)`), nem utólag
+ * kap alanyt — különben a beszúrás pillanatában még névtelennek számít.
+ *
+ * ÉS EGYETLEN OSZTÁLY SEM MENTESÜL A PLAFON ALÓL — ez SZÁNDÉKOS, és az okát ki kell mondani:
+ * a „védett" lista a `pending_intent` tábláról jön, abba viszont a `POST /api/invites/pending`
+ * HITELESÍTÉS NÉLKÜL ír. Ha a védettség mentesítene a plafon alól, egy elárasztó minden saját
+ * sorát védetté tehetné, és a memória-korlát MEGKERÜLHETŐ lenne — a védelem nyitná a kaput
+ * (KUKA-092). Ezért a védettség csak SORRENDET ad (ő esik ki utolsóként a névtelenek közül), nem
+ * mentességet; a memória-korlát mindig áll.
+ *
+ * A HISZTERÉZIS VISZONT OSZTÁLYONKÉNT MÁS (a c2 lelete): az alsó vízszintig söpörni csak a
+ * NÉVTELENEKET érdemes, mert az ő elvesztésük olcsó. A BELÉPETT sorokból CSAK annyit veszünk el,
+ * amennyi a plafon betartásához feltétlenül kell — különben egy lassú névtelen elárasztás minden
+ * körben kiléptetne egy embert, pusztán a hisztérézis kedvéért.
+ */
+export function makeSessionStore({
+  idleMs = SESSION_LIMITS.idle_ms,
+  maxSessions = SESSION_LIMITS.max_sessions,
+  warn = (m) => console.warn(m),
+  protectedIds = null,
+  onEvicted = null,
+  /**
+   * A VÉDETT-INDEX HASZNÁLATA DEKLARÁLT KÉPESSÉG (R164 — SAJÁT LELET a javítás mérésén).
+   *
+   * MIÉRT NEM ALAPÉRTELMEZETT: az index CSAK akkor mond igazat, ha MINDEN `pending_intent`-írásról
+   * értesítik (`markIntent` / `clearIntent` / `intentsPurged`). A tárat közvetlenül használó hívók —
+   * például a lelet-battéria, ami a táblát maga írja — ezt nem teszik meg; nekik az index ÜRES, de
+   * „bízható" lett volna, és a védett névtelen sorok NEM VÉDETTNEK látszottak volna. MÉRVE: három
+   * battéria-állítás (e6 · e8 · g1) azonnal pirosra ment. Ez a KUKA-227 pontos osztálya: a bélyeg nem
+   * keletkezik magától — a képességet KI KELL MONDANI, és aki nem mondja ki, a régi, adatbázist
+   * kérdező úton megy (ami lassabb, de IGAZ).
+   */
+  intentIndex = false,
+} = {}) {
+  const map = new Map();                       // id → munkamenet (a `last_seen_ms` házi mező rajta áll)
+  const lowWater = Math.max(1, Math.floor(maxSessions * 0.9));
+  const stats = { evicted_idle: 0, evicted_cap_anonymous: 0, evicted_cap_signed_in: 0, refused_cap: 0 };
+  /** A TÉTLENSÉGI PÁSZTA RITKÍTÁSA — EGY helyen, mert EGY szabály (F158-19). */
+  const IDLE_SWEEP_MS = 60_000;
+  let nextIdleSweep = 0;
+
+  const droppedNow = [];
+  /** A BEJELENTÉS, ami nem sikerült — újrapróbálásra vár (F154-26). Korlátos; a túlfolyást kimondjuk. */
+  const cleanupQueue = [];
+  const CLEANUP_QUEUE_MAX = 10000;
+  /**
+   * A NÉVTELEN SOROK SZÁMA O(1)-BEN (F154-17 második fele). Enélkül a „van-e egyáltalán elvehető
+   * névtelen sor?" kérdés végigolvasná a térképet MINDEN kérésnél — és ez a harmadik alkalom ebben
+   * a csomagban, hogy egy védelmi döntés lineáris költséget vett fel (F154-01 · F154-11 · ez).
+   * A számláló azért biztonságos, mert az `subject_id` a BESZÚRÁS pillanatában áll be és utána nem
+   * változik (`newSession(subjectId)`, F154-09) — ha ez megváltozik, ez a számláló romlik el, ezért
+   * a battéria külön méri (i4).
+   */
+  let anonCount = 0;
+  /**
+   * A KÉRÉST KISZOLGÁLÓ MUNKAMENET A KÉRÉS IDEJÉRE VÉDETT (SES-03, F154-21/F154-22).
+   *
+   * A LELET (külső review, Codex, P1): a felvétel ELLENŐRZÉSE egyszeri volt, a kérés viszont
+   * `await`-el (`readBody`) megszakad — és közben BEFUTÓ kérések kiszorították a munkamenetet. MÉRVE
+   * `maxSessions=2` mellett: egy lassú, darabolt POST 200-at adott, és ÁRVA `pending_intent` sort
+   * hagyott. Ez idő-ellenőrzés / idő-használat (TOCTOU) rés: amit egyszer megnéztünk, az a használat
+   * pillanatára már nem igaz.
+   *
+   * A MEGOLDÁS NEM ÚJABB ELLENŐRZÉS, HANEM A FELTEVÉS IGAZZÁ TÉTELE: amíg egy kérés egy
+   * munkamenetet kiszolgál, az a sor NEM esik ki. A pin a KÉRÉSHEZ tartozik (`token`), és a kérés
+   * végén MINDEN pinje elenged (`unpinAll` a `finally`-ben) — így nem szivároghat.
+   *
+   * AMIT EZ A PLAFONRÓL JELENT, KIMONDVA: a tár a plafon FÖLÖTT lehet annyival, ahány kérés ÉPP
+   * FUT. Az egyidejű kérések száma a folyamat sajátja és kicsi; a memória-korlát így marad értelmes,
+   * a félig kiszolgált kérés viszont nem veszít állapotot.
+   */
+  const pins = new Map();                      // id → a pin-ek tokenjei (Set)
+  /**
+   * ÉS A JEL SZERINTI FORDÍTOTT INDEX (F154-27). A LELET (külső review, Codex, ötödik kör): a pinek
+   * CSAK azonosító szerint voltak indexelve, ezért minden befejeződő kérés lemásolta és végigolvasta
+   * a TELJES pin-táblát, hogy megtalálja a saját jelét — C átfedő kérésnél O(C²). Ez NEGYEDSZER
+   * ugyanaz a hibaosztály ebben a csomagban (F154-01 · F154-11 · F154-17 · ez): a védelem költsége
+   * azzal nő, amivel szemben véd. A kérés most a SAJÁT azonosítóit engedi el, nem keresi meg őket.
+   */
+  const pinsByToken = new Map();               // a kérés jele → az általa védett azonosítók (Set)
+  const pinnedCount = () => pins.size;
+  /**
+   * ════════════════════════════════════════════════════════════════════════════════════════════
+   * A VÉDETT NÉVTELEN SOROK NÖVEKMÉNYES INDEXE (R164, KÜLSŐ REVIEW, Codex, P1)
+   * ════════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * A LELET. Az F154-17-ben megépített O(1)-es rövidre zárás CSAK akkor állt, ha a beszúrt soron
+   * kívül EGYETLEN névtelen sor sem volt (`anonOthers === 0`). Ha a támadó a tárat FOLYTATÁST
+   * HORDOZÓ (tehát VÉDETT) névtelen sorokkal tölti tele — amit hitelesítés NÉLKÜL megtehet a
+   * `POST /api/invites/pending` úton —, akkor `anonOthers > 0`, a rövidre zárás nem áll, és minden
+   * további hitelesítés nélküli kérés (1) MINDEN névtelen azonosítót kigyűjt, (2) darabolt
+   * adatbázis-kérdéseket futtat rájuk, (3) RENDEZI a teljes térképet — és a végén mégis csak a
+   * beszúrt sort dobja el. MÉRVE (a reviewer mérése): 20 000 védett sor mellett 100 felvétel ~2 s
+   * már a valódi adatbázis-kérdések NÉLKÜL is. ÖTÖDSZÖR ugyanaz a hibaosztály ebben a csomagban
+   * (F154-01 · F154-11 · F154-17 · F154-27 · ez): a VÉDELEM KÖLTSÉGE A TÁMADÁSSAL NŐ (KUKA-290).
+   *
+   * A MEGOLDÁS: a tár MAGA tartja nyilván, mely NÉVTELEN sorok hordoznak folytatást — növekményesen,
+   * a tényleges írások pillanatában (`markIntent` / `clearIntent`), tehát felvételkor nem kell sem
+   * adatbázist kérdezni, sem rendezni. Ami a tárból kiesik, az az indexből is (a `drop` törli).
+   *
+   * ÉS A BIZALOM KIMONDOTT. Az index csak akkor használható osztályozásra, ha MINDEN változásról
+   * tudunk. A halmazos takarítás (`purgeExpiredIntents`) sorokat törölhet anélkül, hogy megnevezné
+   * őket — ilyenkor az index NEM BÍZHATÓ (`intentsPurged()`), és a felvétel a RÉGI, adatbázist
+   * kérdező úton megy, ami egyúttal VISSZAÁLLÍTJA a bizalmat. A nem tudás tehát nem megengedő
+   * ágra esik, hanem a drágább, de IGAZ útra (KUKA-049 · KUKA-093).
+   */
+  const intentAnon = new Set();                // névtelen azonosítók, amelyekről TUDJUK, hogy folytatást hordoznak
+  let intentIndexTrusted = intentIndex === true;   // CSAK deklarált bejelentés mellett, és amíg minden változásról tudunk
+  /**
+   * A SOR ELTÁVOLÍTÁSÁNAK KÖNYVELÉSE — EGY HELYEN (R164 review, Codex, P1 — `KUKA-378` · `D-VS-3186`).
+   *
+   * A LELET: a könyvelés KÉT úton élt. A `drop` leszedte a névtelen számlálót ÉS a védett-indexet, a
+   * publikus `delete` viszont — amit a KILÉPÉS használ — csak a számlálót. Egy névtelen munkamenet
+   * tehát feljegyezhetett folytatást, majd kiléphetett, és az azonosítója BENNE MARADT az indexben:
+   * a `folytatás → kilépés` ismétlése a tár PLAFONJÁN KÍVÜL növelte a memóriát, és az elavult
+   * azonosítók végül azt is elhitették a rövidre zárással, hogy a tár CSUPA védett sorral telt — így
+   * egy ÚJ munkamenet felvétele elutasításra futott, pedig volt nem védett áldozat.
+   *
+   * MIÉRT EGY HELY, ÉS NEM EGY HARMADIK SOR A `delete`-BEN: mert a hiba maga abból keletkezett, hogy
+   * két eltávolító út külön könyvelt (KUKA-003 · KUKA-218 — a nézethez kötött tár EGY helyen ürül).
+   * A `drop` extra tudása (a kiszolgálás alatti sor védelme és a statisztika) az ő dolga marad.
+   */
+  const forget = (id) => {
+    const row = map.get(id);
+    if (row && !row.subject_id) anonCount -= 1;
+    intentAnon.delete(id);
+    intentAnon.delete(String(id));
+    return map.delete(id);
+  };
+  const drop = (id, cause) => {
+    if (pins.has(id)) return false;            // a KISZOLGÁLÁS ALATT ÁLLÓ sort nem dobjuk el
+    forget(id);
+    stats[cause] += 1; droppedNow.push(id);
+    return true;
+  };
+  /**
+   * A VISSZAFELÉ LÉPŐ ÓRA NEM ÚJÍTHAT MEG EGY TÉTLEN MUNKAMENETET (R186 §5, külső review P2).
+   *
+   * A LELET: a kivonás ELŐJELES. Ha a gép fali órája VISSZALÉP (NTP-korrekció, VM-visszaállítás),
+   * a kor NEGATÍV lesz, tehát a feltétel hamis — és egy VALÓJÁBAN túllépett tétlen munkamenet
+   * ÉRVÉNYESNEK számít, a `touch()` pedig a KORÁBBI időre írja át a bélyegét, vagyis MEG IS
+   * ÚJÍTJA. Egy lejárt — vagy ellopott — süti ezzel a visszalépés hosszáig használható marad.
+   *
+   * A VÁLASZ A BIZTONSÁGOSABB IRÁNY: a NEGATÍV kor LEJÁRTNAK számít. Ami nem értelmezhető, az nem
+   * eshet „még érvényes"-re (`KUKA-049`: a „nem tudom" nem „jó lesz"). A monoton óra bevezeése
+   * ennél nagyobb varrat (a tár bélyegei ma fali időt hordoznak) — azt NEVEZETT, külön tételnek
+   * hagyom, a mai javítás pedig a KÁRT zárja el.
+   */
+  const expired = (s, now) => {
+    const kor = now - (s.last_seen_ms ?? 0);
+    return kor < 0 || kor > idleMs;
+  };
+
+  /**
+   * A SZERVER-OLDALI FOLYTATÁST HORDOZÓ azonosítók — `null` = NEM TUDHATÓ (nem „nincs ilyen").
+   *
+   * A KÉRDÉST A JELÖLTEKRE SZŰKÍTVE TESSZÜK FEL (F154-11). A korábbi alak a TELJES `pending_intent`
+   * táblát beolvasta minden söprésnél — csakhogy abba a `POST /api/invites/pending`
+   * HITELESÍTÉS NÉLKÜL ír, és a kiszorított munkamenetek sorait semmi nem törölte. MÉRVE: 400
+   * hitelesítés nélküli kérés után a munkamenet-tár 19 sornál állt (a plafon tartotta), a
+   * `pending_intent` viszont 400-nál — és azt SEMMI nem tartotta. Vagyis a KORLÁTOS tár őrzése
+   * KORLÁTLAN költséget vett fel: pontosan az a hibaalak, amit az F154-01-ben kivezettünk.
+   */
+  function protectedSet(candidates) {
+    if (typeof protectedIds !== 'function') return new Set();
+    if (!candidates.length) return new Set();
+    try {
+      const got = protectedIds(candidates);
+      return got instanceof Set ? got : (Array.isArray(got) ? new Set(got.map(String)) : null);
+    } catch { return null; }
+  }
+
+  /**
+   * A KISZORÍTOTT SOROK BEJELENTÉSE (F154-11 második fele). A `pending_intent` sorokat a kiszorítás
+   * ÁRVÁN hagyta: a munkamenet eltűnt, a sor pedig elérhetetlenül ott maradt, és a tábla így
+   * korlátlanul nőtt. Innentől a tár MEGMONDJA, mit dobott el, és a takarítás a hívó dolga — a
+   * tár nem ismeri a táblákat, a hívó viszont igen (egy tény egy otthon).
+   */
+  function announceDropped() {
+    if (typeof onEvicted !== 'function') { droppedNow.length = 0; return; }
+    if (!droppedNow.length && !cleanupQueue.length) return;
+    const ids = [...cleanupQueue.splice(0, cleanupQueue.length), ...droppedNow.splice(0, droppedNow.length)];
+    if (!ids.length) return;
+    try { onEvicted(ids); } catch (e) {
+      /**
+       * A SIKERTELEN TAKARÍTÁS AZONOSÍTÓI NEM VESZHETNEK EL (F154-26). A LELET (külső review,
+       * Codex, ötödik kör): ha a tároló épp nem elérhető, az `onEvicted` KIVÉTELT dob — a korábbi
+       * alak viszont az azonosítókat már kivette a listából, és csak naplózott. A munkamenet a
+       * tárból eltűnt, tehát a `protectedIds` jelölt-listájába sem kerülhet vissza: azok a sorok
+       * SOHA többé nem lettek volna megtalálhatók, és ismétlődő rövid kiesések megint korlátlanul
+       * növelték volna a táblát. Innentől a kiesett azonosítók VÁRÓLISTÁRA kerülnek, és a következő
+       * bejelentés leadja őket.
+       *
+       * A VÁRÓLISTA IS KORLÁTOS, és a vesztést KIMONDJA: egy soha meg nem javuló tároló mellett a
+       * lista maga lenne korlátlan növekedés (ugyanaz a hibaosztály, amit az F154-11-ben vezettünk
+       * ki). A plafon fölött a LEGRÉGEBBI azonosítók esnek ki, és a napló megnevezi, hányan.
+       */
+      const kept = ids.slice(-CLEANUP_QUEUE_MAX);
+      const lost = ids.length - kept.length;
+      cleanupQueue.push(...kept);
+      warn(`[v3app] a kiszorított munkamenetek szerver-oldali állapotát nem sikerült takarítani: ${e && e.message}`
+        + ` — ${kept.length} azonosító ÚJRAPRÓBÁLÁSRA VÁR`
+        + (lost > 0 ? `, ${lost} azonosító pedig KIESETT a várólistából (plafon: ${CLEANUP_QUEUE_MAX}) — ezekhez árva sor maradhat` : ''));
+    }
+  }
+
+  /**
+   * A PLAFON A TÁR MÉRETÉRE ÁLL (F154-29). A pin NEM mentesít a számolás alól — csak az ÁLDOZAT-
+   * választásból zárja ki a sort.
+   *
+   * MIÉRT VÁLTOZOTT (külső review, Codex, hatodik kör, P1): a korábbi alak a védett sorokat kivonta a
+   * plafonból, ezért egy ÁTFEDŐ köteg minden tagja felvételt nyert, és a plafont utólag, a pin
+   * elengedésekor kellett helyreállítani. Az utólagos söprés viszont azt a sort vitte el, amelyhez a
+   * kezelő ÉPP AKKOR írt szerver-oldali állapotot: a kérés 200-at és sütit adott, a következő kérés
+   * pedig sem a munkamenetet, sem a meghívó-folytatást nem találta. Két egymást visszafordító javítás
+   * után (felvételi kapu → pin → utólagos söprés) a hiba nem a lépésekben volt, hanem a sorrendben:
+   * ami nem tartható meg, azt NEM VESZÜK FEL — nem pedig felvesszük, majd elvesszük.
+   */
+  const overCap = () => map.size > maxSessions;
+
+  function sweep(now = Date.now(), { keep = null } = {}) {
+    /**
+     * A TÉTLENSÉGI PÁSZTA AMORTIZÁLT — A PLAFON AZONNALI (F158-19, külső review, Codex, P2).
+     *
+     * A LELET: ez a pászta a TELJES tárat végigjárta MINDEN hívásnál — tehát minden plafon-beszúrásnál
+     * is, azon az úton is, ahol az O(1) rövidre zárás (F154-17) rögtön utána eldobja a jövevényt. Az
+     * elutasított felvétel így `O(maxSessions)`-t fizetett, alapértéken 20 000 sort, és mindezt a
+     * hitelesítési kapu ELŐTT: cím-rotáló, hitelesítés nélküli forgalom közvetlenül ránk tudta
+     * terhelni. MÉRVE 300 elutasított felvétellel: 5 000-es plafon 0,113 ms/kérés · 20 000-es 0,622 ·
+     * 80 000-es 1,432 — a költség a TÁRRAL nő. Ez a KUKA-290 osztálya, ebben a PR-ben HARMADSZOR.
+     *
+     * A VÁLASZ: az amortizálást EGY helyen döntjük el (itt), nem a hívóban — így nem lehet olyan
+     * hívási út, ami kihagyja (KUKA-039 · KUKA-227). A plafon-logika érintetlen: a memória-korláton
+     * nem lehet késni.
+     *
+     * AMIT EZ VESZÍT, KIMONDVA: egy percen belül a kiszorítás olyan névtelen sort is választhat, amit
+     * a pászta amúgy lejártként elvitt volna. A kár elhanyagolható, mert az áldozat-sorrend a
+     * LEGRÉGEBBEN LÁTOTT sort veszi előbb (lentebb, `order`) — a lejárt sor pedig épp a legrégebben
+     * látott. A tétlenségi korlát helyességét ettől függetlenül az OLVASÁS is érvényesíti (KUKA-296).
+     */
+    if (now >= nextIdleSweep) {
+      nextIdleSweep = now + IDLE_SWEEP_MS;
+      for (const [id, s] of map) if (id !== keep && expired(s, now)) drop(id, 'evicted_idle');
+    }
+    if (!overCap()) { announceDropped(); return stats; }
+
+    // A JELÖLTEK: a NÉVTELEN sorok, a beszúrt kivételével — ennyit kell megkérdezni, nem többet.
+    // KÉSLELTETVE számoljuk ki: a rövidre zárás ágán nem kell (lásd lentebb).
+    const anonCandidates = () => [...map.entries()].filter(([id, x]) => id !== keep && !x.subject_id).map(([id]) => id);
+    const keepIsAnon = keep !== null && map.has(keep) && !map.get(keep).subject_id;
+    const anonOthers = anonCount - (keepIsAnon ? 1 : 0);
+    /**
+     * RÖVIDRE ZÁRÁS: HA CSAK A BESZÚRT SOR VEHETŐ EL, NE RENDEZZÜNK (F154-17).
+     *
+     * A LELET (külső review, Codex): telt, BELÉPETT sorokkal teli táron minden süti nélküli kérés
+     * lemásolta és RENDEZTE a teljes térképet, és csak utána dobta el a friss névtelen sort. MÉRVE
+     * 20 000 belépett sor mellett: 100 süti nélküli beszúrás 754 ms. A hisztérézis ezt nem tudja
+     * amortizálni, mert minden ilyen kérés újra megfizeti — tehát elosztott névtelen forgalom a
+     * per-címes kéréskorlát mellett is korlátlanul ismételheti. Ugyanaz a hibaosztály, mint az
+     * F154-01 és az F154-11: a védelem költsége a támadással nő.
+     */
+    // A DÖNTÉS O(1): a névtelen sorok számából azonnal látszik, hogy csak a beszúrt sor vehető el.
+    if (anonOthers === 0 && keepIsAnon) {
+      drop(keep, 'evicted_cap_anonymous');
+      announceDropped();
+      return stats;
+    }
+    /**
+     * ÉS UGYANEZ A RÖVIDRE ZÁRÁS AKKOR IS, HA A TÖBBI NÉVTELEN SOR MIND VÉDETT (R164, külső review,
+     * Codex, P1). Az index növekményes, tehát ez a döntés O(1): ha a beszúrt soron kívül NINCS nem
+     * védett névtelen sor, akkor a beszúrt az EGYETLEN elvehető — nem kell adatbázist kérdezni, és
+     * nem kell rendezni. A `keep` csak akkor megy, ha maga NEM védett (ez az F154-42 szabálya).
+     */
+    const intentOthers = intentAnon.size - (keep !== null && intentAnon.has(keep) ? 1 : 0);
+    if (intentIndexTrusted && keepIsAnon && !intentAnon.has(keep) && anonOthers - intentOthers <= 0) {
+      drop(keep, 'evicted_cap_anonymous');
+      announceDropped();
+      return stats;
+    }
+    // A VÉDETT (kiszolgálás alatt álló) sorokat a jelöltekből is kivesszük — nem a `keep` dönt róluk.
+
+    /**
+     * AZ OSZTÁLYOZÁS IS AZ INDEXBŐL JÖN, AMÍG AZ BÍZHATÓ — így a felvétel nem futtat darabolt
+     * adatbázis-kérdést minden névtelen azonosítóra. Ha az index NEM bízható (halmazos takarítás volt),
+     * a régi, adatbázist kérdező út megy, és az egyúttal VISSZAÁLLÍTJA a bizalmat.
+     */
+    const guarded = intentIndexTrusted
+      ? new Set([...intentAnon].filter((id) => id !== keep && map.has(id)))
+      : (() => {
+        const got = protectedSet(anonCandidates());
+        if (got instanceof Set) {
+          // A FRISS, TELJES VÁLASZ ÚJRA BÍZHATÓVÁ TESZI AZ INDEXET.
+          intentAnon.clear();
+          for (const id of got) if (map.has(id)) intentAnon.add(String(id));
+          // A BIZALOM CSAK DEKLARÁLT BEJELENTŐK MELLETT ÁLL VISSZA: aki nem értesít, annak a friss
+          // válasz is csak EBBEN a söprésben igaz (KUKA-227).
+          if (intentIndex === true) intentIndexTrusted = true;
+        }
+        return got;
+      })();
+    if (guarded === null) {
+      // NEM TUDJUK, melyik névtelen hordoz folytatást. A memória-korlát viszont ÁLL, tehát
+      // kiszorítunk — de a bizonytalanságot KIMONDJUK, nem hallgatjuk el (KUKA-049).
+      warn('[v3app] a munkamenet-tár kiszorítása NEM tudta megállapítani, mely névtelen munkamenet '
+        + 'hordoz szerver-oldali folytatást (a tároló nem válaszolt) — a kiszorítás ettől is lefut, '
+        + 'de meghívó-folytatás elveszhet');
+    }
+    const protectedAnon = guarded instanceof Set ? guarded : new Set();
+
+    // A SORREND: (1) folytatást NEM hordozó névtelen · (2) folytatást hordozó névtelen ·
+    // (3) belépett. Mindhárom körben a LEGRÉGEBBEN LÁTOTT az első, és a BESZÚRT sor sérthetetlen.
+    // A CÉLSZÁM OSZTÁLYONKÉNT MÁS: a névtelenekből az alsó vízszintig (olcsó elveszteni), a
+    // belépettekből CSAK a plafonig (egy ember kiléptetése nem hisztérézis-kérdés).
+    const order = [...map.entries()].sort((a, b) => (a[1].last_seen_ms ?? 0) - (b[1].last_seen_ms ?? 0));
+    const classOf = (id, s) => (s.subject_id ? 2 : (protectedAnon.has(id) ? 1 : 0));
+    const before = { ...stats };
+    // A NÉVTELEN KÖRÖK: az alsó vízszintig, a beszúrt sor kivételével.
+    for (const pass of [0, 1]) {
+      /**
+       * A FRISS, ÁLLAPOT NÉLKÜLI SOR ELŐBB MEGY, MINT EGY FOLYTATÁST HORDOZÓ (F154-42, külső review,
+       * Codex, tizedik kör).
+       *
+       * A LELET: a `keep` védelme a 0. körből is kivette a friss sort, ezért ha a tár csupa
+       * FOLYTATÁST HORDOZÓ névtelen sorral volt tele, a 0. kör nem talált jelöltet, és az 1. kör
+       * (a védettek) kezdett el ürítni — miközben a friss, SEMMIT nem hordozó sor bent maradt. MÉRVE
+       * `maxSessions=4` mellett: négy folytatást hordozó sor + egy friss kérés → KÉT meghívó-folytatás
+       * elveszett, a friss üres sor megmaradt. Ez szembemegy a saját osztály-sorrendünkkel: a `keep`
+       * védelme a SAJÁT OSZTÁLYÁIG tart (ez az F154-13 szabálya), tehát ha a megtartása a VÉDETT körbe
+       * lépést igényelné, akkor a friss sor megy.
+       */
+      if (pass === 1 && overCap()) {
+        const kr = keep === null ? null : map.get(keep);
+        if (kr && !kr.subject_id && !protectedAnon.has(keep) && !pins.has(keep)) drop(keep, 'evicted_cap_anonymous');
+        if (!overCap()) break;
+      }
+      for (const [id, s] of order) {
+        if (map.size <= lowWater) break;
+        if (id === keep || !map.has(id) || pins.has(id)) continue;
+        if (classOf(id, s) !== pass) continue;
+        drop(id, 'evicted_cap_anonymous');
+      }
+    }
+    /**
+     * A FRISS NÉVTELEN SOR NEM SZORÍTHAT KI BELÉPETT EMBERT (F154-13).
+     *
+     * A LELET (külső review, Codex): a `keep` védelme az F154-09-ből jött — ott az volt a hiba, hogy
+     * a beszúrás a SAJÁT sorát dobta el. Csakhogy telt táron a `keep` kivétele azt is jelentette,
+     * hogy egy EGYETLEN süti nélküli kérés a belépett körre tolta a hiányt. MÉRVE: 4 belépett sor
+     * 4-es plafonon, majd EGY névtelen beszúrás → `evicted_cap_signed_in: 1`, és a névtelen bent
+     * maradt. Vagyis egy hitelesítés nélküli látogató kiléptetett egy belépett embert.
+     *
+     * A SZABÁLY: a `keep` védelme a SAJÁT OSZTÁLYÁIG tart. Ha a plafon betartásához belépett sort
+     * kellene elvenni, és a beszúrt sor NÉVTELEN, akkor a BESZÚRT sor megy — a hívó legrosszabb
+     * esetben olyan sütit kap, ami a következő kérésnél új munkamenetet nyit. Ez tudatos csere: egy
+     * névtelen látogató kényelme nem ér fel egy belépett ember kiléptetésével.
+     */
+    const keepRow = keep === null ? null : map.get(keep);
+    if (overCap() && keepRow && !keepRow.subject_id) {
+      drop(keep, 'evicted_cap_anonymous');
+    }
+    // A BELÉPETT KÖR: CSAK a plafonig, és a beszúrt (belépett) sor sérthetetlen.
+    if (overCap()) {
+      for (const [id, s] of order) {
+        if (!overCap()) break;
+        if (id === keep || !map.has(id) || pins.has(id)) continue;
+        if (classOf(id, s) !== 2) continue;
+        drop(id, 'evicted_cap_signed_in');
+      }
+    }
+    /**
+     * VÉGSŐ ESET: HA MINDEN ÁLDOZAT VÉDETT, A BESZÚRT SOR NEM VEHETŐ FEL (F154-35).
+     *
+     * A LELET (külső review, Codex, nyolcadik kör, P1): ha MINDEN sort épp kiszolgálnak (pin), a
+     * belépett kör minden jelöltet kihagy, a beszúrt BELÉPETT sort pedig a `keep` védte — így a `set`
+     * a plafon FÖLÖTT tért vissza, és mivel az elengedés már nem söpör (F154-29), a többlet ott
+     * maradt. Egy érvényes jelszóval rendelkező kérő ezt ISMÉTELHETTE: a memória-korlát megkerülhető.
+     *
+     * A VÁLASZ UGYANAZ, MINT AZ F154-29-BEN: amit nem tudunk megtartani, azt nem vesszük fel. Tehát a
+     * beszúrt sor megy — akkor is, ha BELÉPETT —, és a hívó a tárból tudja meg (`sessions.has`), hogy
+     * a felvétel nem sikerült. Így a plafon a `set` után MINDIG áll, nincs „kimondott tűrés" sem.
+     * Ez NEM kiléptetés: a már bent lévőket nem bántjuk, a kérő kap nevezett elutasítást.
+     */
+    if (overCap() && keep !== null && map.has(keep)) {
+      drop(keep, 'refused_cap');
+      warn(`[v3app] a munkamenet-tár plafonja (${maxSessions}) betelt, és minden sort ÉPP KISZOLGÁLUNK: `
+        + 'az új munkamenet felvétele ELUTASÍTVA (a bent lévőket nem léptetjük ki) — ennyi egyidejű '
+        + 'munkamenetre a plafon kevés');
+    }
+    announceDropped();
+    const loggedOut = stats.evicted_cap_signed_in - before.evicted_cap_signed_in;
+    if (loggedOut > 0) {
+      warn(`[v3app] a munkamenet-tár plafonja (${maxSessions}) BELÉPETT munkamenetet is kiszorított: `
+        + `${loggedOut} felhasználó kiléptetve — ennyi egyidejű munkamenetre a plafon kevés`);
+    }
+    return stats;
+  }
+
+  return {
+    get size() { return map.size; },
+    stats: () => Object.freeze({ size: map.size, anonymous: anonCount, pinned: pins.size, cleanup_pending: cleanupQueue.length,
+      intent_indexed: intentAnon.size, intent_index_trusted: intentIndexTrusted, ...stats }),
+    /**
+     * A VÉDETT-INDEX BEJELENTŐI (R164, külső review, P1). A tár nem ismeri a táblákat — a HÍVÓ
+     * mondja meg, mikor keletkezik és mikor szűnik meg egy szerver-oldali folytatás. Így a felvétel
+     * O(1) döntést hoz, adatbázis-kérdés és rendezés nélkül (egy tény, egy otthon — KUKA-003).
+     *
+     * `markIntent` CSAK névtelen sorra jegyez: a belépett sorokat a kiszorítás külön osztályban
+     * kezeli, és az indexnek nincs dolga velük.
+     */
+    markIntent(id) {
+      const row = map.get(id);
+      if (row && !row.subject_id) intentAnon.add(String(id));
+    },
+    clearIntent(id) { intentAnon.delete(String(id)); },
+    /**
+     * A HALMAZOS TAKARÍTÁS NEM NEVEZI MEG, MIT TÖRÖLT — ilyenkor az index NEM BÍZHATÓ, és a
+     * következő felvétel a RÉGI, adatbázist kérdező úton megy, ami visszaállítja a bizalmat.
+     */
+    intentsPurged() { intentIndexTrusted = false; },
+    /**
+     * AZ OLVASÁS IS KAPU (F154-07): a lejárt sort NEM adjuk vissza, és el is dobjuk — különben a
+     * hívó `touch`-a feléleszti. Ezért van mellékhatása: ez egy lejárattal bíró tár, nem egy Map.
+     */
+    get(id, now = Date.now()) {
+      const s = map.get(id);
+      if (!s) return undefined;
+      // A LEJÁRT SOR ELDOBÁSÁT IS BE KELL JELENTENI (F158-06, külső review, Codex, P2). A LELET: a
+      // kiszorítási söprés hívta az `announceDropped`-et, EZ az út nem — tehát egy lejárt süti
+      // bemutatása törölte a munkamenetet, de a hozzá tartozó `pending_intent` sor takarítása
+      // elmaradt, és ha a folyamat előbb újraindult, az azonosító a várólistából is elveszett: a sor
+      // ELÉRHETETLENÜL a táblában maradt. Ugyanaz a hiba-osztály, mint a KUKA-300 (a tábla a tárral
+      // együtt korlátos) — csak egy MÁSIK úton (KUKA-039: ha egy szabály két ágon igaz…).
+      if (expired(s, now)) { drop(id, 'evicted_idle'); announceDropped(); return undefined; }
+      return s;
+    },
+    has(id, now = Date.now()) { return this.get(id, now) !== undefined; },
+    /**
+     * A KILÉPÉS ÚTJA — UGYANAZT KÖNYVELI, MINT A KISZORÍTÁS, A TÁROLÓT IS BELEÉRTVE
+     * (R164 review, Codex, P2 — `KUKA-388` · `D-VS-3196`).
+     *
+     * A LELET: az előző körben a MEMÓRIA könyvelését vittem egy helyre (`forget`), de az
+     * ADATBÁZIS-oldal külön maradt: a kiszorítás BEJELENT (`onEvicted` → a `pending_intent` sor
+     * törlése), a kilépés nem. A `folytatás → kilépés` ismétlése így ELÉRHETETLEN sorokat hagyott a
+     * táblában a teljes türelmi időre, miközben a munkamenet-tár ÜRES maradt — tehát a tár plafonja
+     * nem fogta meg, és hitelesítés NÉLKÜLI forgalom tudott adatbázis-állapotot halmozni.
+     *
+     * UGYANAZ A HIBAOSZTÁLY, HARMADSZOR (KUKA-378 · KUKA-003): két könyvelés, és a javítás az egyiket
+     * érte el. Innentől a kilépés is a BEJELENTÉS útján megy: a hívó (aki ismeri a táblákat) ugyanazt
+     * a takarítást futtatja rá, mint a kiszorításra. A tár továbbra sem ismeri a táblákat.
+     */
+    delete(id) {
+      const volt = forget(id);
+      droppedNow.push(id);
+      announceDropped();
+      return volt;
+    },
+    /**
+     * A lejárt sort a `touch` NEM élesztheti fel (F154-07) — ezért itt is a lejárat dönt. ÉS MEGMONDJA,
+     * SIKERÜLT-E (F154-28): a LELET (külső review, Codex, ötödik kör) szerint a kérés-ciklus a `get`
+     * után KÜLÖN időbélyeggel `touch`-olt, és ha a sor a két hívás között lépte át a tétlenségi
+     * határt, a `touch` eldobta — a hívó viszont a helyi `session` változót továbbra is belépettnek
+     * hitte, és egy MÁR NEM LÉTEZŐ munkamenettel szolgált ki (árva szerver-oldali állapot). Egy
+     * feloldó, ami csendben el is dobhatja, amit a hívó épp használni akar, minden hívójánál hibát
+     * szül (ez a KUKA-305 tanulsága — itt a `touch`-ra alkalmazva).
+     */
+    touch(id, now = Date.now()) {
+      const s = this.get(id, now);
+      if (!s) return false;
+      s.last_seen_ms = now;
+      return true;
+    },
+    set(id, s, now = Date.now()) {
+      s.last_seen_ms = now;
+      if (!map.has(id) && !s.subject_id) anonCount += 1;
+      map.set(id, s);
+      // A BESZÚRT SOR SÉRTHETETLEN (F154-09): a söprés `keep`-ként kapja meg.
+      // A TÉTLENSÉGI SÖPRÉS AMORTIZÁLT (percenként legfeljebb egyszer), a PLAFON viszont AZONNALI:
+      // a plafon a memória-korlát, azon nem lehet késni.
+      // A SÖPRÉS MAGA dönti el, kell-e tétlenségi pászta (F158-19) — itt csak azt mondjuk meg, hogy
+      // VAN ok söpörni: vagy a plafon (azonnali), vagy az esedékes pászta.
+      if (overCap() || now >= nextIdleSweep) sweep(now, { keep: id });
+      return this;
+    },
+    /** PIN: a kérés idejére védett sor. Beszúrás ELŐTT is hívható (a `newSession` ezt teszi). */
+    pin(id, token) {
+      // AMIT A TÁR NEM VETT FEL, AZT NEM VÉDJÜK (F154-29) — és nem is számoljuk védettnek: egy
+      // nem létező sorra tett pin csendben elrontaná a plafon-számítást.
+      if (!map.has(id)) return false;
+      const t = pins.get(id) || new Set();
+      t.add(token); pins.set(id, t);
+      const mine = pinsByToken.get(token) || new Set();
+      mine.add(id); pinsByToken.set(token, mine);
+      return true;
+    },
+    /**
+     * A KÉRÉS MINDEN PINJE elenged — a `finally`-ben hívjuk, tehát hibán és kivételen is lefut.
+     *
+     * ÉS ITT NINCS SÖPRÉS (F154-29). Egy körrel korábban itt állítottam helyre a plafont, mert a pin a
+     * számolás alól is mentesített. Az utólagos söprés viszont azt a sort vitte el, amelyhez a kezelő
+     * ÉPP AKKOR írt állapotot (külső review, Codex, hatodik kör, P1) — és a védettség megkérdezése sem
+     * segített: telt, BELÉPETT sorokkal teli táron a folytatást hordozó névtelen sor a helyes
+     * osztály-sorrend szerint is ELŐBB esik ki, mint bármely belépett (KUKA-297: a védettség sorrend,
+     * nem mentesség). Ezért a plafon oda került, ahol a döntés VALÓDI: a BESZÚRÁSHOZ. Amit a tár nem
+     * tud megtartani, azt fel sem veszi — így nincs mit utólag elvenni.
+     */
+    unpinAll(token) {
+      const mine = pinsByToken.get(token);
+      if (!mine) return;
+      pinsByToken.delete(token);
+      for (const id of mine) {
+        const t = pins.get(id);
+        if (!t) continue;
+        t.delete(token);
+        if (!t.size) pins.delete(id);
+      }
+    },
+    pinned: (id) => pins.has(id),
+    sweep,
   };
 }
 
@@ -369,6 +1143,11 @@ function sessionCookie(id, { secure = IS_DEPLOYED } = {}) {
 }
 
 // ── VÁLASZ-SEGÉDEK ───────────────────────────────────────────────────────────────────────────────
+/** A SÜTI TÖRLÉSE (SES-04): azonos attribútumok, lejárt élettartam — különben a böngésző megtartaná. */
+function clearSessionCookie({ secure = false } = {}) {
+  return `${SESSION_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secure ? '; Secure' : ''}`;
+}
+
 function sendJson(res, status, body, setCookie) {
   const headers = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
   if (setCookie) headers['Set-Cookie'] = setCookie;
@@ -453,7 +1232,123 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
     err.code = gate.reason;
     throw err;
   }
-  const sessions = new Map();        // id → { id, subject_id, current_book_id, created_at }
+  // A MUNKAMENET-TÁR KORLÁTOS (SES-01, F154-03) — nem sima Map: tétlenségi idő + plafon.
+  // A MUNKAMENET-TÁR KORLÁTOS (SES-01), és a VÉDETT névtelen sorok listája a KANONIKUS otthonból
+  // jön (F154-08): a `pending_intent` tábla az EGYETLEN, munkamenet-azonosítóra kulcsolt szerver-
+  // oldali állapot (`session_id text PRIMARY KEY`, 001-es migráció). Ha egy ÚJ ilyen tábla születik,
+  // ide kell bekötni — ezt a `verify:app-findings-r154` E csoportja méri, nem a jóindulat.
+  /**
+   * A MUNKAMENETHEZ KÖTÖTT SZERVER-OLDALI ÁLLAPOT EGY HELYEN (SES-02). A `pending_intent` az
+   * EGYETLEN, munkamenet-azonosítóra kulcsolt tábla (`session_id text PRIMARY KEY`, 001-es
+   * migráció). Ha ÚJ ilyen tábla születik, MINDKÉT feloldót itt kell bővíteni — a kérdezőt és a
+   * takarítót —, és ezt a `verify:app-findings-r154` G csoportja méri, nem a jóindulat.
+   *
+   * A KÉRDÉS JELÖLTEKRE SZŰKÍTVE, DARABOKBAN megy (F154-11): a teljes tábla beolvasása korlátlan
+   * költség volt egy korlátos tár őrzésére. A darab-méret mindkét tároló paraméter-korlátja alatt
+   * marad.
+   */
+  const SESSION_STATE_CHUNK = 500;
+  const sessionStateIn = (ids, sql) => {
+    const out = [];
+    for (let i = 0; i < ids.length; i += SESSION_STATE_CHUNK) {
+      const part = ids.slice(i, i + SESSION_STATE_CHUNK);
+      out.push(...store.all(sql(part.map(() => '?').join(',')), ...part));
+    }
+    return out;
+  };
+  // A FELOLDOTT KORLÁTOK NEVET KAPNAK: a folytatás türelmi ideje a TÉTLENSÉGI korlátból származik
+  // (F158-17), tehát a feloldó eredményére később is hivatkozunk — nem hívjuk meg kétszer.
+  const limits = sessionLimits();
+  const sessions = makeSessionStore({
+    ...limits,
+    // A SZERVER MINDEN `pending_intent`-írásról ÉRTESÍT (markIntent / clearIntent / intentsPurged),
+    // ezért használhatja a növekményes védett-indexet — enélkül a felvétel minden hitelesítés nélküli
+    // kérésnél adatbázist kérdezne és rendezne (R164, külső review, P1).
+    intentIndex: true,
+    protectedIds: (candidates) => new Set(
+      sessionStateIn(candidates, (q) => `SELECT session_id FROM pending_intent WHERE session_id IN (${q})`)
+        .map((r) => String(r.session_id))),
+    // AZ ÁRVA SOR NEM MARAD OTT: ha a munkamenet elment, a hozzá kötött sor elérhetetlen, tehát a
+    // törlése nem adatvesztés, hanem a takarítás elmaradásának a javítása.
+    onEvicted: (ids) => {
+      for (let i = 0; i < ids.length; i += SESSION_STATE_CHUNK) {
+        const part = ids.slice(i, i + SESSION_STATE_CHUNK);
+        store.run(`DELETE FROM pending_intent WHERE session_id IN (${part.map(() => '?').join(',')})`, ...part);
+        // A KISZORÍTOTT SOROK szándéka is megszűnt. (A `drop` már kivette az indexből; ez a hívás
+        // azért áll itt, hogy a takarítás ÉS az index EGY úton járjon — KUKA-003.)
+        for (const sid of part) sessions.clearIntent(sid);
+      }
+    },
+  });
+  /**
+   * A LEJÁRT FÜGGŐ SZÁNDÉKOK AMORTIZÁLT TAKARÍTÁSA (D-VS-3141 · R158/1b).
+   *
+   * MIÉRT AMORTIZÁLT ÉS MIÉRT NEM IDŐZÍTŐ: kérésenkénti takarítás pont azt a költség-osztályt hozná
+   * vissza, amit a KUKA-290/300/306/313 kivezetett; egy `setInterval` viszont a próbákban nyitva
+   * maradó folyamatot hagyna (a szerver bezárása után is élne). Ezért: legfeljebb PERCENKÉNT egyszer,
+   * EGY halmaz-utasítással, a kérés útján.
+   *
+   * A LEJÁRATOT AZ OLVASÁS IS ÉRVÉNYESÍTI (`resumeIntent`), tehát a két takarítás KÖZÖTT sem lehet
+   * lejárt szándékot folytatni — a periodikus törlés a TÁBLA méretéről szól, nem a helyességről.
+   */
+  /**
+   * A FOLYTATÁS TÜRELMI IDEJE EGY HELYEN (F158-17, külső review, Codex, P2 · D-VS-3157).
+   *
+   * A kimondott plafon 24 óra, a sor EGYETLEN kulcsa viszont a munkamenet — ami a tétlenségi korlát
+   * után kiesik, és magával viszi a sort. A ténylegesen kiszolgálható idő tehát a KETTŐ KISEBBIKE, és
+   * ezt a MAG feloldója adja meg. MINDEN olvasó és a takarítás is EZEN a kapun megy: ha egy új hívó
+   * közvetlenül hívná a magot, megint a 24 órát kapná (KUKA-227 · KUKA-039).
+   */
+  const intentTtl = intentTtlMs({ sessionIdleMs: limits.idleMs });
+  /**
+   * AZ OLVASÁSI KAPU TÖRLÉSE IS KÖVETI AZ INDEXET (R164 review, Codex, P2 — `KUKA-389` · `D-VS-3197`).
+   *
+   * A LELET: a `resumeIntent` OLVASÁSKOR is kapu — a lejárt sort nem adja vissza, és EL IS DOBJA
+   * (D-VS-3141). Ez a törlés viszont nem jutott el a védett-indexhez: ha a türelmi idő rövidebb, mint
+   * a takarítás percenkénti ütemezése (vagy az óra ugrik), akkor az index `bízható` maradt egy ELAVULT
+   * védett azonosítóval. Elég ilyen munkamenet után a „csupa védett" rövidre zárás ÚJ folytatásokat
+   * utasított volna el, pedig volt nem védett áldozat.
+   *
+   * A VÁLASZ A LEGSZŰKEBB IGAZ ÁLLÍTÁS: ha a feloldó NEM ad folytatást, akkor ez a munkamenet NEM
+   * hordoz folytatást — akár nem is volt sora, akár most dobta el. Mindkét esetben helyes az indexből
+   * kivenni (a `clearIntent` nem létező bejegyzésre is biztonságos). Így nem kell a magot új
+   * visszajelzéssel bővíteni, és nem is hihetjük el, hogy „volt sor, tehát maradt is".
+   */
+  const folytatasa = (sessionId) => {
+    const t = resumeIntent({ store, sessionId, clock, ttlMs: intentTtl });
+    if (!t) sessions.clearIntent(sessionId);
+    return t;
+  };
+
+  let nextIntentPurge = 0;
+  /**
+   * A NEM KANONIKUS SOROK PÁSZTÁJÁNAK KURZORA (R164 review, P2 — `KUKA-382`).
+   *
+   * A pászta `maxOddRows` soronként dolgozik, és a kurzor nélkül mindig UGYANAZT a köteget látta: egy
+   * friss, érvényes eltolásos időbélyeg SZÁMMAL kezdődik, egy romlott érték BETŰVEL, tehát a szöveges
+   * rendezésben mögé kerül — a romlott sor határtalanul ott maradhatott. A kurzor pásztánként
+   * TOVÁBBLÉP, és a tábla végén visszaáll az elejére, tehát minden sor VÉGES számú pászta alatt sorra
+   * kerül. A kurzor a FOLYAMAT élettartamára szól; újraindulás után az elejéről kezdünk, ami nem
+   * kiéheztetés, csak egy újabb teljes kör.
+   */
+  let intentOddCursor = null;
+  function purgeIntentsIfDue(now = Date.now()) {
+    if (now < nextIntentPurge) return null;
+    nextIntentPurge = now + 60_000;
+    try {
+      const r = purgeExpiredIntents({ store, clock, ttlMs: intentTtl, oddCursor: intentOddCursor });
+      intentOddCursor = r ? (r.odd_cursor ?? null) : null;
+      // A HALMAZOS TAKARÍTÁS NEM NEVEZI MEG, MIT TÖRÖLT — az index innentől nem bízható, és a
+      // következő felvétel a RÉGI, adatbázist kérdező úton megy (ami visszaállítja a bizalmat).
+      if (r && (r.purged > 0 || r.odd_capped)) sessions.intentsPurged();
+      return r;
+    }
+    catch (e) {
+      console.warn(`[v3app] a lejárt függő szándékok takarítása nem sikerült: ${e && e.message}`);
+      return null;
+    }
+  }
+
   const mailbox = [];                // a FEJLESZTŐI LEVÉL-FOGADÓ — memóriában, kifelé soha
 
   // ── FEJLESZTŐI ÓRA (DEV-CLOCK, R75 §3/6) ────────────────────────────────────────────────────
@@ -547,9 +1442,55 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
     return ch;
   }
 
-  function newSession() {
-    const s = { id: hex(32), subject_id: null, current_book_id: null, created_at: clock.now() };
-    sessions.set(s.id, s);
+  /**
+   * ÚJ MUNKAMENET. Az alany a SZÜLETÉSKOR áll be (F154-09): ha utólag kapná meg, a tárba
+   * NÉVTELENKÉNT kerülne be, és a plafon-söprés a belépés pillanatában szemétnek vehetné.
+   */
+  /**
+   * ÚJ MUNKAMENET. Az alany a SZÜLETÉSKOR áll be (F154-09), és a sor a KÉRÉS idejére VÉDETT
+   * (SES-03): a `token` a kiszolgáló kérés jele, amit a kérés-ciklus a végén elenged. Így a
+   * munkamenet LÉTEZÉSE nem feltevés, hanem a kiszolgálás ideje alatt FENNÁLLÓ tény — nem kell se
+   * felvétel-ellenőrzés, se újraellenőrzés a törzs olvasása után (F154-21).
+   */
+  /**
+   * ÁTMENETI MUNKAMENET (SES-04): NINCS a tárban, és nem jár sütivel. A kezelők döntő része csak azt
+   * kérdezi, be van-e lépve a hívó — arra ez is elég. Az `id: null` SZÁNDÉKOS: aki azonosítót akar
+   * használni (tartós állapotot kötni), annak előbb `materialize()`-t kell hívnia.
+   */
+  function transientSession(presented = false) {
+    // A `presented` KIMONDJA, hogy a kérés HOZOTT-e (már érvénytelen) munkamenet-azonosítót. KÉT
+    // KÜLÖN TÉNY (`KUKA-002`): „sosem volt" és „volt, de eltűnt" — a teendő is más a kettőnél.
+    return { id: null, subject_id: null, current_book_id: null, created_at: clock.now(),
+      transient: true, presented: Boolean(presented) };
+  }
+
+  /**
+   * A FELVÉTEL ÉS A FELVÉTEL ELLENŐRZÉSE UGYANAZT AZ IDŐT KAPJA (`KUKA-466` · `D-VS-3248`).
+   *
+   * A LELET, ÉS MIÉRT FÁJT. A `KUKA-464` (ugyanez a csomag) helyesen mondta ki, hogy a NEGATÍV kor is
+   * LEJÁRT — különben egy visszalépő fali óra egy valójában tétlen munkamenetet érvényesnek mutat. A
+   * felvétel útja viszont KÉT idő-leolvasást használt: a sor a `set` SAJÁT `Date.now()`-jával született,
+   * a felvétel tényét pedig a hívó egy KORÁBBAN leolvasott pillanatra kérdezte meg. Ha a két leolvasás
+   * között átfordult a millisekundum, a kor NEGATÍV lett — a frissen született sort a tár LEJÁRTNAK
+   * ítélte, EL IS DOBTA (`evicted_idle`), a hívó pedig „a munkamenet-tár megtelt" 503-at adott egy
+   * ÜRES táron. MÉRVE élő HTTP-n: 40 próbából 3 (7,5%).
+   *
+   * A VÁLASZ A HÁZ SAJÁT SZABÁLYA, NEM A VÉDELEM LAZÍTÁSA (`KUKA-314`: EGY DÖNTÉS — EGY IDŐ). A
+   * felvétel és az ellenőrzése EGY döntés, tehát EGY időt kap: a hívó átadja, és a `set` ezt kapja. A
+   * `KUKA-464` óra-védelme változatlanul szigorú — csak nem a saját születésére tüzel.
+   */
+  function newSession(subjectId = null, token = null, now = Date.now()) {
+    const s = { id: hex(32), subject_id: subjectId ?? null, current_book_id: null, created_at: clock.now() };
+    /**
+     * A SORREND: BESZÚRÁS, AZTÁN PIN (F154-29). A `set` a plafont AZONNAL érvényesíti, és ha a sort nem
+     * lehet megtartani (telt tár, és a megtartása belépett embert léptetne ki — F154-13), akkor a sor
+     * ott helyben kiesik. A pin ezután már csak a MEGTARTOTT sort védi a kiszolgálás idejére.
+     *
+     * A FELVÉTEL TÉNYÉT A HÍVÓ A TÁRBÓL KÉRDEZI MEG (`sessions.has`), nem egy mezőből: egy bélyeg
+     * elavulhat, a tár viszont a tény kanonikus otthona (KUKA-305 tanulsága, bélyeg nélkül).
+     */
+    sessions.set(s.id, s, now);
+    if (token) sessions.pin(s.id, token);
     return s;
   }
 
@@ -741,22 +1682,566 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
    * Ez NEM új jogosultsági motor: a tagságot a `currentBookOf` (mag `membershipAsOf`), a szerepet a
    * `roleIn` (mag `workspacesOf`), a csomagot az előfizetés-profil adja. A segéd ezekre HIVATKOZIK.
    */
-  function requesterContext(session, cur) {
+  /**
+   * MILYEN HORGONYOKAT AD A BETÖLTÖTT FELÜLET — MÉRVE, NEM ELHITT (R164/3 · KUKA-207 · KUKA-227).
+   *
+   * MIÉRT KELL. A szereplő-váltó bemutatókat eddig a KÖRNYEZET jele (`VS_DEMO`) kapuzta. Az viszont
+   * nem mondja meg, hogy a betöltött lapon VAN-E „váltás a másik nézetére" vezérlő: bemutató-
+   * környezetben az alkalmazás-héj ugyanaz a VALÓDI héj, amiben ilyen nincs — a bemutató mégis
+   * felkínálódott, és a váltó lépésén megszakadt.
+   *
+   * MIT HISZÜNK EL A KÉRÉSNEK, ÉS MIT NEM. A kérés csak MEGNEVEZHETI a felületét, ZÁRT listából
+   * (`app` · `demo`); a KÉPESSÉGET nem állíthatja magáról — azt a kiszolgáló a lap FÁJLJÁBÓL méri
+   * (`data-testid` és `data-tour-anchor`), a `tour.mjs` feloldójával egyező két attribútumból. Nem
+   * ismert név vagy olvashatatlan fájl → ÜRES készlet, tehát a kapu zár (fail-closed, KUKA-236).
+   *
+   * MIÉRT A HÉJ-FÁJL ÉS AZ `app.js` EGYÜTT. A horgonyt vagy a héj HTML-je, vagy a MINDKÉT héjban
+   * futó közös szkript rajzolja; ha az `app.js` kezdi rajzolni, akkor a valódi héj TÉNYLEGESEN ad
+   * váltó vezérlőt, és akkor a bemutató ott helyesen fel is kínálódik.
+   */
+  const SURFACE_FILES = Object.freeze({ app: ['index.html', 'app.js'], demo: ['demo-index.html', 'app.js'] });
+  const surfaceAnchorCache = new Map();
+  /** A FELÜLET NEVE a zárt listából, vagy `null`. EGY feloldó, két hívó (KUKA-003). */
+  function knownSurface(name) {
+    const kulcs = name === undefined || name === null || name === '' ? 'app' : String(name);
+    return Object.prototype.hasOwnProperty.call(SURFACE_FILES, kulcs) ? kulcs : null;
+  }
+  function surfaceAnchors(name) {
+    const kulcs = knownSurface(name);
+    if (kulcs === null) return new Set();
+    if (surfaceAnchorCache.has(kulcs)) return surfaceAnchorCache.get(kulcs);
+    const keszlet = new Set();
+    for (const f of SURFACE_FILES[kulcs]) {
+      let szoveg = null;
+      try { szoveg = readFileSync(join(PUBLIC_DIR, f), 'utf8'); } catch { szoveg = null; }
+      if (szoveg === null) continue;
+      for (const m of szoveg.matchAll(/data-(?:testid|tour-anchor)="([^"${}]+)"/g)) keszlet.add(m[1]);
+    }
+    surfaceAnchorCache.set(kulcs, keszlet);
+    return keszlet;
+  }
+
+  /**
+   * EGY BEMUTATÓ HATÁRON ÁTMENŐ ALAKJA — EGY OTTHON, KÉT FOGYASZTÓ (R176 §1 · `KUKA-003`).
+   *
+   * Az INDÍTHATÓ (`tours`) és a VÁLTÁS UTÁN FOLYTATHATÓ (`resumable_tours`) lista UGYANEZT az alakot
+   * viszi: a lap mindkettőből ugyanúgy épít futást. Ha a leképezés két példányban állna, egy újonnan
+   * átvitt mező az egyikből kimaradna — és a böngészőben `undefined` lenne (a `KUKA-394` tanulsága).
+   */
+  function tourPayloadOf(id, lang, who) {
+    return {
+    id, version: TOURS[id].version, feature: TOURS[id].feature, page: TOURS[id].page ?? null,
+    requires_role: TOURS[id].requires_role ?? null,
+    // A KÖZÖNSÉG ÉS A BELÉPÉS ELŐTTI FUTÁS a válaszban áll: a lap ebből tudja, hova vigyen,
+    // és nem a saját feltevéséből (F91-01 · AVL-01).
+    audience: TOURS[id].audience ?? 'signed_in',
+    requires_anonymous: TOURS[id].requires_anonymous === true,
+    /**
+     * …ÉS AZ IS, MELYIK BELÉPÉSI NÉZETBEN JÁR (R166 §3 — MÉRT lelet, `KUKA-394`).
+     *
+     * A lap a `def`-et EBBŐL a válaszból kapja, nem a regiszterből: egy itt ÁT NEM VITT mező a
+     * böngészőben `undefined`. A régi futtató ezért tudott működni hardkódolt céllal — amíg
+     * egyetlen belépés előtti útmutató volt. A mezőt tehát a HATÁRON is át kell adni, különben
+     * a felület a saját feltevéséből dolgozik (`KUKA-227`: a határ zöldje nem a felület zöldje).
+     */
+    auth_view: TOURS[id].auth_view ?? null,
+    // A KÉT ÚJ KAPU-FELTÉTEL IS ÁTMEGY (R166 P2): a lap ebből tudja, miért nem indítható egy
+    // útmutató — és egy itt át nem vitt mező a böngészőben `undefined` (KUKA-394 tanulsága).
+    requires_dev_mailbox: TOURS[id].requires_dev_mailbox === true,
+    requires_stock_access: TOURS[id].requires_stock_access === true,
+    requires_demo_fixture: TOURS[id].requires_demo_fixture === true,
+    // ÉS A TÖRTÉNET INDULÓ ADATA IS ÁTMEGY (R176 §1): a lap ebből tudja, miért nem indítható.
+    requires_story_data: TOURS[id].requires_story_data ?? null,
+    // A MEGHÍVÓ-KÉPERNYŐHÖZ KÖTÖTT BEMUTATÓ: a lap ebből tudja, hogy nem egy belső oldalra
+    // kell vinnie, hanem a meghívó lapján kell maradnia (P109-01).
+    requires_invite: TOURS[id].requires_invite === true,
+    steps: TOURS[id].steps.map((st) => ({
+      id: st.id, target: st.target, task: st.task ?? null,
+      // A LÉPÉS SZEREPE ÉS A SZEREPLŐ-VÁLTÁS (R140 — ACT-01): a teljes történet átível a
+      // szereplőkön, és a lap ebből tudja, melyik lépést KI végzi, illetve hol vár váltásra.
+      // Ha ezt a válasz nem vinné, a lap a saját feltevéséből dolgozna (AST-01).
+      role: st.role ?? null,
+      switch_actor: st.switch_actor === true,
+      /**
+       * ÉS A VÁLTÁS TENGELYE IS ÁTMEGY (R176, külső review P2 · `KUKA-423` · `KUKA-394`).
+       *
+       * A lap dönti el, hogy a váltás MEGTÖRTÉNT-e (`actorSwitchReady`), és ehhez tudnia kell,
+       * MELYIK tengelyen kellett változnia a nézetnek: `subject` (más ember) vagy `book` (ugyanaz
+       * az ember másik fiókja). Egy itt át NEM vitt mező a böngészőben `undefined`, és a kapu
+       * fail-closed — tehát a hiánya a történetet a váltás-lépésen állítaná meg.
+       */
+      switch_axis: st.switch_axis ?? null,
+      // MI TÁRJA FEL a célt (panel · választás · navigáció). A lap ebből tudja, hogy a
+      // hiányzó cél VÁRAKOZÁS-e vagy valódi megszakítás (TUR-01 · KUKA-228).
+      appears_after: st.appears_after ?? null,
+      /**
+       * KIT VÁR A VÁLTÁS, ÉS A TÖRTÉNET CÉLJÁHOZ KÖTÖTT-E A LÉPÉS (R186 §2 · `KUKA-394`).
+       *
+       * Mind a kettő a böngészőben hajt fail-closed kaput (`actorSwitchReady` · `taskDone`), tehát
+       * egy itt át NEM vitt mező `undefined` lenne, és a SAJÁT történetünket állítaná meg.
+       */
+      switch_to: st.switch_to ?? null,
+      /**
+       * A NEVEZETT REKESZ ÁTMEGY A HATÁRON (`KUKA-467` · külső review, Codex, P2).
+       *
+       * A LELET: ez a két sor `=== true`-t mért, tehát a `'invite_ref'` SZÖVEG `false`-ként
+       * érkezett a böngszőbe — a `tour.reentry` s4-e nem őrizte meg az ÚJ meghívó jelölőjét, az
+       * s8-a pedig BÁRMELY beváltott meghívót elfogadott: pontosan az a kereszt-meghívós
+       * teljesítés, amit a nevezett rekesz megelőzni hivatott (`KUKA-460`).
+       *
+       * A VÁLASZ: a határ a MOTOR feloldóját kérdezi (`storySlotOf`), tehát a nyilatkozat
+       * NORMALIZÁLT alakja megy ki (`'ref'` · `'invite_ref'`), és a nem ismert nyilatkozat
+       * `false` — zárt készlet, néma feloldás nélkül (`KUKA-236`).
+       */
+      story_bound: storySlotOf(st.story_bound) ?? false,
+      // A LEVÉL-LÉPÉS A VÁLASZTOTT MEGHÍVÓ KÉPERNYŐJÉT KÉRI (`story_ref`), a történet SAJÁT
+      // választási lépése pedig ÁTKÖTI a célt az általa létrehozott meghívóra (`story_rebind`).
+      story_ref: st.story_ref === true,
+      story_rebind: storySlotOf(st.story_rebind) ?? false,
+    })),
+    text: (dictFor(lang).TOUR || {})[id] || null,
+    /**
+     * A TÖRTÉNET VÁLASZTOTT CÉLJA — A SZERVER ADJA, A LAP NEM TALÁLJA KI (R186 §2 · AST-01).
+     *
+     * Ez a `story_data` KÉT új mezőjének a kérő-specifikus, történet-specifikus alakja: a
+     * választott meghívó stabil jelölője (`ref`) és a történetben VÁRT résztvevő (`actor`). A lap
+     * ebből köti a futást a célhoz — és egy itt át NEM vitt mező a böngészőben `undefined`, tehát
+     * a kapuk fail-closed módon zárnak (`KUKA-394`).
+     *
+     * CSAK A TÖRTÉNET-KÖTÖTT BEMUTATÓKNÁL áll, és csak ha a kapu amúgy is nyitva van — a többi
+     * útmutató payloadja VÁLTOZATLAN (`null`), tehát ez nem új általános munkafolyamat-rendszer
+     * (az R186 §2 ezt nevezetten nem kéri).
+     */
+    story: storyBindingOf(id, who),
+    };
+  }
+
+  /**
+   * A TÖRTÉNET CÉL-KÖTÉSE — a `story_data` mért tényeiből, történetre szabva (R186 §2).
+   *
+   * A HATÁR KIMONDVA: nem e-mail, nem meghívó-jegy, nem üzleti adat. A `ref` a token sha256
+   * lenyomatának első tíz jegye (`shortRef`), amiből a token nem állítható vissza; az `actor` egy
+   * alany-azonosító. Jogot egyik sem ad: a bemutató állapota nem jogosultság, a szerver saját
+   * ellenőrzése minden műveleten változatlanul lefut (`KUKA-227`).
+   */
+  function storyBindingOf(id, who) {
+    const kell = TOURS[id].requires_story_data ?? null;
+    if (!kell) return null;
+    const sd = (who && who.story_data) || null;
+    if (!sd) return null;
+    if (kell === 'pending_invite') {
+      if (sd.pending_invite !== true) return null;
+      return { kind: 'invite', ref: sd.pending_invite_ref ?? null, actor: sd.pending_invite_actor ?? null };
+    }
+    if (kell === 'other_member') {
+      if (sd.other_member !== true) return null;
+      // A VÁLASZTOTT TAG EGYBEN A VÁRT RÉSZTVEVŐ: őt vonjuk meg, őt hívjuk újra, és ő lép be.
+      return { kind: 'member', ref: sd.other_member_id ?? null, actor: sd.other_member_id ?? null };
+    }
+    // ZÁRT KÉSZLET: egy kitalált nyilatkozat NEM esik némán kötésre (`KUKA-236`).
+    return null;
+  }
+
+  /**
+   * A TÖRTÉNET INDULÓ ADATÁNAK MÉRT TÉNYEI (R176 §1 · KUKA-417) — a zárt készlet a
+   * `policy.mjs` `TOUR_STORY_DATA`-jában áll, és MINDEN kulcsot ez a feloldó ad meg.
+   */
+  /**
+   * …ÉS CSAK AKKOR SZÁMOLJUK KI, HA A KAPUK HASZNÁLHATJÁK (R176, külső review P2 · `KUKA-436`).
+   *
+   * A LELET: ez a feloldó MINDEN `/api/assistant/status` és `/api/assistant/knowledge` kérésnél
+   * lefutott — tehát a SÚGÓ megnyitásánál kétszer —, és a tagokon SORONKÉNT kérdezte a
+   * `membershipAsOf`-ot, ami tagság-, jog- és visszavonás-lekérdezéseket is indít. Egy sok történeti
+   * tagú cégben ez N+1 szinkron adatbázis-munka a kérés-szálon — akkor is, ha a bemutatók ki vannak
+   * kapcsolva, és a tényt SENKI nem tudja felhasználni.
+   *
+   * A KÉT DRÁGA TÉNYT CSAK A FOGYASZTÓIK KÉRDEZIK: a `pending_invite` és az `other_member`
+   * KIZÁRÓLAG a két átívelő történet kapujában szerepel, és MINDKETTŐ `requires_demo: true` +
+   * `requires_dev_mailbox: true`. Ha a demó-jel vagy a fejlesztői felület nincs, azokat a
+   * történeteket a kapu amúgy is ZÁRJA — a tény kiszámítása tehát nem mérhető különbséget ad,
+   * csak munkát. Az `own_personal_book` EGY lekérdezés, és a fogyasztója (`tour.personalAccount`)
+   * nem köti demóhoz — ezért az MINDIG készül.
+   *
+   * ÉS AMIT EZ NEM TESZ: jogot nem ad és kaput nem gyengít. A `tourGateOpen` nyilatkozat nélkül
+   * továbbra is ZÁR (`KUKA-236`); a `false` tény a kapura NÉZVE ugyanaz, mint a számolás
+   * eredményeként kapott `false`.
+   */
+  /**
+   * A TÖRTÉNET INDULÓ ADATÁNAK EGY ALAKJA VAN — a hiány is ezt a mezőkészletet adja (R186 §2).
+   *
+   * MIÉRT EGY HELYEN (`KUKA-394` mért leckéje): a `story_data` mezői a böngészőben FAIL-CLOSED
+   * kapukat hajtanak. Egy át nem vitt mező ott `undefined`, és a kapu a SAJÁT történetünket
+   * állítaná meg. Ha a három korai visszatérés külön-külön gépelné a mezőket, az ÚJ mező
+   * (a választott cél hivatkozása) pontosan abból az ágból maradna ki, amelyikre senki nem gondol.
+   */
+  const URES_TORTENET_ADAT = Object.freeze({
+    pending_invite: false, pending_invite_ref: null, pending_invite_actor: null,
+    other_member: false, other_member_id: null,
+  });
+  function storyDataFacts(bookId, subjectId, at, { tortenetKapu = true, kertRef = null } = {}) {
+    if (!bookId) {
+      const kor = subjectId ? (personalSpaceOf({ store, subjectId }) || null) : null;
+      return Object.freeze({ ...URES_TORTENET_ADAT,
+        own_personal_book: Boolean(kor && kor.book_id) });
+    }
+    const sajatKorElore = subjectId ? (personalSpaceOf({ store, subjectId }) || null) : null;
+    if (!tortenetKapu) {
+      return Object.freeze({ ...URES_TORTENET_ADAT,
+        own_personal_book: Boolean(sajatKorElore && sajatKorElore.book_id) });
+    }
+    /**
+     * A SORREND KIMONDOTT, MERT A VÁLASZTÁS MOST MÁR SZÁMÍT (R186 §2).
+     *
+     * Eddig csak a LÉTEZÉS kellett (`some`), tehát a sorrend érdektelen volt. Mostantól a kiszolgáló
+     * KIVÁLASZTJA a célt, és a történet ehhez kötődik — ha a sorrend a tár hangulatára volna bízva,
+     * két egyformán jogosult meghívó mellett UGYANAZ a kérés MÁS célt adhatna vissza, és a
+     * böngésző-próba nem volna reprodukálható (`KUKA-127`: a mérés ne a saját véletlenét mérje).
+     *
+     * A RENDEZŐ KULCS MÉRT, NEM KITALÁLT: a `invite` táblának NINCS `created_at` oszlopa (mérve:
+     * `v3ref/store.mjs` — token · book_id · invitee_* · offered_role · issuer_subject · expires_at ·
+     * redeemed_at), ezért a lejárat rendez (azonos élettartam mellett ez a kiállítás sorrendje), és
+     * a token a DÖNTŐ a holtversenyre. A választás így a LEGRÉGEBBI jogosult meghívó — az, amelyik a
+     * listában is elöl áll.
+     */
+    const rows = store.all('SELECT token, redeemed_at, expires_at, offered_role, invitee_namespace, invitee_value'
+      /**
+       * A LEGFRISSEBBEN KIADOTT ALKALMAS MEGHÍVÓ A CÉL — ÉS EZ NEM ÍZLÉS (R186 §5, külső review P2).
+       *
+       * A LELET: a sorrend eddig a LEGKORÁBBAN LEJÁRÓ-t választotta. KÉT függő meghívó mellett a
+       * történet a régebbit vonta vissza, a 13. lépésen kiállított ÚJ meghívó után viszont a
+       * kiszolgáló újra a megmaradt RÉGEBBIT választotta — tehát az átkötés hitelesítője MÁS
+       * meghívóra mutatott, mint amit a lépés létrehozott, és a bemutató a HELYES művelet után
+       * akadt el. Ez a `KUKA-394` osztálya: a SAJÁT javításom (`KUKA-456`) zárta el a legitim utat.
+       *
+       * A VÁLASZ: a meghívó lejárata a KIADÁSKOR, fix ablakkal áll be, tehát a LEGKÉSŐBB lejáró
+       * egyben a LEGFRISSEBBEN kiadott. A rendezés ezért `expires_at DESC` — ugyanolyan
+       * reprodukálható, mint a korábbi, de a történet SAJÁT új meghívóját választja. És a más
+       * emberre szóló új meghívó továbbra sem kötődik át: ott a VÁRT RÉSZTVEVŐ nem egyezik.
+       */
+      + ' FROM invite WHERE book_id = ? ORDER BY expires_at DESC, token', bookId);
+    /**
+     * ÉS A FELKÍNÁLÁS A VISSZAVONHATÓSÁGOT IS MEGKÍVÁNJA (R176, külső review P2 · `KUKA-437`).
+     *
+     * A LELET: a `KUKA-431`-ben a lista `revocable` jelzőjét a SZEREP-PLAFONHOZ kötöttem — de a
+     * TÖRTÉNET előfeltételét nem. Egy szűkebb plafonú, delegált kezelőnél tehát a plafonon túli
+     * ajánlat `pending_invite`-ot adott, a `tour.inviteRevoke` felkínálódott — a soron viszont NINCS
+     * visszavonás-gomb, tehát az `invite.revoked` feladat SOHA nem teljesülhet.
+     *
+     * UGYANAZ A LECKE, HARMADSZOR: a javítás hatókörét a hiba-osztály adja, nem a lelet sorszáma
+     * (`KUKA-418`) — és a felkínálás a VÉGIGVIHETŐSÉG állítása (`KUKA-417` · `KUKA-421` ·
+     * `KUKA-429` · `KUKA-430` · `KUKA-431`). A döntés UGYANAZ az írásmentes feloldó, amit a lista
+     * és az írás-út is kérdez (`delegationCeilingOf`), és EGYSZER kérdezzük meg, nem soronként.
+     */
+    /**
+     * ÉS A VÉGREHAJTHATÓ HATÁSKÖR IS A FELKÍNÁLÁS FELTÉTELE (`KUKA-469` · külső review, Codex, P2).
+     *
+     * A LELET: a plafon (`delegationCeilingOf`) a DELEGÁLÁS alapját méri — milyen szerepet és milyen
+     * adatkört adhat tovább a kezelő. A két TÖRTÉNET első feladat-lépése viszont MEGVONÁS
+     * (`revokeInvite` · `revokeMembership`), és MINDKETTő **`alter_right`** hatáskört kíván: egy
+     * `admin` szerepű, érvényes plafonú delegált kezelő tehát megkaphatta a felkínálást, és az
+     * első művelet `authority_not_established`-del utasította volna el — a történet a saját
+     * első lépésén áll meg.
+     *
+     * KILENCEDSZER UGYANAZ A LECKE (`KUKA-417` · `421` · `429` · `430` · `431` · `437` · `442` ·
+     * `454` · `455`): a felkínálás a VÉGIGVIHETŐSÉG állítása, és a feltétele a LEGSZŰKEBB
+     * későbbi kapu — UGYANABBÓL a feloldóból, amit az írás-út kérdez (`executableRightAt`,
+     * `operation: 'alter_right'`), és UGYANAZOKKAL a bemenetekkel (a kiszolgáló az írás-úton sem
+     * ad `credentials`-t). EGYSZER kérdezzük meg, nem soronként (`KUKA-436`).
+     */
+    const vegrehajthatoJog = executableRightAt({ store, subjectId, bookId, operation: 'alter_right', nowIso: at });
+    const jogAVegrehajtasra = vegrehajthatoJog && vegrehajthatoJog.ok === true;
+    const plafon = delegationCeilingOf({ store, subjectId, bookId, at });
+    const plafonRoles = plafon && plafon.ok && Array.isArray(plafon.roles) ? plafon.roles : [];
+    const plafonScopes = plafon && plafon.ok && Array.isArray(plafon.scopes) ? plafon.scopes : [];
+    /**
+     * A TÖRTÉNET ÁLTAL KIADOTT ADATKÖR A REGISZTERBŐL JÖN, NEM A KÓDBÓL (`KUKA-016` · `KUKA-221`).
+     *
+     * A `tour.reentry` maga deklarálja (`story_scope`), hogy a tanulsága melyik adatkör kiadásán
+     * fordul meg — a felkínálás ezt méri a kezelő plafonjához. Nyilatkozat nélkül ZÁR (`KUKA-236`):
+     * egy kitalált vagy hiányzó mező nem eshet némán „jó lesz"-re.
+     */
+    const tortenetKor = (TOURS['tour.reentry'] && TOURS['tour.reentry'].story_scope) || null;
+    /**
+     * ÉS A TÖRTÉNETHEZ A LEVÉL IS KELL (R176, külső review P2 — `KUKA-429`).
+     *
+     * A LELET: a `pending_invite` tény eddig CSAK a tár sorát kérdezte. A `tour.inviteRevoke`
+     * viszont a MEGHÍVÓ LEVELÉT is megnyitja (s7–s9), a fejlesztői levél-fogadó pedig MEMÓRIÁBAN
+     * él: egy folyamat-újraindítás után a tárban ott a függő meghívó, a fogadó viszont ÜRES — a
+     * történet tehát felkínálódott, és az `invite-observe` lépésen `targetMissing`-gel megszakadt.
+     * A felkínálás a VÉGIGVIHETŐSÉGRŐL szól (`KUKA-417` · `KUKA-421` ugyanaz a lecke, egy réteggel
+     * kijjebb), ezért a tény mostantól a LEVELET is megkívánja — a jegy a levél hivatkozásában áll.
+     */
+    /**
+     * ════════════════════════════════════════════════════════════════════════════════════════════
+     * A TÖRTÉNET CÉLJÁT A KISZOLGÁLÓ VÁLASZTJA KI, ÉS A HIVATKOZÁSÁT IS ÁTADJA (R186 §2)
+     * ════════════════════════════════════════════════════════════════════════════════════════════
+     *
+     * A LELET (külső review, Codex, R176 — P2 · a jelentés 7.5/c pontja): a `pending_invite` tény
+     * azt bizonyította, hogy VAN visszavonható, plafonon belüli, levéllel bíró függő meghívó — az
+     * AZONOSSÁGÁT viszont eldobta. A `tour.inviteRevoke` három lépése (s3–s5) az ÁLTALÁNOS
+     * `invites-table`-re mutat, a `doRevokeInvite` BÁRMELYIK sikeres visszavonásra készre
+     * könyvelte az `invite.revoked` feladatot, a levél-fogadó pedig MINDEN levelet kilistáz. KÉT
+     * függő meghívó mellett tehát a néző az EGYIKET vonja vissza, a bemutató viszont a MÁSIK, még
+     * ÉLŐ levelet nyitja meg — és azt állítja róla, hogy a visszavont meghívó.
+     *
+     * AZ R186 §2 DÖNTÖTT: *„Indításkor vagy a történet saját, egyértelmű választási lépésében
+     * azonosítsd az alkalmas célt, őrizd meg annak stabil hivatkozását."* Ez a kiválasztás.
+     *
+     * ÉS AMIT AZ R186 §2 NEVEZETTEN ELVETETT: a felkínálás SZŰKÍTÉSÉT („csak ha MINDEN másik tag
+     * alkalmas"). Ezért a tény továbbra is EGY alkalmas célt kér (`find`, nem `every`): *„egy nem
+     * érintett, alkalmatlan tag ne tegye elérhetetlenné a legitim bemutatót."*
+     *
+     * A JEGY NEM MEGY KI: a hivatkozás a token sha256-lenyomatának első tíz jegye (`shortRef`),
+     * amiből a token NEM állítható vissza — a beváltás a TELJES tokenhez kötött. Tehát a bemutató
+     * állapota nem jegy, és nem is jogosultság: a szerver saját ellenőrzése minden műveleten
+     * változatlanul lefut (`KUKA-227`).
+     */
+    const meghivoCimzettje = (r) => (r.invitee_namespace === 'email'
+      ? (subjectByEmail(store, r.invitee_value) || null)
+      : null);
+    /**
+     * …ÉS A CÍMZETTNEK AZONOSÍTHATÓNAK KELL LENNIE (HETEDSZER UGYANAZ A LECKE).
+     *
+     * A felkínálás a VÉGIGVIHETŐSÉG állítása (`KUKA-417` · `421` · `429` · `430` · `431` · `437` ·
+     * `442`). A két szereplős történet a MEGHÍVOTT belépésével folytatódik, és az R186 §2 kimondja,
+     * hogy a személyváltás CSAK a várt résztvevőnél teljesülhet. Egy olyan meghívó tehát, aminek a
+     * címzettje még nem azonosítható alanyként, NEM alkalmas cél: a váltás-kapu nem tudná mihez
+     * mérni a belépőt, és a történet a saját fail-closed kapujában állna meg (`KUKA-394`).
+     */
+    /**
+     * …ÉS AZ „AZONOSÍTHATÓ" NEM ELÉG: A CSATORNÁT BIZONYÍTANI KELL (R186 §5, külső review P2).
+     *
+     * A LELET, SZÓ SZERINT MÉRVE A MAGON: a `subjectByEmail` AKKOR IS ad alanyt, ha az ember
+     * regisztrált, de a MEGHÍVOTT címét még nem igazolta — a megfigyelés viszont
+     * `hasProvenChannel`-t kér, és enélkül `needs_invitee_identity`-t ad. Ekkor a válasz jelölőt
+     * SEM visz (ez a határ szándékos, `KUKA-084`), tehát a levél-lépés `story_ref` kapuja
+     * `storyTargetMismatch`-csel megállítja a történetet — a bemutató a saját fail-closed kapujában
+     * akad el, egy LEGITIM állapot mellett (`KUKA-394`).
+     *
+     * NYOLCADSZOR UGYANAZ A LECKE: a felkínálás a VÉGIGVIHETŐSÉG állítása, és a feltételt nem
+     * közelítjük, hanem UGYANAZT a feloldót kérdezzük, amit a fogyasztó út (`KUKA-417` · `421` ·
+     * `429` · `430` · `431` · `437` · `442`).
+     */
+    const cimzettBizonyitott = (r) => {
+      const cimzett = meghivoCimzettje(r);
+      return Boolean(cimzett) && hasProvenChannel(store, cimzett, r.invitee_namespace, r.invitee_value);
+    };
+    const alkalmasMeghivo = (r) => !r.redeemed_at
+      && Date.parse(r.expires_at) > Date.parse(at)
+      && plafonRoles.includes(r.offered_role)
+      && !inviteRevocationAt({ store, token: r.token, nowIso: at }).revoked
+      && mailbox.some((m) => String(m.link || '').includes(r.token))
+      && cimzettBizonyitott(r);
+    /**
+     * A KÉRT CÉL ELŐNYT KAP — DE CSAK AZ ALKALMASAK KÖZÜL (`KUKA-468` · külső review, Codex, P2).
+     *
+     * A LELET: a 13. lépés ÁTKÖTÉSE a kiszolgáló saját választásához kötött (`KUKA-456`), a
+     * választás viszont a KÖNYV GLOBÁLIS állapotából történt („a legfrissebben kiadott alkalmas"
+     * — `KUKA-461`). Két egyformán lejáró meghívó mellett (a lejárat a kiadás pillanatából,
+     * MILLISZEKUNDUM felbontással számol, és a bemutató-világban FIX) a holtversenyt a token
+     * dönti el — tehát a kiszolgáló a HELYES művelet után is MÁS sorra köthet, a `taskDone`
+     * pedig a nem egyező `auth.ref` miatt elutasítja a ténylegesen elvégzett lépést. Ugyanez áll,
+     * ha közben EGY HARMADIK alkalmas meghívó áll ki. Ez a `KUKA-394` osztálya ötödször: a saját
+     * kapum zárja el a legitim utat.
+     *
+     * A VÁLASZ: a kérés MEGNEVEZHETI, melyik célra kéri a kötést (`story_ref`) — és ez NEM
+     * felhatalmazás: a megnevezett sor UGYANAZON az alkalmassági szűrőn megy át, a könyv a
+     * kérés saját nézetéből jön, és a nem alkalmas (vagy nem létező) név esetén a válasz
+     * BETŰRE a mai: a determinisztikus sorrend első alkalmasa. Tehát nincs új megkülönböztetés
+     * (`KUKA-084`), és nincs néma feloldás sem.
+     */
+    const kertSor = kertRef
+      ? (rows.find((r) => shortRef(r.token) === kertRef && alkalmasMeghivo(r)) || null)
+      : null;
+    const valasztottMeghivo = kertSor || rows.find(alkalmasMeghivo) || null;
+    const pendingInvite = Boolean(valasztottMeghivo);
+    /**
+     * A TAGSÁG TÉNYÉT A KANONIKUS FELOLDÓ DÖNTI EL (R176, külső review P2 — `KUKA-421`).
+     *
+     * A LELET: az első alakom NYERS sor-feltételt használt (`revoked_at IS NULL`), a tagok LAPJA
+     * viszont a `membershipAsOf`-ból vezeti le a `effective` tényt, és a `member-revoke` horgonyt
+     * CSAK hatályos tagnál rajzolja ki. Egy felfüggesztett (nem hatályos) tag mellett tehát a
+     * felkínálás igaz lett, a történet pedig a harmadik lépésén megszakadt volna — a `KUKA-417`
+     * saját leckéje (a felkínálás a VÉGIGVIHETŐSÉGRŐL szól) a saját új kapumban.
+     *
+     * EGY FOGALOM, EGY OTTHON (`KUKA-003` · `KUKA-039`): ugyanazt a döntést kérdezzük, amit a lap.
+     */
+    /**
+     * ÉS A JELÖLTET ÚJRA IS MEG KELL TUDNI HÍVNI (R176, külső review P2 · `KUKA-442`).
+     *
+     * A LELET: a `tour.reentry` története a másik tagot a `s3`-on MEGSZÜNTETI, a `s4`-en pedig
+     * ÚJRA MEGHÍVJA. A `membershipAsOf` viszont csak a TAGSÁGI időszakot nézi — egy élő
+     * FELFÜGGESZTÉS vagy alkalmazandó KITILTÁS mellett a tag „hatályos", a `reinviteMember`
+     * viszont `reentry_blocked_suspension` / `reentry_blocked_ban` okkal elutasít. A történet tehát
+     * felkínálódott, és a NEGYEDIK lépésén nevezetten elakadt volna.
+     *
+     * A VÁLASZ UGYANAZ, MINT A `KUKA-421`/`437`-nél: ugyanazt az ÍRÁSMENTES feloldót kérdezzük,
+     * amit az ÍRÁS-ÚT (`reentryExclusionsAt`). A `closed: null`-lal a LEZÁRÁSHOZ kötött két ág
+     * (visszamenőleges érvénytelenség · nyitott felülvizsgálati kör) kimarad — azokat a lépés
+     * saját megvonása hozná létre, tehát ELŐRE nem is ismerhetők —, a SZEMÉLYHEZ kötött két ág
+     * (felfüggesztés · kitiltás) viszont pontosan az, amit a lelet megnevez. A hatókört tehát
+     * KIMONDOM: ez a jelölt SZEMÉLY-oldali alkalmasságát méri, nem a jövőbeli lezárásét.
+     *
+     * ÖTÖDSZÖR UGYANAZ A LECKE: a felkínálás a VÉGIGVIHETŐSÉG állítása (`KUKA-417` · `421` ·
+     * `429` · `430` · `431` · `437`).
+     */
+    /**
+     * ÉS A VISSZATÉRÉS-TÖRTÉNET IS A VÁLASZTOTT TAGOT KÖVETI (R186 §2).
+     *
+     * A LELET (külső review, Codex, R176 — P2 · a jelentés 7.5/b pontja): a `.some()` azt
+     * bizonyította, hogy VALAMELYIK másik hatályos tag alkalmas az újbóli meghívásra — a bemutató
+     * viszont nem kötötte magát AHHOZ a taghoz, tehát a néző egy MÁSIK, nem alkalmas tagon is
+     * elvégezhette a megvonást, és a negyedik lépésen elakadt.
+     *
+     * AZ R186 §2 A KÉSZEN ÁLLT, EGY-FELTÉTELES JAVÍTÁST NEVEZETTEN ELVETETTE (azt, amelyik MINDEN
+     * másik hatályos tagtól alkalmasságot kért volna — a tiltott alakot a `KUKA-447` mintája
+     * nevezi meg; itt SZÁNDÉKOSAN nem írjuk le másodszor, mert a tiltó-minta a FORRÁS-SZÖVEGET
+     * számolja, és egy megjegyzés is kielégítené — ez a `KUKA-436` mért leckéje).
+     * Ezért itt is a CÉL KÖTÉSE áll: a kiszolgáló kiválasztja az ELSŐ alkalmas tagot (rendezetten,
+     * tehát reprodukálhatóan), és a hivatkozását átadja — a felkínálás pedig továbbra is EGY
+     * alkalmas tagot kér, nem mindet.
+     */
+    const alkalmasTag = store.all('SELECT subject_id, role FROM membership WHERE book_id = ? ORDER BY subject_id', bookId)
+      .filter((m) => m.subject_id !== subjectId)
+      .find((m) => {
+        const t = membershipAsOf({ store, subjectId: m.subject_id, bookId, validAt: at, knownAt: at });
+        if (!(t && t.effective === true)) return false;
+        const ujra = reentryExclusionsAt({ store, subjectId: m.subject_id, bookId, closed: null, nowIso: at });
+        if (ujra.ok !== true) return false;
+        /**
+         * ÉS A PLAFON IS A VÉGIGVIHETŐSÉG RÉSZE (R186 §5, külső review P2).
+         *
+         * A LELET: egy DELEGÁLT kezelő plafonja kizárhatja a tag MAI szerepét vagy a történet
+         * által kiadott adatkört. A felkínálás ezt nem kérdezte, tehát a kezelő elvégezhette a
+         * MEGVONÓ lépést, és az újbóli meghívás `outside_basis_roles`/`outside_basis_scopes`
+         * okkal utasított el — vagy a későbbi jogadás nem sikerült. Ugyanaz a sorrend-kár, mint a
+         * `KUKA-455`-nél: a megszakadás a visszafordíthatatlan lépés UTÁN jön.
+         *
+         * A PLAFON MÁR KI VAN SZÁMOLVA (`KUKA-436`): soronkénti újraszámolás nincs.
+         */
+        if (!plafonRoles.includes(m.role)) return false;
+        if (!tortenetKor || !plafonScopes.includes(tortenetKor)) return false;
+        /**
+         * ÉS AZ ÚJBÓLI MEGHÍVÁSNAK CÍME IS KELL — PONTOSAN EGY (R186 §5, külső review P2).
+         *
+         * A LELET: a `reinviteMember` a CÍMET a személy tárolt tényéből veszi, és pontosan EGY élő
+         * e-mail azonosságot kíván (`addressOfSubject`; nulla és kettő is `null`-t ad) — különben
+         * `reentry_target_has_no_address`. A felkínálás ezt nem kérdezte, tehát egy lezárt című vagy
+         * két élő címmel bíró tagra is felkínálódott a történet. ÉS EZ A ROSSZABB FAJTA: a
+         * megszakadás a HARMADIK, MEGVONÓ lépés UTÁN jön — a tagság már megszűnt, az újbóli
+         * meghívás pedig nem indul el.
+         */
+        /**
+         * ÉS A JELÖLT CÍMÉNEK BIZONYÍTOTTNAK IS KELL LENNIE (R186 §5, külső review P2).
+         *
+         * A LELET: egy hatályos tag EGYETLEN élő címéhez tartozhat úgy, hogy `channel_proof` sor
+         * NINCS rá (importált vagy megváltozott azonosság után). Ilyenkor az `addressOfSubject`
+         * IGAZ, tehát a történet felkínálódott: a kezelő elvégezte a MEGVONÓ lépést, az újbóli
+         * meghívás is sikerült — a megfigyelés viszont `needs_invitee_identity`-vel utasítja el,
+         * tehát a meghívott SOHA nem ér el az elfogadás-lépésig. UGYANAZ a feltétel kell ide, amit
+         * a függő meghívó jelöltjénél már kérünk (`KUKA-454`) — és ugyanaz a sorrend-kár, mint a
+         * `KUKA-455`/`459`-nél: a megszakadás a visszafordíthatatlan lépés UTÁN jön.
+         */
+        const tagCim = addressOfSubject(store, m.subject_id);
+        if (!tagCim) return false;
+        if (!hasProvenChannel(store, m.subject_id, 'email', tagCim)) return false;
+        return true;
+      }) || null;
+    const otherMember = Boolean(alkalmasTag);
+    /**
+     * ÉS A SAJÁT SZEMÉLYES KÖR LÉTE IS INDULÓ ADAT (R176, külső review P2 — `KUKA-430`).
+     *
+     * A LELET: a `tour.personalAccount` minden belépettnek felkínálódott, és azt MONDJA, hogy a
+     * személyes fiók már létezik és kiválasztható. Egy MEG NEM ERŐSÍTETT című embernél viszont az
+     * `ensurePersonal` nem hoz létre személyes kört (`provenEmailOf` nélkül `null`), tehát a
+     * fiókválasztóban nincs mit választani — az útmutató olyat állított, ami nem igaz.
+     */
+    /**
+     * A KÉT ROMBOLÓ TÖRTÉNET JELÖLTJE EGY KAPUN MEGY ÁT (`KUKA-469`): hatáskör nélkül NINCS cél,
+     * tehát a jelölő és a várt résztvevő is `null` — egy helyen, négy mezőre (`KUKA-003`).
+     * A `own_personal_book` SZÁNDÉKOSAN kimarad: az nem megvonással kezdődő történet.
+     */
+    const celMeghivo = jogAVegrehajtasra ? valasztottMeghivo : null;
+    const celTag = jogAVegrehajtasra ? alkalmasTag : null;
+    return Object.freeze({
+      pending_invite: Boolean(celMeghivo),
+      // A VÁLASZTOTT CÉL STABIL HIVATKOZÁSA — ugyanaz a jelölő, amit a meghívó-lista sora visel
+      // (`KUKA-018`: egy fogalomnak egy otthona van), tehát a felület és a történet UGYANARRA mutat.
+      pending_invite_ref: celMeghivo ? shortRef(celMeghivo.token) : null,
+      // ÉS A TÖRTÉNETBEN VÁRT RÉSZTVEVŐ — a személyváltás kapuja EHHEZ mér (R186 §2). Alany-azonosító,
+      // nem e-mail és nem üzleti adat; a kiadó pedig az a kezelő, aki a meghívót maga állította ki.
+      pending_invite_actor: celMeghivo ? meghivoCimzettje(celMeghivo) : null,
+      other_member: Boolean(celTag),
+      other_member_id: celTag ? celTag.subject_id : null,
+      own_personal_book: Boolean(sajatKorElore && sajatKorElore.book_id),
+    });
+  }
+
+  function requesterContext(session, cur, opts = {}) {
     const bookId = cur && cur.book_id ? cur.book_id : null;
     const at = clock.now();
     const ws = bookId ? workspacesOf({ store, subjectId: session.subject_id, at }).find((w) => w.book_id === bookId) : null;
+    // A DEMÓ-JEL EGY HELYEN OLVASÓDIK (`KUKA-003` · `KUKA-039`), és KETTŐ fogyasztója van: a ctx
+    // `demo` mezője és a történet-induló adat kiszámításának kapuja (`KUKA-436`). A gépi jel az
+    // (u6) mérce: egy MÁSODIK környezeti olvasás PIROSRA váltja — és a mérce a FORRÁS-SZÖVEGET
+    // számolja, tehát a jel nevét még megjegyzésben sem írjuk le másodszor.
+    const demoJel = String(process.env.VS_DEMO || '').trim() === '1';
     return Object.freeze({
       signed_in: Boolean(session.subject_id),
       subject_id: session.subject_id ?? null,
       // VAN-E MEGHÍVÁS-KONTEXTUS (P109-01, R109). A meghívó-képernyőhöz kötött bemutatót csak így
       // kínáljuk fel: a tényt a MAG mondja meg (`resumeIntent` a `pending_intent` soron), nem a
       // böngésző feltevése — és NEM a meghívó tartalma, tehát védett adat nem szivárog ki vele.
-      invite_context: Boolean(resumeIntent({ store, sessionId: session.id })),
+      invite_context: Boolean(session.transient ? null : folytatasa(session.id)),
       // A BEMUTATÓ-KÖRNYEZET (R140 — ACT-01). A doktrína három környezetet nevez meg
       // (production · staging · demo); a `demo` az, ahol a bemutató-szereplők munkamenete
       // együtt elérhető, és csak ott kínálunk fel KÉT ÉLŐ MUNKAMENETET igénylő végigvezetést.
       // A jel KÖRNYEZETI, nem kérésből jövő: egy kérés nem állíthatja magáról, hogy bemutató.
-      demo: String(process.env.VS_DEMO || '').trim() === '1',
+      demo: demoJel,
+      // A FELÜLET HORGONYAI (R164/3). A kérés a felületét NEVEZI MEG, a készletet a kiszolgáló MÉRI
+      // a lap fájljából — így a felkínálás a VEZÉRLŐ létéhez kötött, nem a környezet jeléhez.
+      surface_anchors: surfaceAnchors(opts.surface),
+      /**
+       * A FEJLESZTŐI LEVÉL-FOGADÓ LÉTE (R166, külső review, Codex, P2).
+       *
+       * A LELET: a megerősítés és a Próbaüzenetek útmutatója a `demo-mail-open`/`mailbox` pontokra
+       * áll, azok viszont a `devSurface` kapcsoló mögött élnek. Telepített környezetben (staging ·
+       * production) a `/dev/mailbox` 404-et ad, a panel a tiltó figyelmeztetést rajzolja, és a
+       * `mailbox` cél NEM létezik — az útmutató tehát ott NEVEZETTEN megszakadt volna. Amit nem
+       * lehet végigvinni, azt nem kínáljuk fel (KUKA-391 · KUKA-232).
+       */
+      dev_mailbox: devSurface === true,
+      /**
+       * A KÉSZLET-ADATKÖR ÉLŐ VERDIKTJE (R166, külső review, Codex, P2).
+       *
+       * A LELET: a tagság NEM jog. A két készlet-nézet útmutatója a megnyíló TÁBLÁRA áll, a tábla
+       * viszont csak kiadott `keszlet` adatkörrel rajzol — egy soha nem kapott vagy visszavont
+       * engedély mellett az útmutató azonnal megszakadt volna. A felkínálás ezért UGYANAZON a
+       * döntésen áll, mint a lap: a MAG válasza a minta-készlet olvasására (nem a tagság, és nem a
+       * felirat — KUKA-227: a határ zöldje nem a felület zöldje).
+       */
+      stock_access: Boolean(bookId && session.subject_id
+        && sampleReadable(bookId, session.subject_id, 'minta-keszlet')),
+      /**
+       * A BEMUTATÓ-MINTA ÉLŐ TÉNYE (R166, külső review, Codex, P2 · KUKA-413).
+       *
+       * A LELET: a mintából KETTŐ van, tehát egy létrehozó HARMADIK vállalkozásánál nincs kiosztva —
+       * a tábla-lap az ÜRES ÁLLAPOTOT rajzolja, és a `list-rows`/`list-search` SOHA nem jön létre.
+       * A három tábla-útmutató mégis minden céges tagnak felkínálódott. A tényt a KISZOLGÁLÓ méri a
+       * kiosztás-táblából, nem a tagságból és nem a feliratból.
+       */
+      demo_fixture: Boolean(bookId && demoFixtureOf(bookId)),
+      /**
+       * A TÖRTÉNET INDULÓ ADATA (R176 §1 — SAJÁT LELET, a kötelező kapu mérte · KUKA-417).
+       *
+       * A két átívelő történet NEM a nulláról indul: a visszavonás egy FÜGGŐ meghívást, a
+       * visszatérés egy MÁSIK tagot kér. A tényt a kiszolgáló a TÁRBÓL méri — a függő állapot
+       * precedenciája ugyanaz, mint a meghívó-listában (visszavont > elfogadott > lejárt > függő,
+       * `KUKA-018`: egy fogalomnak egy otthona van).
+       */
+      story_data: storyDataFacts(bookId, session.subject_id, clock.now(),
+        { tortenetKapu: demoJel && devSurface === true, kertRef: opts.storyRef ?? null }),
+
       book_id: bookId,
       member: Boolean(ws),
       role: ws ? ws.role : null,
@@ -944,17 +2429,58 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       return { status: ok ? 200 : 400, html };
     },
 
-    'POST /api/login': ({ session, input }) => {
+    'POST /api/login': ({ session, input, pinToken }) => {
       const r = authenticate({ store, email: input.email, secret: input.password });
       if (!r.ok) return { status: 401, body: { ok: false, reason: r.reason, message: 'a belépés nem sikerült — ellenőrizd a címet és a jelszót' } };
       // A FÜGGŐ MEGHÍVÓ-SZÁNDÉK A RÉGI munkamenet-azonosítón áll — átvisszük az ÚJRA (K03).
-      const pending = resumeIntent({ store, sessionId: session.id });
-      const fresh = newSession();                       // ROTÁLT azonosító
-      fresh.subject_id = r.subject_id;
-      sessions.delete(session.id);
+      // ÁTMENETI munkamenetnek nincs azonosítója, tehát függő szándéka sem lehet (SES-04).
+      const pending = session.transient ? null : folytatasa(session.id);
+      // A SAJÁT RÉGI SOR ELŐBB MEGY, AZTÁN JÖN AZ ÚJ (F154-12). A korábbi sorrend ELŐBB szúrt be:
+      // telt táron ez IDEGEN belépett munkamenetet szorított ki, a saját régi sor törlése pedig
+      // utána mégis felszabadított egy helyet — tehát egy embert feleslegesen léptettünk ki.
+      if (!session.transient) sessions.delete(session.id);
+      const fresh = newSession(r.subject_id, pinToken);  // ROTÁLT azonosító, BELÉPETTEN születik, a kérés idejére védve
+      /**
+       * A FELVÉTEL MEGHIÚSULHAT, ÉS AKKOR NEM ADUNK SÜTIT (F154-35). Ha a tár telt, és minden sort épp
+       * kiszolgálunk, a rotált sor nem kerül be — ilyenkor a belépés NEVEZETTEN nem sikerül, mert egy
+       * „sikeres" belépés egy nem létező munkamenettel a következő kérésnél kiléptetéssel végződne
+       * (KUKA-305). A régi sort már töröltük: a hívó ettől nem lesz rosszabb helyzetben, mint
+       * belépés előtt, és a `pending_intent` sorát sem visszük át egy nem létező munkamenetre.
+       */
+      if (!sessions.has(fresh.id)) {
+        /**
+         * ÉS A 503 ÁGON VISSZAÁLLÍTJUK, AMIT LEBONTOTTUNK (R166, KÜLSŐ REVIEW, Codex, P2 · KUKA-408).
+         *
+         * A LELET: a fenti megjegyzés azt állította, hogy „a hívó ettől nem lesz rosszabb
+         * helyzetben, mint belépés előtt". A FÜGGŐ MEGHÍVÓ-SZÁNDÉKRA EZ NEM IGAZ: a `delete` a
+         * `pending_intent` sort is elvitte (KUKA-388), a jegy pedig a NORMÁL úton csak a
+         * SZERVEREN létezik — a címsorban nincs. Egy telt tárból jövő 503 után tehát az
+         * újrapróbálás már NEM tudta folytatni a meghívást: a szándék némán elveszett.
+         *
+         * MOSTANTÓL a nemleges ág helyreállít: a régi sor visszakerül a tárba a SAJÁT azonosítóján
+         * (a hívó sütije arra mutat), és a függő szándék is újraíródik rá. Ha a visszavétel is
+         * elbukik (a tár tényleg telt), azt KIMONDJUK a válaszban — nem hallgatjuk el (KUKA-050).
+         */
+        let helyreallt = true;
+        if (!session.transient) {
+          sessions.set(session.id, session);
+          helyreallt = sessions.has(session.id);
+          if (helyreallt && pending) {
+            rememberIntent({ store, sessionId: session.id, token: pending, clock });
+            sessions.markIntent(session.id);
+          }
+        }
+        return { status: 503, body: { ok: false, reason: 'at_capacity', refused_by: 'session_store',
+          intent_preserved: pending ? helyreallt : null,
+          message: helyreallt
+            ? 'a munkamenet-tár megtelt, és minden munkamenetet épp kiszolgálunk — próbáld újra pár másodperc múlva'
+            : 'a munkamenet-tár megtelt, és a korábbi munkamenetet sem sikerült visszavenni — nyisd meg újra a hivatkozást' } };
+      }
       if (pending) {
         rememberIntent({ store, sessionId: fresh.id, token: pending, clock });
         store.run('DELETE FROM pending_intent WHERE session_id = ?', session.id);
+        // A RÉGI, NÉVTELEN sor szándéka megszűnt; a friss sor BELÉPETT, azt az index nem jegyzi.
+        sessions.clearIntent(session.id);
       }
       // A KORÁBBAN megerősített fiókok is megkapják a személyes körüket — idempotens (SZK-01).
       const personal = ensurePersonal(r.subject_id);
@@ -962,10 +2488,16 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       return { status: 200, body: { ok: true, subject_id: r.subject_id, pending_invite_token: pending || null, personal_book_id: personal ? personal.book_id : null }, setCookie: sessionCookie(fresh.id), session: fresh };
     },
 
+    /**
+     * A KILÉPÉS NEM NYIT ÚJ SORT (SES-04). A korábbi alak azonnal létrehozott egy friss NÉVTELEN
+     * munkamenetet, és sütit is adott rá — vagyis a kilépés maga is terhelte a tárat. Mostantól a
+     * kilépés TÖRLI a sort és a SÜTIT: a következő kérés átmeneti munkamenetet kap, és ha állapot
+     * kell neki, akkor nyit sort.
+     */
     'POST /api/logout': ({ session }) => {
+      if (session.transient) return { status: 200, body: { ok: true } };
       sessions.delete(session.id);
-      const fresh = newSession();
-      return { status: 200, body: { ok: true }, setCookie: sessionCookie(fresh.id), session: fresh };
+      return { status: 200, body: { ok: true }, setCookie: clearSessionCookie({ secure: IS_DEPLOYED }) };
     },
 
     'GET /api/me': ({ session }) => {
@@ -1113,6 +2645,10 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       const gate = adminGate(session, cur.book_id);
       if (!gate.ok) return { status: gate.status, body: { ok: false, reason: gate.reason, message: gate.message } };
       const at = clock.now();
+      // A VÉGREHAJTHATÓ HATÁSKÖR EGYSZER, A LISTA ELŐTT (`KUKA-473` · `KUKA-436`): a tagság-
+      // megvonás és az újbóli meghívás is `alter_right`-ot kíván, és ezt NEM soronként kérdezzük.
+      const tagJog = executableRightAt({ store, subjectId: session.subject_id, bookId: cur.book_id, operation: 'alter_right', nowIso: at });
+      const tagMegvonasJog = tagJog && tagJog.ok === true;
       const rows = store.all('SELECT subject_id, role FROM membership WHERE book_id = ? ORDER BY granted_at, subject_id', cur.book_id);
       const members = rows.map((row) => {
         const m = membershipAsOf({ store, subjectId: row.subject_id, bookId: cur.book_id, validAt: at, knownAt: at });
@@ -1142,13 +2678,64 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
         const closed = m.effective === true
           ? { ok: false, reason: 'membership_is_open' }
           : closedMembershipPeriodOf({ store, subjectId: row.subject_id, bookId: cur.book_id, at });
+        /**
+         * AZ AJÁNLÁS AZ ÍRÁS-ÚT SAJÁT FELTÉTELÉT KÉRDEZI (R186 §5, külső review P2).
+         *
+         * A LELET: a `reinvitable` EGYETLEN feltételt mért (van-e lezárt időszak), a `reinviteMember`
+         * viszont NÉGY továbbit is — kizárások, időrend, PLAFON, tárolt CÍM. A felület ezért
+         * ENGEDÉLYEZETT gombot rajzolt olyan soron, amin az írás-út nevezetten elutasít. Most
+         * ugyanazt a feloldót kérdezzük, és a nemleges válasz NEVE is az írás-útról jön, hogy a sor
+         * a VALÓDI okot mondhassa (`KUKA-011` · `KUKA-041` · `KUKA-201`).
+         *
+         * A `removed_at` MARAD a lezárt időszakból: az egy TÉNY a tagságról, nem ajánlás — ha a
+         * kizárás zár, a dátumot akkor sem rejtjük el (`KUKA-002`: két külön tény, két külön név).
+         */
+        const ujrahivas = closed.ok !== true
+          ? { ok: false, reason: closed.reason }
+          : reinviteFeasibility({ store, deciderSubjectId: session.subject_id, bookId: cur.book_id,
+            targetSubjectId: row.subject_id, offeredRole: row.role, scope: null, at });
         return {
           subject_id: row.subject_id, email: emailOf(row.subject_id), role: row.role,
           effective: m.effective === true, effective_reason: m.reason, scopes,
+          /**
+           * EGY NEVEZETT VERDIKT, KÉT FOGYASZTÓ (`KUKA-473` · az `AVL-01` alakja).
+           *
+           * A LELET OSZTÁLYA UGYANAZ, mint a meghívó-listánál: a lap eddig a `effective` tényből
+           * rajzolta a „céges hozzáférés megvonása" gombot, a `revokeMembership` viszont
+           * `alter_right` hatáskört kíván — tehát egy delegált `admin` kezelő olyan gombot
+           * látott, ami rá nézve biztosan nemet mond (`KUKA-041`).
+           */
+          /**
+           * A LELET OSZTÁLYA UGYANAZ, mint a meghívó-listánál: a lap eddig a `effective` tényből
+           * rajzolta a „céges hozzáférés megvonása" és az adatkör-megvonás gombját, a
+           * `revokeMembership` és a `revokeScopeFromMember` viszont `alter_right` hatáskört kíván
+           * — tehát egy delegált `admin` kezelő olyan gombokat látott, amik rá nézve biztosan
+           * nemet mondanak (`KUKA-041`).
+           *
+           * EZ A MEZŐ A TISZTA VERDIKT, nem egy művelet neve: „ez a kezelő megváltoztathatja a
+           * jogokat ebben a könyvben". KÉT fogyasztója van (tagság-megvonás és adatkör-megvonás),
+           * és MINDKETTő ebből dönt — egy kérdés, egy válasz (`KUKA-233` · `KUKA-003`).
+           */
+          rights_alterable: tagMegvonasJog,
           period_count: Array.isArray(periods.periods) ? periods.periods.length : 0,
           current_period: m.effective === true ? (m.period_grant_event_id ?? null) : null,
-          reinvitable: closed.ok === true,
-          reinvite_reason: closed.ok === true ? 'closed_period' : closed.reason,
+          reinvitable: ujrahivas.ok === true,
+          reinvite_reason: ujrahivas.reason,
+          /**
+           * ÉS A MEGMÉRT SZEREP-KÉSZLET IS KIMEGY A SORRAL (`KUKA-472` · külső review, Codex, P2).
+           *
+           * A LELET: a feloldó a tag MAI szerepét mérte a plafonhoz, a visszakapott `roles`
+           * készletet viszont ELDOBTUK — a panel pedig MINDEN ismert szerepet felkínált. Egy
+           * delegált kezelőnél, akinek a plafonja `user`-t enged, `admin`-t nem, a sor
+           * „újrahívható" lett, a felkínált `admin` választás viszont `outside_basis_roles`-szal
+           * bukik — a `tour.reentry` közben PEDIG A MEGVONÁS UTÁN. Ez a `KUKA-041` osztálya: a
+           * hamis gomb és a némán letiltott gomb ugyanaz a hiba két irányból.
+           *
+           * A VÁLASZ: a sor hordozza a MEGMÉRT készletet (`reinvite_roles`), és a panel CSAK
+           * ebből választ — egy feloldó, egy készlet, egy felkínálás (`KUKA-003`). Ha a készlet
+           * nem állapítható meg, a mező `null`: a lap ilyenkor NEM talál ki szerepeket.
+           */
+          reinvite_roles: Array.isArray(ujrahivas.roles) ? [...ujrahivas.roles] : null,
           removed_at: closed.ok === true ? closed.closed_at : null,
         };
       });
@@ -1178,6 +2765,17 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
         known_scopes: [...KNOWN_DATA_SCOPES], known_roles: [...KNOWN_ROLES],
         grantable_scopes: grantable,
         blocked_scopes: blocked,
+        /**
+         * ÉS A MEGMÉRT SZEREP-PLAFON IS KIMEGY (`KUKA-472` második fogyasztója · `D-VS-3254`).
+         *
+         * A LELET UGYANAZ, mint az újbóli meghívás paneljénél, csak az ÚJ meghívás űrlapján: az
+         * adatkör-választék a plafonból jött (`grantable_scopes`), a SZEREP-választék viszont
+         * BEÉGETVE két opciót rajzolt — tehát egy delegált kezelő, akinek a plafonja `admin`-t
+         * nem enged, felkínálva látta, és a kiadás `outside_basis_roles`-szal bukott volna
+         * (`KUKA-041`). A plafon mérése már itt volt — csak a SZEREP-fele nem ment ki.
+         */
+        grantable_roles: basis.ok && Array.isArray(basis.roles) ? [...basis.roles].sort() : [],
+        blocked_roles: KNOWN_ROLES.filter((r) => !(basis.ok && Array.isArray(basis.roles) ? basis.roles : []).includes(r)),
         grantable_reason: basis.ok ? 'within_delegation_basis' : basis.reason,
         // A SZABÁLYVERZIÓ NEVEZVE: ebből tudja a felület megmondani, MIÉRT szűkebb a plafon —
         // "ez a munkakörnyezet még a régi, kétkörös indulási szabállyal született".
@@ -1206,7 +2804,18 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       pushMail({ to: String(input.email).trim(), subject: SRV_I.mailInviteSubject.replace('{fiok}', fiokNev),
         link: `http://${host}/?invite=${token}&lang=${encodeURIComponent(lang)}`,
         body: SRV_I.mailInviteBody.replace(/\{fiok\}/g, fiokNev) });
-      return { status: 201, body: { ok: true, token, ceiling: r.ceiling, basis_id: r.basis_id, basis_version: r.basis_version, expires_at: expiresAt, ...ctx.served } };
+      /**
+       * A JELÖLŐ IS VISSZAMEGY (R186 §2) — ebből köti át a történet a célját az ÚJ meghívóra.
+       *
+       * MÉRT INDOK: a `tour.inviteRevoke` 13. lépése ÚJ meghívót állít ki, és onnantól AZ a történet
+       * célja (`story_rebind`); az elfogadásnak (`s17`) ERRE kell szólnia. A jelölőt a SZERVER adja,
+       * nem a böngésző számolja ki (`KUKA-227`: a határ zöldje nem a felület zöldje).
+       *
+       * ÉS EZ NEM ÚJ KITETTSÉG: ez a válasz a TELJES tokent is visszaadja (a fejlesztői/bemutató út
+       * ebből építi a levél-hivatkozást), tehát a lenyomat mellette nem ad új ismeretet. A lista-sor
+       * jelölője UGYANEZ az érték (`KUKA-018`: egy fogalomnak egy otthona van).
+       */
+      return { status: 201, body: { ok: true, token, ref: shortRef(token), ceiling: r.ceiling, basis_id: r.basis_id, basis_version: r.basis_version, expires_at: expiresAt, ...ctx.served } };
     },
 
     /**
@@ -1230,6 +2839,12 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       const gate = adminGate(session, cur.book_id);
       if (!gate.ok) return { status: gate.status, body: { ok: false, reason: gate.reason, message: gate.message } };
       const at = clock.now();
+      // A SZEREP-PLAFON EGYSZER, ÍRÁS NÉLKÜL — a `revocable` jelző ebből is dönt (lentebb, KUKA-431).
+      const plafon = delegationCeilingOf({ store, subjectId: session.subject_id, bookId: cur.book_id, at });
+      const plafonRoles = plafon && plafon.ok && Array.isArray(plafon.roles) ? plafon.roles : [];
+      // ÉS A VÉGREHAJTHATÓ HATÁSKÖR IS EGYSZER (`KUKA-473`): a megvonás `alter_right`-ot kíván.
+      const megvonasJog = executableRightAt({ store, subjectId: session.subject_id, bookId: cur.book_id, operation: 'alter_right', nowIso: at });
+      const jogAMegvonasra = megvonasJog && megvonasJog.ok === true;
       const rows = store.all(
         `SELECT token, invitee_namespace, invitee_value, offered_role, issuer_subject, expires_at, redeemed_at
            FROM invite WHERE book_id = ? ORDER BY expires_at DESC`, cur.book_id);
@@ -1259,9 +2874,20 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
           state,
           accepted_at: r.redeemed_at ?? null,
           revoked_at: rev.revoked ? (rev.effective_at ?? null) : null,
-          // A VISSZAVONÁS CSAK A FÜGGŐRE AJÁNLHATÓ MŰVELET — és a szerver mondja meg, nem a böngésző
-          // (KUKA-041: a hamis és a némán letiltott gomb ugyanaz a hiba két irányból).
-          revocable: state === 'pending',
+          /**
+           * A VISSZAVONÁS CSAK A FÜGGŐRE AJÁNLHATÓ MŰVELET — ÉS CSAK A SAJÁT PLAFONON BELÜL.
+           *
+           * A szerver mondja meg, nem a böngésző (`KUKA-041`: a hamis és a némán letiltott gomb
+           * ugyanaz a hiba két irányból). R176, külső review P2 (`KUKA-431`): eddig CSAK a függő
+           * állapotot kérdezte, a `revokeInvite` viszont a SZEREP-PLAFONT is méri
+           * (`outside_basis_roles`). Egy szűkebb plafonú, delegált kezelő így olyan `admin`
+           * ajánlatra is kapott visszavonás-gombot, amit a kiszolgáló biztosan elutasít — a felület
+           * olyan műveletet hirdetett, ami nem létezik. A plafont UGYANAZZAL az írásmentes
+           * feloldóval kérdezzük, amit a visszavonás használ (`KUKA-003`: egy fogalom, egy otthon).
+           */
+          // A HATÁSKÖR IS A JELZŐ FELTÉTELE (`KUKA-473`): a `revokeInvite` `alter_right`-ot kíván,
+          // amit a tagság — akár `admin` — NEM ad. A plafon és a hatáskör KÉT KÜLÖN kérdés.
+          revocable: state === 'pending' && plafonRoles.includes(r.offered_role) && jogAMegvonasra,
           // ÉS AZ ÚJBÓLI BELÉPÉSI AJÁNLAT TÉNYE IS LÁTSZIK: a kezelőnek tudnia kell, hogy ez a sor
           // egy VISSZAHÍVÁS, nem egy első meghívás.
           reentry: reentryOfferFor({ store, token: r.token }).present,
@@ -1284,18 +2910,139 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
     'GET /api/invites/observe': ({ session, url }) => {
       const token = url.searchParams.get('token') || '';
       const r = observeInvite({ store, token, viewerSubjectId: session.subject_id, clock });
-      const proven = r.status === 'redeem_as_existing' || r.status === 'redeem_as_new';
-      if (!proven) return { status: 200, body: { ...r } };
+      /**
+       * A JELÖLŐ A BIZONYÍTOTT CSATORNÁHOZ KÖTÖTT, NEM AZ ELŐREVIHETŐSÉGHEZ (R186 §2 — MÉRVE).
+       *
+       * MIRE KELL: a történet a VÁLASZTOTT meghívóhoz van kötve, és a levél-lépésnek (`s9`), illetve
+       * az elfogadásnak (`s17`) UGYANARRA a meghívóra kell szólnia — enélkül a bemutató egy MÁSIK,
+       * még élő levelet nyithat meg, és azt állítja róla, hogy a visszavont meghívó (a jelentés
+       * 7.5/c pontja).
+       *
+       * A LELET, SAJÁT, A JAVÍTÁS KÖZBEN: a jelölőt először a két ELŐREVIHETŐ állapothoz kötöttem
+       * (`redeem_as_existing` · `redeem_as_new`). A visszavonás-története viszont pontosan arról
+       * szól, hogy a címzett hivatkozása ELHAL: a kilencedik lépésnél a meghívó MÁR visszavont,
+       * tehát a válasz `not_actionable` — jelölő nélkül a történet SAJÁT kapuja szakította volna meg
+       * a LEGITIM utat (`KUKA-394`). A kötés tehát nem azon áll, hogy a meghívás beváltható-e,
+       * hanem azon, hogy a KÉRŐ bizonyította-e a címzetti csatornát.
+       *
+       * ÉS A HATÁR VÁLTOZATLAN (`KUKA-084`): a NEM bizonyított néző — és az ISMERETLEN token —
+       * válasza bájt-azonos marad, tehát a jelölő nem ad új megkülönböztetést. A jelölő a token
+       * sha256-lenyomatának első tíz jegye, amiből a token nem állítható vissza (`KUKA-006`), és a
+       * beváltást a szerver változatlanul a TELJES tokenhez köti (`KUKA-227`).
+       */
+      const provenChannel = r.status !== 'needs_invitee_identity';
+      if (!provenChannel) return { status: 200, body: { ...r } };
       const inv = store.get('SELECT book_id, offered_role, issuer_subject FROM invite WHERE token = ?', token);
       if (!inv) return { status: 200, body: { ...r } };
-      return { status: 200, body: { ...r,
+      const jelolt = { ...r, ref: shortRef(token) };
+      // A FIÓK NEVE ÉS A KIADÓ csak az ELŐREVIHETŐ állapotban megy ki — ezen a kötés nem változtat.
+      const vihet = r.status === 'redeem_as_existing' || r.status === 'redeem_as_new';
+      if (!vihet) return { status: 200, body: jelolt };
+      return { status: 200, body: { ...jelolt,
         account: { name: bookNameOf(inv.book_id) ?? null, role: inv.offered_role },
         invited_by: emailOf(inv.issuer_subject) ?? null } };
     },
 
-    'POST /api/invites/pending': ({ session, input }) => {
-      rememberIntent({ store, sessionId: session.id, token: String(input.token).trim(), clock });
+    /**
+     * A MUNKAMENETHEZ KÖTÖTT ÍRÁS AZ EGYETLEN HELY, AHOL A PLAFON NEMET MONDHAT (F154-29, SES-02).
+     *
+     * MIÉRT ITT, ÉS MIÉRT NEM ÁTFOGÓ KAPUVAL: az átfogó `/api/` kapu a `GET /api/verify`-t is elzárta,
+     * ami munkamenetet nem is használ (F154-22) — egy VÉGPONT-LISTA pedig a következő író felületnél
+     * elavulna (KUKA-227). Ezért az őr ott áll, AHOL A KÁR KELETKEZIK (KUKA-202): ez az egyetlen út,
+     * ami a `pending_intent` táblába ír, és a tábla a munkamenet azonosítójára van kulcsolva. Ha a
+     * sort a tár nem tartotta meg, az írás ÁRVA sort hagyna, a válasz pedig olyan hatást ígérne, amit
+     * a következő kérés nem tud visszaolvasni (KUKA-305) — ezért NEVEZETTEN nemet mondunk.
+     *
+     * AMIT EZ A 503 JELENT, KIMONDVA: valódi korlát kimondása, nem hibakezelés. Ha a staging
+     * rendszeresen ezt adja, a plafon kevés, és a `VS_APP_SESSION_MAX` emelése a válasz.
+     */
+    'POST /api/invites/pending': ({ session, input, materialize, materializeWhy }) => {
+      // EZ AZ EGYETLEN ÚT, AMI NÉVTELENÜL IS TARTÓS ÁLLAPOTOT KÖT A MUNKAMENETHEZ (SES-02 · SES-04):
+      // ezért itt KÉRJÜK a tárolt sort, és a tár válasza dönt. Telt táron NEVEZETT elutasítás —
+      // írás NÉLKÜL, tehát nincs félig végrehajtott művelet és nincs árva sor.
+      const s = materialize ? materialize() : (sessions.has(session.id) ? session : null);
+      if (!s) {
+        const miert = (materializeWhy && materializeWhy()) || 'at_capacity';
+        if (miert === 'session_gone') {
+          // A munkamenet a kérés kiszolgálása KÖZBEN tűnt el (kilépés vagy azonosság-váltás egy
+          // másik fülön). Nem a tár telt meg: a nézet alatt változott meg a kiszolgált személy.
+          return { status: 409, body: { ok: false, reason: 'session_gone', refused_by: 'session_store',
+            message: 'a kérés közben kiléptek ebből a munkamenetből (vagy másik fiókra váltottak), '
+              + 'ezért a meghívó-folytatást nem őriztük meg — lépj be újra, és nyisd meg ismét a meghívót' } };
+        }
+        return { status: 503, body: { ok: false, reason: 'at_capacity', refused_by: 'session_store',
+          message: 'a munkamenet-tár megtelt, ezért a meghívó-folytatást nem tudjuk megőrizni — próbáld újra' } };
+      }
+      rememberIntent({ store, sessionId: s.id, token: String(input.token).trim(), clock });
+      sessions.markIntent(s.id);          // a VÉDETT-INDEX növekményes (R164, külső review, P1)
       return { status: 200, body: { ok: true } };
+    },
+
+    /**
+     * A MEGHÍVÓ ELHAGYÁSA — A TÁROLT FOLYTATÁST IS ELVISZI (R166, külső review, Codex, P2).
+     *
+     * A LELET: az R166 §1 visszalépése csak a böngésző állapotát ürítette. A névtelen látogató
+     * meghívó-jegyét viszont a `POST /api/invites/pending` a MUNKAMENETHEZ kötve TÁROLJA, és a
+     * belépés (`POST /api/login`) ezt visszaolvassa — tehát aki kimondottan elhagyta a meghívót, a
+     * belépés után VISSZAKERÜLT rá. A „vissza" tehát nem vitt vissza.
+     *
+     * EZ AZ ÚT NEM OLVAS ÉS NEM AD KI SEMMIT a meghívóról: csak a SAJÁT munkamenet folytatását
+     * törli, tehát névtelenül is biztonságos (védett adat nem szivárog vele — KUKA-084). Telt táron
+     * sincs mit megőrizni: ha a munkamenet nincs a tárban, nincs is sora, és a válasz ezt KIMONDJA
+     * (nem hallgat, és nem is hibázik — a felhasználó szándéka teljesült).
+     */
+    'POST /api/invites/pending/forget': ({ session }) => {
+      const s = sessions.has(session.id) ? session : null;
+      /**
+       * A HIÁNYZÓ MUNKAMENET NEM BIZONYÍTJA, HOGY NINCS MIT TÖRÖLNI (R176, külső review P2 · `KUKA-439`).
+       *
+       * A LELET: a fenti megjegyzés azt állította, hogy „ha a munkamenet nincs a tárban, nincs is
+       * sora". EZ HAMIS A BELÉPÉSI ÚTON: a `POST /api/login` ROTÁLJA az azonosítót, és a függő
+       * szándékot ÁTVISZI a friss sorra (`rememberIntent(fresh.id)` + `DELETE … WHERE session_id =
+       * session.id`). Ha tehát egy másik fülben belépnek, miközben EZ a kérés a testét olvassa, a
+       * régi azonosító eltűnik — a szándék viszont ÉL, és folytatható. A régi alak ilyenkor
+       * `ok: true`-t adott, a lap pedig elvette a jegyet és a címsort: a felhasználó azt olvasta,
+       * hogy elhagyta a meghívást, ami aztán egy későbbi betöltésen VISSZAJÖTT.
+       *
+       * A VÁLASZ: nem állítunk teljesítést, amit nem igazoltunk (`KUKA-215` · `KUKA-422`). A 409 a
+       * `POST /api/invites/pending` ugyanezen ágával egyező alak, és a lap már helyesen kezeli: a
+       * meghívó-képernyő marad, a mondat NEVEZETT, a jegy a címsorban és a gomb újra megnyomható.
+       *
+       * AMIT NEM TUDUNK ELDÖNTENI, AZT NEM TALÁLJUK KI: a munkamenet eltűnhetett KILÉPÉS miatt is —
+       * ott a törlés a sort is elvitte (`KUKA-388`), tehát a szándék valóban nincs. A két esetet
+       * innen nem lehet megkülönböztetni, és a megkülönböztethetetlen kimenet NEM „siker"
+       * (`KUKA-220`: a nem tudott nem „nem történt meg" — és nem is „megtörtént").
+       */
+      /**
+       * ÉS AMI SOSEM VOLT, AZT NEM KELL IGAZOLNI (R186 §5, külső review P2 · `KUKA-201`).
+       *
+       * A LELET: ha az ELSŐ `POST /api/invites/pending` TELT TÁRON akadt el (`at_capacity`), akkor
+       * tárolt munkamenet SEM jött létre — a meghívó-képernyő viszont kirajzolódott, a „vissza"
+       * gombjával. Az a gomb ide hív süti NÉLKÜL, tehát a munkamenet ÁTMENETI, az `s` mindig
+       * `null`, és a válasz örökre `session_gone`: a lap megőrzi a jegyet és a lapot, az
+       * újrapróbálkozás pedig ugyanazt a 409-et adja. ZSÁKUTCA — pontosan az, amit az R166 §1
+       * ezen a képernyőn kivezetett.
+       *
+       * A KÉT ESET MEGKÜLÖNBÖZTETHETŐ, ÉS EZ A LÉNYEG: a ROTÁCIÓS versenyben a kérés HOZOTT egy
+       * (már érvénytelen) azonosítót — ott a 409 marad, mert a szándék ÉLHET egy friss soron
+       * (`KUKA-439`). Ha viszont a kérés SEMMILYEN tárolt munkamenetet nem hozott, akkor nincs is
+       * mit törölni: a felhasználó szándéka TELJESÜLT, és ezt kimondjuk (`existed: false`) — nem
+       * hamis siker, hanem MÉRT tény.
+       */
+      if (!s && session.transient === true && session.presented !== true) {
+        return { status: 200, body: { ok: true, existed: false, reason: 'no_session_presented',
+          message: 'ehhez a kéréshez nem tartozott tárolt munkamenet, tehát folytatás sem — '
+            + 'a meghívó képernyőjét el lehet hagyni' } };
+      }
+      if (!s) {
+        return { status: 409, body: { ok: false, reason: 'session_gone', refused_by: 'session_store',
+          message: 'a kérés közben megváltozott a munkamenet (kilépés vagy belépés egy másik fülben), '
+            + 'ezért nem tudjuk igazolni, hogy a meghívó-folytatás törlődott — töltsd újra a lapot, és '
+            + 'ha a meghívó visszajön, lépj vissza még egyszer' } };
+      }
+      const r = forgetIntent({ store, sessionId: s.id });
+      sessions.clearIntent(s.id);        // a VÉDETT-INDEX növekményes — a törlésről is szólunk
+      return { status: 200, body: { ok: true, existed: r.existed === true } };
     },
 
     'POST /api/invites/redeem': ({ session, input }) => {
@@ -1305,6 +3052,7 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       if (r.ok) {
         session.current_book_id = r.book_id;
         store.run('DELETE FROM pending_intent WHERE session_id = ?', session.id);
+        sessions.clearIntent(session.id);      // a folytatás elfogyott — az index követi
       }
       return { status: r.ok ? 200 : 403, body: { ...r } };
     },
@@ -1402,6 +3150,10 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       return { status: r.replayed === true ? 200 : 201, body: {
         ok: true, changed: r.changed === true, replayed: r.replayed === true, reason: r.reason,
         ref: shortRef(effectiveToken),
+        // A KISZOLGÁLÓ VISSZHANGOZZA, KIRE SZÓLT (R186 §5): a bemutató ebből és a `ref`-ből köti át a
+        // történet célját — a lap SAJÁT feltevése nem elegendő hozzá (`KUKA-016`). Új jel ez nem ad:
+        // a tag azonosítója a kezelő saját listájában amúgy is ott áll.
+        subject_id: String(input.subject_id).trim(),
         reentry_id: r.reentry_id, offered_role: r.offered_role, scope: r.scope,
         closed_grant_event_id: r.closed_grant_event_id, closed_revocation_id: r.closed_revocation_id,
         requires_acceptance: r.requires_acceptance, restores_previous_scopes: r.restores_previous_scopes,
@@ -1530,10 +3282,15 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       const ctx = readContextGate(query, session, cur.book_id);
       if (!ctx.ok) return { status: ctx.status, body: ctx.body };
       const lang = normalizeLanguage(query.lang);
-      const who = requesterContext(session, cur);
+      // A KÉRT CÉL (`KUKA-468`): a kérés megnevezheti, melyik alkalmas meghívóra kéri a kötést.
+      const who = requesterContext(session, cur, { surface: query.surface, storyRef: query.story_ref });
       const prov = providerStatus(process.env);
       return { status: 200, body: {
         ok: true, ...ctx.served, lang, dir: dirOf(lang),
+        // MELYIK FELÜLETNEK SZOLGÁLTUNK KI (R164/3 · KUKA-204). A bemutató-lista a felület
+        // horgonyaihoz kötött, ezért a válasz KIMONDJA, melyik felületet mérte — a `surface_anchors`
+        // ÜRES készlete nem néma: a nem ismert név itt `null`-ként látszik.
+        surface: knownSurface(query.surface),
         languages: enabledLanguages().map((l) => ({ code: l.code, endonym: l.endonym, dir: l.dir })),
         // A PRÓBA-NYELVEK KIMONDVA, de NEM kínálva: a felület a `languages` listát ajánlja fel,
         // a `probe_languages` csak azt mondja meg, hogy létezik negyedik nyelv és RTL próba (R89 §5).
@@ -1553,29 +3310,22 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
         actions: allowedActionsFor(who).map((id) => ({ id, ...ACTIONS[id], writes: ACTIONS[id].writes === true })),
         // A BEMUTATÓK TELJES ALAKJA — a lépések stabil felületi pontokra mutatnak, és a SZÖVEG a
         // nyelvcsomagból jön. Egy otthon: a lépés-lista a `features.mjs`-ben él, a lap onnan kapja.
-        tours: allowedToursFor(who).map((id) => ({
-          id, version: TOURS[id].version, feature: TOURS[id].feature, page: TOURS[id].page ?? null,
-          requires_role: TOURS[id].requires_role ?? null,
-          // A KÖZÖNSÉG ÉS A BELÉPÉS ELŐTTI FUTÁS a válaszban áll: a lap ebből tudja, hova vigyen,
-          // és nem a saját feltevéséből (F91-01 · AVL-01).
-          audience: TOURS[id].audience ?? 'signed_in',
-          requires_anonymous: TOURS[id].requires_anonymous === true,
-          // A MEGHÍVÓ-KÉPERNYŐHÖZ KÖTÖTT BEMUTATÓ: a lap ebből tudja, hogy nem egy belső oldalra
-          // kell vinnie, hanem a meghívó lapján kell maradnia (P109-01).
-          requires_invite: TOURS[id].requires_invite === true,
-          steps: TOURS[id].steps.map((st) => ({
-            id: st.id, target: st.target, task: st.task ?? null,
-            // A LÉPÉS SZEREPE ÉS A SZEREPLŐ-VÁLTÁS (R140 — ACT-01): a teljes történet átível a
-            // szereplőkön, és a lap ebből tudja, melyik lépést KI végzi, illetve hol vár váltásra.
-            // Ha ezt a válasz nem vinné, a lap a saját feltevéséből dolgozna (AST-01).
-            role: st.role ?? null,
-            switch_actor: st.switch_actor === true,
-            // MI TÁRJA FEL a célt (panel · választás · navigáció). A lap ebből tudja, hogy a
-            // hiányzó cél VÁRAKOZÁS-e vagy valódi megszakítás (TUR-01 · KUKA-228).
-            appears_after: st.appears_after ?? null,
-          })),
-          text: (dictFor(lang).TOUR || {})[id] || null,
-        })),
+        tours: allowedToursFor(who).map((id) => tourPayloadOf(id, lang, who)),
+        /**
+         * …ÉS A VÁLTÁS UTÁN FOLYTATHATÓK, UGYANEBBEN AZ ALAKBAN (R176 §1 — a parancs nevesített
+         * hibája: „a meghívó elfogadása utáni folytatásvesztés").
+         *
+         * MIÉRT KÜLÖN LISTA, MÉRT OKKAL. A két szereplős történet ÁTÍVEL a szerepeken: a meghívott
+         * NEM fiókkezelő, tehát az INDÍTHATÓ listában az ő nézetében joggal nincs ott. A váltás
+         * utáni visszaállás viszont a SZERVER mai válaszából veszi a lépés-listát (AST-01) — és
+         * enélkül nem találta meg, tehát a futást NEVEZETTEN elengedte (`notAvailable`). MÉRVE: a
+         * futás a meghívás ELFOGADÁSA után veszett el, a történet közepén, egy ÉP képernyőn.
+         *
+         * AMIT EZ A LISTA NEM AD: jogot és műveletet. Csak lépés-listát a KÉZBEN LÉVŐ átadás
+         * visszaállításához — a súgó továbbra is a `tours`-t kínálja fel, és a lépések saját `role`
+         * őre futás közben változatlanul érvényes (`rightLost`).
+         */
+        resumable_tours: resumableToursFor(who).map((id) => tourPayloadOf(id, lang, who)),
         // MODELLHÍVÁS NÉLKÜL MŰKÖDŐ RÉSZEK — kimondva, hogy a felület ne állítson mást (R89 §6).
         no_model_call: ['help', 'faq', 'sitemap', 'tour', 'guide_search'],
       } };
@@ -2008,6 +3758,21 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
     return readCommandResult({ store, idemKey, requester, bookId, actor: boot.creator_subject_id, clock });
   }
 
+  /**
+   * UGYANAZ A KÉRDÉS, HATÁS NÉLKÜL (R166, külső review, Codex, P2 · KUKA-400).
+   *
+   * A felkínálás kapujának azt kell tudnia, hogy a tag a készlet-táblát MEGNYITNÁ-e — nem azt,
+   * hogy mi van benne. A `readSample` viszont KIADÁS: sikeres ágán leltár-sort ír. Ez a próba a
+   * MAG hatás nélküli feloldóját hívja, tehát a súgó megnyitása nem keletkeztet audit-sort.
+   */
+  function sampleReadable(bookId, requester, idemKey) {
+    const boot = bootstrapOf({ store, bookId });
+    if (!boot) return false;
+    return commandResultReadable({
+      store, idemKey, requester, bookId, actor: boot.creator_subject_id, clock,
+    }).readable === true;
+  }
+
   // A MEZŐ-SZERZŐDÉS OTTHONA A SÉMA-REGISZTER (HTP-01, `v3app/httpSchema.mjs`) — itt nincs második
   // másolat. A korábbi `ACCEPTS` tábla ezt a végponton kívül, kézzel ismételte: megengedő szabály
   // volt ugyan (KUKA-057), de nem KAPU — a nem deklarált mező némán kimaradt, a DEKLARÁLT mező
@@ -2070,7 +3835,9 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
     // Az életjelet és a készenlétet NEM korlátozzuk: azokat a TELEPÍTŐ kérdezi, sűrűn, és egy
     // kizárt életjel újraindítási hurkot okozna — a védelem okozná az üzemzavart (KUKA-092).
     if (rateLimit) {
-      const verdict = rateLimit(clientIpOf(req));
+      const cim = clientAddressOf(req);
+      if (!cim.decided) mondjaKiEgyszerAProxyHibat();
+      const verdict = rateLimit(cim.key);
       if (!verdict.allowed) {
         res.writeHead(429, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Retry-After': String(verdict.retry_after_s) });
         return res.end(JSON.stringify({ ok: false, reason: 'rate_limited', retry_after_s: verdict.retry_after_s }));
@@ -2098,11 +3865,126 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       }
     }
 
+    // A KÉRÉS JELE: ehhez tartoznak a pinek, és a `finally` ezt engedi el (SES-03).
+    const pinToken = Symbol('kérés');
     const cookies = parseCookies(req.headers.cookie);
-    let session = sessions.get(cookies.get(SESSION_COOKIE) || '');
+    /**
+     * EGY IDŐBÉLYEG A KIKERESÉSRE ÉS AZ ÉRINTÉSRE (F154-28, külső review, Codex, ötödik kör).
+     *
+     * A LELET: a `get` és a `touch` KÜLÖN hívta a `Date.now()`-ot. Ha a sor a két hívás között lépte
+     * át a tétlenségi határt, a `get` még visszaadta, a `touch` viszont eldobta — a helyi `session`
+     * változó pedig TOVÁBBRA IS belépettnek látszott, és a pin egy már nem létező sorra került. A
+     * kérés így egy nem követett munkamenettel futott le, és megint árva szerver-oldali állapotot
+     * hagyhatott. Innentől a kérésnek EGY ideje van, és a hamis érintést munkamenet-hiánynak
+     * vesszük: a kérés friss munkamenetet kap, nem egy lejártat használ tovább.
+     */
+    const requestNow = Date.now();
+    purgeIntentsIfDue(requestNow);     // a lejárt függő szándékok takarítása, percenként legfeljebb egyszer
+    const cookieId = cookies.get(SESSION_COOKIE) || '';
+    let session = cookieId ? sessions.get(cookieId, requestNow) : undefined;
+    // AZ ÉLŐ MUNKAMENET NEM TÉTLEN (SES-01): a kiszorítás a LEGRÉGEBBEN LÁTOTTAT veszi, tehát az
+    // „utoljára látva" bélyeget minden kérésnél frissíteni KELL — enélkül egy aktív felhasználót is
+    // kiléptetne a söprés.
+    if (session && !sessions.touch(session.id, requestNow)) session = undefined;
     let setCookie = null;
     // A `Secure` jelölő a KÉRÉSBŐL is eldőlhet: proxy mögött a HTTPS tényét a fejléc hozza.
-    if (!session) { session = newSession(); setCookie = sessionCookie(session.id, { secure: IS_DEPLOYED || isHttpsRequest(req) }); }   // névtelen munkamenet is létezik
+    /**
+     * A KISZOLGÁLÁS IDEJÉRE VÉDETT MUNKAMENET (SES-03) — ÉS AZ ADMISSION-KORI 503 KIVEZETVE.
+     *
+     * KÉT LELET egy helyen (külső review, Codex):
+     *   · F154-21 (P1): a felvétel ELLENŐRZÉSE egyszeri volt, a kérés viszont `await readBody`-n
+     *     megszakad, és közben befutó kérések kiszorították a munkamenetet. MÉRVE `maxSessions=2`
+     *     mellett: a lassú, darabolt POST 200-at adott, és ÁRVA `pending_intent` sort hagyott.
+     *   · F154-22 (P2): a `/api/` útra adott ÁTFOGÓ 503 a `GET /api/verify`-t is elzárta, ami
+     *     munkamenetet NEM is használ (a saját egyszeri tokenje hitelesíti). MÉRVE: csupa belépett
+     *     sorral teli táron a megerősítő levél hivatkozása **503**-at kapott — a felhasználó nem
+     *     tudta megerősíteni a fiókját, és a token közben lejárhat.
+     *
+     * A KETTŐ EGY GYÖKÉRRE MEGY VISSZA: a munkamenet LÉTEZÉSE feltevés volt, és a feltevést
+     * ellenőrzéssel (majd kapuval) próbáltam pótolni. Innentől a feltevés IGAZ: amíg a kérés fut, a
+     * sora VÉDETT. Így nem kell se felvétel-ellenőrzés, se újraellenőrzés, se kapu — a `503
+     * at_capacity` ág ezzel KIKERÜLT, és egyetlen végpont sem záródik el a plafon miatt.
+     */
+    /**
+     * IGÉNY SZERINTI MUNKAMENET (SES-04, R158/1 — az operátor és a chatgpt-v3 döntése).
+     *
+     * A GYÖKÉR-OK, amit ez megszüntet: eddig MINDEN süti nélküli kérés nyitott egy tárolt sort és
+     * kiadott egy sütit — akkor is, ha a kérésnek soha nem lett volna szüksége rá (statikus lap,
+     * olvasó végpont, belépés előtti út). Ebből jött a plafon-szorítás, a kiszorítási sorrend, a
+     * védettség és az egyidejűség ÖSSZES interakciója: az R154 43 leletéből 26 ebben az egy
+     * területben volt, tíz review-kör alatt.
+     *
+     * A MAI ALAK: süti nélküli kérés ÁTMENETI munkamenetet kap — ez egy sima objektum, NINCS a
+     * tárban, és NEM jár sütivel. A tárba csak akkor kerül sor, amikor a kérés TÉNYLEGESEN állapotot
+     * kötne hozzá: belépéskor (ott rotálunk), vagy a `materialize()` hívásakor (ma egyetlen ilyen út
+     * van: a meghívó-folytatás írása). MÉRVE a kezelőkön: 32 kezelőből 11 a munkamenetet SEM olvassa,
+     * a többi döntő része csak azt kérdezi, BE VAN-E LÉPVE a hívó — arra az átmeneti sor is elég.
+     *
+     * AMIT EZ NEM OLD MEG, KIMONDVA: a plafon TOVÁBBRA IS kell, mert az állapotot KÉRŐ forgalom
+     * (meghívó-folytatás írása, belépés) változatlanul sort nyit — az igény szerinti létrehozás
+     * önmagában nem védi a tárat a szándékos terheléstől (R158).
+     */
+    if (session) {
+      sessions.pin(session.id, pinToken);
+    } else {
+      session = transientSession(Boolean(cookieId));
+      // AZ ÉRVÉNYTELEN SÜTIT TÖRÖLJÜK: egy lejárt vagy kiszorított azonosítót a böngésző különben
+      // minden kérésnél újra elküldene, és a felhasználó „félig bejelentkezettnek" látszana.
+      if (cookieId) setCookie = clearSessionCookie({ secure: IS_DEPLOYED || isHttpsRequest(req) });
+    }
+    /**
+     * A MATERIALIZÁLÁS: a kezelő MONDJA MEG, hogy állapot kell — és a tár mondja meg, sikerült-e.
+     * Telt táron `null` a válasz, és akkor a kezelő NEVEZETTEN mond nemet: nincs hamis siker, nincs
+     * érvénytelen sikersüti, és nincs félig végrehajtott tartós művelet (R158/1).
+     */
+    // MIÉRT NEM SIKERÜLT — A VÁLASZ NEM MOSHATJA ÖSSZE A KETTŐT (R158, a saját w8 mérésünk lelete).
+    // A „tár megtelt" és a „közben törölték a munkamenetet" KÉT KÜLÖN tény, és a felhasználó teendője
+    // is más: az első várakozás, a második ÚJRA-BELÉPÉS. Egy közös `at_capacity` üzenet a második
+    // esetben valótlant állít, és a valódi okot elrejti (KUKA-124 · KUKA-050).
+    let materializeWhy = null;
+    const materialize = () => {
+      // ── A TARTÓS SOR IS ELTŰNHET A KÉRÉS KÖZBEN (F158-05, külső review, Codex, P1) ──────────────
+      //
+      // A LELET: a `POST /api/invites/pending` a törzs beolvasása közben VÁR, és eközben egy másik
+      // kérés (kilépés vagy belépés-rotáció) TÖRÖLHETI ugyanezt a sort. A tűzés (`pin`) a KISZORÍTÁS
+      // ellen véd, a KIMONDOTT törlés ellen nem — a lassú kérés tehát egy már nem létező
+      // azonosítóra írt `pending_intent` sort, és 200-at adott. Ugyanaz a hiba-osztály, mint a
+      // KUKA-305 (felvétel-ellenőrzés), csak a másik végén: ott a sor meg sem SZÜLETETT, itt közben
+      // ELTŰNT. A kapu ezért a HASZNÁLAT pillanatában áll, nem a kérés elején (KUKA-202).
+      /**
+       * ── ÉS A KAPU A HASZNÁLAT PILLANATÁT OLVASSA, NEM A KÉRÉS ELEJÉT (F158-18, külső review, Codex, P2)
+       *
+       * A LELET: a kapu a KÉRÉS ELEJI `requestNow`-t adta a tárnak. Egy lassan feltöltött törzs (vagy
+       * bármilyen várakozás) átvihet a tétlenségi korláton — ilyenkor a tár a RÉGI pillanatra még
+       * élőnek mondta a sort, a kezelő megírta a `pending_intent` sort, és 200-at adott; a KÖVETKEZŐ
+       * kérés viszont a VALÓDI időt mérte, eldobta a munkamenetet, és a most írt sort törölte.
+       * MÉRVE élő HTTP-n (400 ms korlát, 700 ms-os törzs): `200 {"ok":true}` + egy sor, majd a
+       * következő kérés után NULLA sor — vagyis HAMIS SIKER (R158/1 kifejezett kikötése).
+       *
+       * A KÖZÖS SZABÁLY, amit ez a KUKA-314-gyel EGYÜTT ad: „EGY DÖNTÉS — EGY IDŐ" nem azt jelenti,
+       * hogy „egy KÉRÉS — egy idő". Egy várakozó kérés KÉT döntést hoz két pillanatban: a belépő
+       * kikeresés+érintés párja a kérés elejéhez tartozik (`requestNow`, KUKA-314 — azt NEM bántjuk),
+       * az állapot-írás kapuja pedig a HASZNÁLAT pillanatához.
+       *
+       * ÉS `touch`, NEM `has`: a kapu egyben meg is ÚJÍTJA a sort, különben a most elfogadott írás
+       * után a sor másodperceken belül kiesne — a reviewer második javaslata („refresh the session
+       * when the active request completes").
+       */
+      const hasznalatkor = Date.now();
+      if (!session.transient) {
+        if (sessions.touch(session.id, hasznalatkor)) return session;
+        materializeWhy = 'session_gone';
+        return null;
+      }
+      // A FELVÉTEL ÉS AZ ELLENŐRZÉSE EGY IDŐT KAP (`KUKA-466`): különben a két `Date.now()` között
+      // átforduló millisekundum NEGATÍV kort ad, a `KUKA-464` óra-védelme a frissen született sorra
+      // tüzel, és ÜRES táron is „megtelt" 503 megy ki. MÉRVE: 40 próbából 3 (7,5%).
+      const fresh = newSession(null, pinToken, hasznalatkor);
+      if (!sessions.has(fresh.id, hasznalatkor)) { materializeWhy = 'at_capacity'; return null; }
+      session = fresh;
+      setCookie = sessionCookie(fresh.id, { secure: IS_DEPLOYED || isHttpsRequest(req) });
+      return fresh;
+    };
     const host = req.headers.host || 'localhost';
     const key = `${req.method} ${url.pathname}`;
 
@@ -2138,7 +4020,8 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
         // A KEZELŐ LEHET ASZINKRON (a segéd szolgáltatói hívása az), ezért MINDIG megvárjuk. A
         // korábbi alak a Promise-t `out`-nak vette volna, és a boríték NÉMÁN üres lett volna —
         // pontosan az a fajta hiba, amit a próbák csak a FUTÁSON kapnak el (KUKA-207).
-        const out = await handler({ session, body: (body && typeof body === 'object' && !Array.isArray(body)) ? body : {},
+        const out = await handler({ session, pinToken, materialize, materializeWhy: () => materializeWhy,
+          body: (body && typeof body === 'object' && !Array.isArray(body)) ? body : {},
           input: checked.value, query: checked.query, url, host,
           // A BÖNGÉSZŐ NYELVI KÉRÉSE is bemenet: a szerver által rajzolt lap és a próbaüzenet a
           // KÉRT nyelven készül, nem beégetett magyarral (F91-02).
@@ -2161,11 +4044,27 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
       if (e && e.code === 'body_too_large') return sendJson(res, 413, { ok: false, reason: 'body_too_large' }, setCookie);
       // PROGRAMHIBA — nem üzleti elutasítás; a mag nevezett válaszai ide nem jutnak (KUKA-020).
       return sendJson(res, 500, { ok: false, reason: 'internal_error', message: String(e && e.message || e) }, setCookie);
+    } finally {
+      // A PIN MINDIG ELENGED — hibán, kivételen és korai visszatérésen is (különben a plafon
+      // elromlana: egy elfelejtett pin örökre védené a sort).
+      sessions.unpinAll(pinToken);
     }
   }
 
   function serveStatic(pathname, res, setCookie) {
-    const rel = pathname === '/' ? 'index.html' : decodeURIComponent(pathname.replace(/^\/+/, ''));
+    // A HIBÁS SZÁZALÉK-ESCAPE NEVEZETT ELUTASÍTÁS, NEM PROGRAMHIBA (F154-02).
+    //
+    // A LELET, MÉRVE (saját, R154): `GET /%`, `GET /%zz`, `GET /a%E0%A4%A` mind **500
+    // `internal_error`**-t adott — a `decodeURIComponent` `URIError`-t dobott, és azt a kérés-ciklus
+    // programhibaként fogta el. Egy ennyire hétköznapi hibás kérés 5xx-et váltott: a hibakeret és a
+    // felügyelet szerint a SZOLGÁLTATÁS volt hibás, miközben a KÉRÉS volt az. A határ szerződése
+    // (HTP-01) nevezett elutasítást ír elő, nem programhibát (KUKA-203 · KUKA-215).
+    let rel;
+    try {
+      rel = pathname === '/' ? 'index.html' : decodeURIComponent(pathname.replace(/^\/+/, ''));
+    } catch {
+      return sendJson(res, 400, { ok: false, reason: 'path_malformed', refused_by: 'static_path' }, setCookie);
+    }
     const target = resolve(PUBLIC_DIR, rel);
     // ÚTVONAL-ÁTLÉPÉS TILOS: a feloldott út a public mappán BELÜL kell álljon.
     if (target !== PUBLIC_DIR && !target.startsWith(PUBLIC_DIR + sep)) return sendJson(res, 403, { ok: false, reason: 'path_rejected' }, setCookie);
@@ -2178,7 +4077,9 @@ export function createApp({ dbPath, clock = { now: nowIso }, devSurface = defaul
 
   const server = http.createServer((req, res) => { handle(req, res); });
   server.on('close', () => { try { store.close(); } catch { /* már zárva */ } });
-  return { server, store, mailbox, sessions, dbPath: path, clock, devSurface, dialect };
+  // Az `intentTtlMs` KIFELÉ IS LÁTSZIK: a próba így MEG TUDJA MÉRNI, hogy a kiszolgáló tényleg a
+  // származtatott türelmi időt használja, nem a mag 24 órás plafonját (KUKA-207 · F158-17).
+  return { server, store, mailbox, sessions, dbPath: path, clock, devSurface, dialect, intentTtlMs: intentTtl };
 }
 
 /** Elindítja a szervert; `port: 0` ⇒ szabad port. */

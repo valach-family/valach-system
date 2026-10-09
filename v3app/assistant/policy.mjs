@@ -17,7 +17,8 @@
 //
 // TISZTA MODUL: se hálózat, se tároló, se óra. A végpont hívja, és a `verify:assistant` UGYANEZT
 // (KUKA-207).
-import { FEATURES, ACTIONS, ACTION_PARAMS, TOURS } from '../knowledge/features.mjs';
+import { FEATURES, ACTIONS, ACTION_PARAMS, TOURS, PERSONAL_SCREENS, actorSwitchSteps }
+  from '../knowledge/features.mjs';
 
 /** A VÉGES KORLÁTOK — külön szám minden tengelyre (R89 §6 „Költség és adatkezelés"). */
 export const LIMITS = Object.freeze({
@@ -139,8 +140,29 @@ export function availabilityOf(item, ctx = {}) {
    * meghívásom elfogadása. Ezért a kivétel NEVEZETT és a funkción áll (`personal_space_ok`), nem egy
    * itteni külön névsoron: a szabály egy helyen marad, a kivételt a funkció MONDJA KI (KUKA-051).
    */
+  /**
+   * A LAP NEVE EGY FELOLDÓBÓL (R164 review, Codex, P2 — `KUKA-390` · `D-VS-3198`).
+   *
+   * A LELET: a regiszter KÉT néven hívja ugyanazt — a FUNKCIÓK `screen`-t, a BEMUTATÓK `page`-et
+   * deklarálnak —, ez a szűrő pedig csak a `page`-et olvasta. Az R164/3-ban szállított három ÚJ,
+   * `scope: 'book'` funkció `screen`-t deklarál és `group: 'shell'`-t, tehát MINDKÉT régi listából
+   * kimaradt: a személyes térben is felkínáltuk a bemutatójukat, pedig a személyes menüben a lapjuk
+   * NINCS BENNE. A felhasználó így vagy egy nem létező lapra navigált, vagy a bemutató azonnal
+   * `targetMissing`-gel megállt.
+   *
+   * A VÁLASZ KÉT RÉSZBŐL ÁLL, és a második az, ami az OSZTÁLYT zárja:
+   *   1. a lap neve EGY feloldóból jön (`screen` VAGY `page`) — a két mezőnév egy fogalom;
+   *   2. a szabály nem egy kézi tiltó-névsor, hanem a TÉNYLEGES menü: ami a személyes tér lapjai
+   *      között NINCS, az a személyes térben NEM elérhető. Így egy NEGYEDIK ilyen funkció is
+   *      magától helyesen viselkedik — nem kell hozzá a névsort bővíteni (KUKA-045).
+   * A régi tiltó-névsor BENT MARAD: szűkebb, de igaz, és a `personal_space_ok` kivételt továbbra is
+   * ő hordozza (KUKA-091: az őrt nem lazítjuk, csak bővítjük).
+   */
+  const lapja = item.screen ?? item.page ?? null;
+  const idegenLap = typeof lapja === 'string' && lapja !== '' && !PERSONAL_SCREENS.includes(lapja);
   const personalBlocked = (['invite', 'members', 'plan'].includes(item.group || '')
-    || ['members', 'plan', 'account'].includes(item.page || ''))
+    || ['members', 'plan', 'account'].includes(item.page || '')
+    || idegenLap)
     && item.personal_space_ok !== true;
   if (ctx.personal === true && personalBlocked) return { visible: false, why: 'personal_space' };
   return { visible: true, why: null };
@@ -213,20 +235,49 @@ export function allowedActionsFor(ctx = {}) {
  * kötött bemutatókat. Mostantól a bemutató annyira elérhető, amennyire a FUNKCIÓJA — plusz a
  * bemutató saját kikötései (szerep · belépés előtti képernyő).
  */
-export function allowedToursFor(ctx = {}) {
-  const visible = visibleFeaturesFor(ctx);
-  const out = [];
-  for (const t of Object.values(TOURS)) {
-    if (t.requires_role === 'admin' && ctx.role !== 'admin') continue;
+/**
+ * A FOLYTATÁSNÁL TOLERÁLT LÁTHATÓSÁGI OKOK — ZÁRT LISTA, NEM „minden más is jó" (R176 §1).
+ *
+ * MÉRVE, a két szereplős történeten: a meghívott nézetében a funkció sora KÉT okból zárhat, és
+ * MINDKETTŐ pontosan az az átmeneti állapot, amit a FUTÓ történet épp megváltoztat:
+ *   · `admin_required`  — a meghívott nem fiókkezelő; a történet következő lépése AZ ÖVÉ, nem adminé;
+ *   · `personal_space`  — az elfogadás után a kiszolgáló a SZEMÉLYES körbe léptet be, és a történet
+ *                         soron következő lépése épp a CÉG fiókjára váltás (`account-switcher`).
+ *
+ * MINDEN MÁS OK ZÁR: terv, adatkör, kivezetett funkció, nem létező sor. Ezért zárt lista, és ezért
+ * NEM `folytatas ? true : …` — a tolerálás a MÉRT két állapotra szól, nem a kapu kikapcsolására
+ * (`KUKA-091`: a javítás iránya nem az őr lazítása).
+ */
+/**
+ * A TÖRTÉNET INDULÓ ADATÁNAK ZÁRT KÉSZLETE (R176 §1). Egy új érték = egy új, MÉRT tény a
+ * kiszolgálóban — a kapu addig zárva (KUKA-236: a zárt lista a MEZŐKRE is érvényes).
+ */
+export const TOUR_STORY_DATA = Object.freeze(['pending_invite', 'other_member', 'own_personal_book']);
+
+const RESUME_TOLERALT_OK = Object.freeze(['admin_required', 'personal_space']);
+
+/**
+ * A BEMUTATÓ-KAPUK EGY OTTHONBAN (R176 §1 · `KUKA-003`).
+ *
+ * MIÉRT VAN EZ A FELOLDÓ. Két fogyasztó kérdezi ugyanazt a kapu-láncot, és CSAK EGY feltételben
+ * térnek el: az INDÍTÁS (`allowedToursFor`) a szerepet is kéri, a VÁLTÁS UTÁNI VISSZAÁLLÁS
+ * (`resumableToursFor`) nem. Ha a lánc két példányban állna, a következő kapu az egyikből
+ * kimaradna — pontosan az a hiba-osztály, amit a `KUKA-003` nevez meg.
+ *
+ * @param opts.folytatas a FOLYTATÁS kapuja: a szerep- és az INDULÓ ADAT-kapu tolerálása
+ *        (CSAK a folytatáshoz — lásd `resumableToursFor`; a zárt lista ettől sem lazul)
+ */
+function tourGateOpen(t, ctx, visible, { folytatas = false } = {}) {
+  if (!folytatas && t.requires_role === 'admin' && ctx.role !== 'admin') return false;
     // A BELÉPÉS ELŐTTI KÉPERNYŐN futó bemutató (regisztráció) belépve NEM indítható: a célja ott
     // nincs a lapon. Ez NEVEZETT kizárás, nem `targetMissing`-gel megszakadó bemutató (F91-01).
-    if (t.requires_anonymous === true && ctx.signed_in) continue;
+    if (t.requires_anonymous === true && ctx.signed_in) return false;
     // A MEGHÍVÁS-KONTEXTUSHOZ KÖTÖTT BEMUTATÓ (P109-01, R109): a meghívó-képernyő CSAK érvényes
     // meghívó-hivatkozásból nyílik meg, ezért meghívás nélkül a bemutató célja NEM LÉTEZIK. Ezt
     // NEVEZETT kizárással zárjuk ki — nem `targetMissing`-gel megszakadó bemutatóval (F91-01) —, és
     // a kontextust a SZERVER mondja meg (`resumeIntent`), nem a böngésző feltevése. A súgó
     // főoldaláról így nem kínálódik fel, mesterséges meghívót pedig nem gyártunk hozzá.
-    if (t.requires_invite === true && ctx.invite_context !== true) continue;
+    if (t.requires_invite === true && ctx.invite_context !== true) return false;
     // A KÉT ÉLŐ MUNKAMENETET IGÉNYLŐ BEMUTATÓ (R140 — ACT-01). Egy teljes történet, ami ÁTÍVEL a
     // szereplőkön (a fiókkezelő visszavon, a meghívott elfogad), CSAK ott járható végig, ahol
     // mindkét ember munkamenete elérhető — ez az elkülönített bemutató. Éles üzemben a meghívott a
@@ -234,13 +285,134 @@ export function allowedToursFor(ctx = {}) {
     // vezérlőnek. Amit nem lehet végigvinni, azt nem kínáljuk fel (KUKA-041 · F91-01): NEVEZETT
     // kizárás, nem `targetMissing`-gel megszakadó bemutató. A funkció leírása, súgója és GYIK-je
     // éles üzemben is a helyén marad — csak a VÉGIGVEZETÉS nem indítható.
-    if (t.requires_demo === true && ctx.demo !== true) continue;
+    if (t.requires_demo === true && ctx.demo !== true) return false;
+    /**
+     * A FEJLESZTŐI LEVÉL-FOGADÓHOZ KÖTÖTT ÚTMUTATÓ (R166, külső review, Codex, P2).
+     *
+     * A megerősítés és a Próbaüzenetek útmutatója a levél-fogadóra áll, ami a `devSurface` kapcsoló
+     * mögött él: telepített környezetben a `/dev/mailbox` 404, a cél nem létezik, és az útmutató
+     * NEVEZETTEN megszakadt volna. NEVEZETT kizárás, nem `targetMissing`-gel megszakadó útmutató
+     * (F91-01 · KUKA-391: amit nem lehet végigvinni, azt nem kínáljuk fel).
+     */
+    if (t.requires_dev_mailbox === true && ctx.dev_mailbox !== true) return false;
+    /**
+     * AZ ENGEDÉLYHEZ KÖTÖTT KÉSZLET-NÉZETEK (R166, külső review, Codex, P2).
+     *
+     * A tagság NEM jog: a készlet-karton és a mozgások TÁBLÁJA csak kiadott `keszlet` adatkörrel
+     * rajzol. A felkínálás ezért UGYANAZON az ÉLŐ döntésen áll, mint a lap (`stock_access`), nem a
+     * tagságon és nem az útmutató bevezető szövegén — egy felirat nem kapu (KUKA-221).
+     */
+    if (t.requires_stock_access === true && ctx.stock_access !== true) return false;
+    // A MINTAADATHOZ KÖTÖTT TÁBLA-ÚTMUTATÓ csak ott, ahol a bemutató-minta tényleg ki van osztva
+    // (KUKA-413): minta nélkül a lap az ÜRES ÁLLAPOTOT rajzolja, és a lépés célja SOHA nem jön létre.
+    if (t.requires_demo_fixture === true && ctx.demo_fixture !== true) return false;
+    /**
+     * …ÉS A TÖRTÉNET INDULÓ ADATA IS ELŐFELTÉTEL (R176 §1 — SAJÁT LELET, a KÖTELEZŐ KAPU mérte).
+     *
+     * A LELET. Az R176 §1-ben a szereplő-váltó vezérlőt a VALÓDI héjra horgonyoztam (a kijelentkezés
+     * az, amivel a néző a másik szereplőre vált) — ettől a két átívelő történet a héjban is
+     * felkínálódott. A kötelező kapu MÉRTE a következményt: egy MINTAADAT NÉLKÜLI vállalkozásban a
+     * `tour.inviteRevoke` a 4. lépésen (`invites-table`: nincs FÜGGŐ meghívás), a `tour.reentry` a
+     * 2.-on (`members-list`: nincs MÁSIK tag) megszakadt. A vezérlő tehát KEVÉS: a történet INDULÓ
+     * ADATA is kell hozzá — amit nem lehet végigvinni, azt nem kínáljuk fel (KUKA-391 · KUKA-413).
+     *
+     * A KÉSZLET ZÁRT, és nyilatkozat nélkül ZÁRVA (fail-closed): egy kitalált mezőnév nem esik
+     * némán „igaz"-ra, és a tényt a KISZOLGÁLÓ méri a tárból, nem a tagságból (KUKA-236 · KUKA-238).
+     */
+    if (t.requires_story_data !== undefined && t.requires_story_data !== null) {
+      // A ZÁRT LISTA A FOLYTATÁSNÁL SEM LAZUL: a kitalált mezőnév NEM esik némán „igaz"-ra.
+      if (!TOUR_STORY_DATA.includes(t.requires_story_data)) return false;
+      /**
+       * A FOLYTATÁS VISZONT NEM KÉRI EL AZ INDULÓ ADATOT (R176 §1 — MÉRVE, ugyanabban a körben).
+       *
+       * AMI MÁR ELINDULT, ANNAK AZ INDULÓ FELTÉTELE MÁR NEM FELTÉTEL — és itt ez nem elvi finomság:
+       * a visszavonás története KÖZBEN váltják be a függő meghívást, a visszatérés története KÖZBEN
+       * szűnik meg a tagság, a meghívott pedig a SAJÁT személyes körében áll, ahol egyik tény sem
+       * igaz. Ha az indítás feltételét minden lépésnél újra megkérdeznénk, a futó történet a saját
+       * haladásától esne el — pontosan az a folytatásvesztés, amit az R176 §1 javítani kért.
+       * Ugyanaz a szellem, mint a szerep-kapunál: a történet ÁTÍVEL a szereplőkön és az állapotokon.
+       */
+      if (!folytatas && (!ctx.story_data || ctx.story_data[t.requires_story_data] !== true)) return false;
+    }
+    /**
+     * …ÉS A VEZÉRLŐ IS KELL HOZZÁ, NEM CSAK A KÖRNYEZET (R164/3 — a külső review lelete).
+     *
+     * A fenti `requires_demo` kapu a KISZOLGÁLÓ környezetét kérdezi. Az viszont nem mondja meg, hogy
+     * a BETÖLTÖTT FELÜLETEN van-e „váltás a másik nézetére" vezérlő: bemutató-környezetben futó
+     * VALÓDI alkalmazás-héjban nincs, tehát a bemutató ott felkínálódott, és a hatodik lépésén
+     * NEVEZETTEN megszakadt — a felkínálás maga volt a hibás állítás (KUKA-227: a határ zöldje nem a
+     * felület zöldje). Mostantól a felület MONDJA MEG, milyen horgonyokat ad (`surface_anchors`), és
+     * a kapu a lépés SAJÁT `target`-jét kéri tőle. Nyilatkozat nélkül ZÁRVA (fail-closed): aki nem
+     * mond semmit a felületéről, annak nem kínálunk végig nem vihető bemutatót.
+     */
+    const valtoLepesek = actorSwitchSteps(t);
+    if (valtoLepesek.length > 0) {
+      const ad = ctx.surface_anchors;
+      const horgonyok = ad instanceof Set ? ad : (Array.isArray(ad) ? new Set(ad) : null);
+      if (!horgonyok || !valtoLepesek.every((s) => horgonyok.has(s.target))) return false;
+    }
     // A BEMUTATÓ SAJÁT KÖZÖNSÉGE. Nem a funkcióé: a nyelvváltás ELMAGYARÁZHATÓ belépés előtt is
     // (a funkció `public`), de a bemutatója az alkalmazás-héjban jár, tehát belépés kell hozzá.
-    if (!availabilityOf({ audience: t.audience || 'signed_in', scope: 'person' }, ctx).visible) continue;
+    if (!availabilityOf({ audience: t.audience || 'signed_in', scope: 'person' }, ctx).visible) return false;
     const f = FEATURES.find((x) => x.id === t.feature);
-    if (f) { const row = visible.find((r) => r.feature.id === f.id); if (!row || !row.visible) continue; }
-    out.push(t.id);
+    if (f) {
+      const row = visible.find((r) => r.feature.id === f.id);
+      /**
+       * A FUNKCIÓ-SOR IS SZEREP-KÉRDÉST TEHET FEL (R176 §1 — MÉRVE).
+       *
+       * A `tour.inviteRevoke` funkciója (`invite.revoke`) és a `tour.reentry`-é (`members.reinvite`)
+       * `admin_required`: a meghívott nézetében a SOR sem látszik. Ez UGYANAZ a szerep-kérdés, amit
+       * a folytatás szándékosan félretesz — ha itt nem engednénk, a `folytatas` üres ígéret volna
+       * (mérve: a szerep-kapu megnyitása után is zárva maradt).
+       *
+       * ÉS CSAK EZT AZ EGY OKOT FOGADJUK EL: bármely MÁS láthatósági ok (terv, adatkör, kivezetés)
+       * továbbra is ZÁR. A szerep-kérdést a LÉPÉSEK saját `role` őre érvényesíti futás közben
+       * (`rightLost`), tehát a folytatás nem ad jogot, csak lépés-listát (`KUKA-047`: a kapu ott
+       * álljon, ahol a kár keletkezik).
+       */
+      const atmeneti = folytatas && row && row.visible === false && RESUME_TOLERALT_OK.includes(row.why);
+      if ((!row || !row.visible) && !atmeneti) return false;
+    }
+  return true;
+}
+
+/** AZ INDÍTHATÓ bemutatók — a teljes kapu-lánccal, a szerep-kapuval együtt. */
+export function allowedToursFor(ctx = {}) {
+  const visible = visibleFeaturesFor(ctx);
+  const out = [];
+  for (const t of Object.values(TOURS)) if (tourGateOpen(t, ctx, visible)) out.push(t.id);
+  return Object.freeze(out);
+}
+
+/**
+ * A VÁLTÁS UTÁN FOLYTATHATÓ bemutatók (R176 §1 — a parancs nevesített hibája: „a meghívó elfogadása
+ * utáni folytatásvesztés").
+ *
+ * A LELET, MÉRVE. A két szereplős történet ÁTÍVEL a szerepeken: a fiókkezelő visszavon, a MEGHÍVOTT
+ * elfogad. A meghívott viszont NEM admin, tehát a saját nézetében a kiszolgáló ezt a bemutatót nem
+ * kínálja fel — a váltás utáni visszaállás (`resumeTourAfterSwitch`) így nem találta meg a
+ * lépés-listát, és a futást NEVEZETTEN elengedte (`notAvailable`). A felhasználó a történet
+ * közepén, egy ÉP képernyőn vesztette el a bemutatót, pont a tanulság előtt.
+ *
+ * A VÁLASZ: a FOLYTATÁS más kérdés, mint az INDÍTÁS. Az indítás joggal kéri a szerepet (a történet
+ * a fiókkezelő képernyőjén kezdődik); a már FUTÓ történet másik szereplője viszont épp azért váltott
+ * ide, mert a soron következő lépés AZ ÖVÉ. Ezért ez a lista a szerep-kapun KÍVÜL minden kaput
+ * megkér — a környezetet, a felület horgonyait, a közönséget és a funkció láthatóságát is.
+ *
+ * AMIT EZ NEM GYENGÍT, ÉS EZ A LÉNYEG:
+ *   · csak a SZEREPLŐ-VÁLTÓ bemutatók kerülnek bele (a definícióból, nem kézi listából — `KUKA-045`);
+ *   · a LÉPÉSEK saját `role` őre VÁLTOZATLAN: a meghívott a fiókkezelő lépésein `rightLost`-ot kap,
+ *     tehát nem tud admin-műveletet végezni azzal, hogy „folytatja" a bemutatót;
+ *   · a lista csak a lépés-LISTÁT adja meg a visszaálláshoz — jogot nem ad, műveletet nem nyit;
+ *   · és a kliens ebből NEM indíthat: a súgó az `allowedToursFor`-t kínálja fel, ez a halmaz csak a
+ *     KÉZBEN LÉVŐ átadás visszaállításához van.
+ */
+export function resumableToursFor(ctx = {}) {
+  const visible = visibleFeaturesFor(ctx);
+  const out = [];
+  for (const t of Object.values(TOURS)) {
+    if (actorSwitchSteps(t).length === 0) continue;          // csak a szereplő-váltó történetek
+    if (tourGateOpen(t, ctx, visible, { folytatas: true })) out.push(t.id);
   }
   return Object.freeze(out);
 }

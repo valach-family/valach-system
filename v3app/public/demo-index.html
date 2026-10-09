@@ -50,6 +50,11 @@
     <button type="button" class="primary" data-action="tour-start" data-tour="tour.reentry"
       data-testid="demo-story-reentry">2 · Munkatárs visszatérése</button>
     <span class="spacer"></span>
+    <!-- A NÉZŐ-VÁLTÁS A BEMUTATÓ-LAPON: valódi ki- és belépés, majd tiszta címre újratöltés (lentebb,
+         `switchViewer`). Az R164/3-ban megépítettem az ALKALMAZÁSON BELÜLI, újratöltés nélküli
+         átadást is (a profil-menü feltárásával és a kijelentkezéssel); 19-ből 18 lépést ért el, és
+         két állapot-szivárgást javítottam közben, de a harmadik nem záródott le — a részletek a
+         `features.mjs` váltás-lépéseinél, a maradék munka a jelentésben NEVESÍTVE. -->
     <button type="button" data-testid="demo-switch-viewer" data-tour-anchor="actor-switch">Váltás Béla nézetére</button>
     <button type="button" data-testid="demo-restart">Újrakezdés</button>
     <span class="note" data-testid="demo-viewer-note"></span>
