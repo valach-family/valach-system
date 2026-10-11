@@ -17924,6 +17924,86 @@ Object.freeze({
     ],
     forbidden: [],
   }),
+  Object.freeze({
+    id: 'KUKA-484',
+    date: '2026-10-11',
+    title: 'A FOLYTATHATÓ SOROZAT BIZONYÍTÉKA MEGOSZTOTT, FELÜLÍRT HELYEN ÁLLT — EGY KÉSŐBBI FUTÁS MEGSEMMISÍTETTE A KORÁBBIT',
+    what: 'Az EXS-01 sorozat PROGRAMONKÉNT folytatható: ma lefut az `r61`, holnap az `r83core`. A '
+      + 'rekord a sorozat saját könyvtárába került, a RÉSZLETES bizonyíték viszont a '
+      + '`results/<program>_<bizonyíték>.json` FIX nevű fájlban maradt — amit MINDEN futás '
+      + 'felülír. Az R196 §1 javítása ráadásul épp azt kezdte mérni, hogy a rekord '
+      + '`evidence_digest`-je egyezik-e a lemezen álló fájl ÚJRASZÁMOLT lenyomatával.',
+    why_wrong: 'A két dolog együtt azt jelentette, hogy a folytathatóság ÍGÉRETE a tárolásban nem '
+      + 'volt meg. MÉRVE, valódi adaton: az R196-ban lefuttatott `--only r61` felülírta a fájlt, és '
+      + 'az ELŐZŐ sorozat `r61` rekordja azonnal elesett — *„a részletes bizonyíték MÁS: a rekord '
+      + '40c90d388cb7…-t állít, a lemezen álló fájl ÚJRASZÁMOLVA 635e227004b5…"* —, tehát '
+      + '`ervenytelen_rekord` lett. AZ ŐR IGAZAT MONDOTT: az a bizonyíték tényleg eltűnt. A hiba a '
+      + 'TÁROLÁSBAN volt: folytathatóságot ígértünk, a bizonyítékot pedig megosztott, felülírható '
+      + 'helyen tartottuk — egy ígéret, amit a tárolás nem bír el, nem ígéret (`KUKA-050`).',
+    replaced_by: 'A SOROZAT ÖNHORDÓ: a futtató a részletes bizonyítékot a sorozat saját '
+      + '`series/<sorozat>/evidence/<program>.json` példányába is kiírja, és a rekord lenyomata EBBŐL '
+      + 'készül; az összesítő is EBBŐL számolja újra. A `results/` alatti példány MEGMARAD, mert azt '
+      + 'a külső fél programjai olvassák név szerint (`KUKA-054`) — a sorozat példánya MELLÉ került, '
+      + 'nem helyette. Egy későbbi futás így nem semmisíti meg a korábbi programok bizonyítékát.',
+    replacement: 'AMIT FOLYTATHATÓNAK ÍGÉRÜNK, ANNAK A BIZONYÍTÉKÁT IS A SOROZATHOZ KELL KÖTNI. '
+      + 'Megosztott, fix nevű, felülírt tároló fölött nincs folytathatóság — a részfutás bizonyítéka '
+      + 'csak akkor marad meg, ha a SAJÁT könyvtárában áll.',
+    decision: 'D-VS-3260',
+    found_by: 'SAJÁT lelet (Claude-v3, R196) — nem fixtúrán, hanem az ELSŐ VALÓDI futáson: a '
+      + '`--only r61` lefuttatása után az összesítő azonnal kimondta az előző sorozat `r61` '
+      + 'rekordjának lenyomat-eltérését. A saját példám nem bizonyíték volt — a valódi adat-alak az.',
+    lesson: 'A TÁROLÁS HELYE A SZERZŐDÉS RÉSZE. Ha egy mérés „folytatható", akkor nem csak a '
+      + 'VERDIKTJE, hanem a BIZONYÍTÉKA is a sorozathoz tartozik; különben az első folytatás '
+      + 'megsemmisíti az előzményt, és ezt csak akkor látjuk meg, ha valódi adaton futtatjuk.',
+    guard_note: 'gépi jel: `npm run verify:external-series` (`EXS15`) — VALÓDI gyermek-folyamattal, '
+      + 'a lemezen álló fixtúra-sorozaton: a sorozat SAJÁT `evidence/` példányával a kapu ZÖLD '
+      + '(kilépés 0, pozitív kontroll), a példány NÉLKÜL PIROS (kilépés 3) és a hiány NEVEZETT.',
+    home: 'v3',
+    positive: [
+      { paths: ['v3ref/external-checks/run-all.mjs'], pattern: 'seriesEvidenceDir', why: 'a futtató a sorozat SAJÁT bizonyíték-példányát írja' },
+      { paths: ['v3ref/external-checks/run-all.mjs'], pattern: 's2\\.series_evidence', why: 'a rekord lenyomata a sorozat saját példányából készül, nem a felülírható fájlból' },
+      { paths: ['tools/vs_verify_external_series.mjs'], pattern: "join\\(base, d, 'evidence'\\)", why: 'az összesítő is a sorozat SAJÁT példányából számol újra' },
+    ],
+    forbidden: [],
+  }),
+  Object.freeze({
+    id: 'KUKA-485',
+    date: '2026-10-11',
+    title: 'A HIÁNYZÓ ÚJRASZÁMOLT LENYOMAT NÉMA KIHAGYÁS VOLT — BIZONYÍTÉK NÉLKÜLI TELJES SOROZAT ELFOGADVA',
+    what: 'Az R196 §1 bizonyíték-ellenőrzése `if (digests.size)` kapu alatt állt: a kapu csak akkor '
+      + 'vetette össze a rekord `evidence_digest`-jét az újraszámolt lenyomattal, ha EGYÁLTALÁN '
+      + 'érkezett újraszámolt lenyomat.',
+    why_wrong: 'Ha EGYETLEN bizonyíték-fájl sem volt a helyén, a `digests` üres maradt, és az '
+      + 'ellenőrzés NÉMÁN kimaradt — vagyis a legrosszabb eset (SEMMILYEN részletes bizonyíték) '
+      + 'kapta a legkevesebb vizsgálatot. MÉRVE, az `EXS15` pozitív kontrolljának második felén: egy '
+      + 'TELJES, HORGONYZOTT, MAI, 19-program-os sorozat, aminek a részletes bizonyítéka SEHOL nem '
+      + 'volt, az ELFOGADÁSI KAPUN ÁTMENT — kilépés 0. Ez a `KUKA-051` alakja a saját javításomon: a '
+      + '„nincs mit ellenőrizni" nem elfogadás, és egy olyan őr, ami a hiányra nem tüzel, a hiányt '
+      + 'JUTALMAZZA.',
+    replaced_by: 'A kapu MINDEN MÉRT rekordhoz újraszámolt lenyomatot KÍVÁN: ha nincs, az NEVEZETT '
+      + 'lelet (*„a részletes bizonyíték-fájl NEM TALÁLHATÓ — a rekord lenyomata nem ellenőrizhető"*), '
+      + 'a rekord érvénytelen, és a sorozat nem fogadható el. A `digests.size` kapu törölve.',
+    replacement: 'A HIÁNY NEM KIHAGYÁS. Egy ellenőrzés, ami a bemenet HIÁNYÁRA kapcsol ki, pont a '
+      + 'legrosszabb esetet engedi át — a hiányra a jelnek ERŐSEBBEN kell tüzelnie, nem halkabban.',
+    decision: 'D-VS-3260',
+    found_by: 'SAJÁT lelet (Claude-v3, R196) — az `EXS15` POZITÍV KONTROLL második fele hozta ki: a '
+      + 'bizonyíték-példány nélküli teljes sorozatot a kapu 0-val fogadta el. A pozitív kontroll '
+      + 'tehát nem dísz: ő találta meg a saját javításom rését (`KUKA-122`).',
+    lesson: 'AMIKOR EGY ELLENŐRZÉST A BEMENETE MEGLÉTÉHEZ KÖTÜNK, AZ ELLENŐRZÉS A HIÁNYRA ELTŰNIK. '
+      + 'A helyes alak: a bemenet hiánya MAGA a lelet — és ezt a pozitív kontroll ellenpárjával kell '
+      + 'megmérni, nem a jó eset zöldjével beérni.',
+    guard_note: 'gépi jel: `npm run verify:external-series` (`EXS15`) — a bizonyíték-példány nélküli '
+      + 'teljes sorozat a kapun PIROS (kilépés 3), és a hiány NEVEZETTEN megjelenik; '
+      + 'visszacsúsztatásra (a `digests.size` kapu visszatétele) MÉRVE tüzel.',
+    home: 'v3',
+    positive: [
+      { paths: ['v3ref/external-checks/seriesLedger.mjs'], pattern: 'A HIÁNY NEM KIHAGYÁS', why: 'a szabály KIMONDVA áll a kapu mellett, nem a szerző emlékezetében' },
+      { paths: ['v3ref/external-checks/seriesLedger.mjs'], pattern: 'NEM TALÁLHATÓ', why: 'a hiányzó részletes bizonyíték NEVEZETT lelet' },
+    ],
+    forbidden: [
+      { paths: ['v3ref/external-checks/seriesLedger.mjs'], pattern: 'if \\(digests\\.size\\)', why: 'a KIVEZETETT néma kihagyás: a bemenet hiányára kikapcsoló ellenőrzés' },
+    ],
+  }),
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

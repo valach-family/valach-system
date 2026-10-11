@@ -361,8 +361,17 @@ export function verifySeries({ records, programs, expected, live, evidenceDigest
     if (byId.has(id)) { problems.push(`[${id}] DUPLIKÁLT rekord a sorozatban — nem dönthető el, melyik az érvényes`); continue; }
     byId.set(id, r);
     invalidById.set(id, inv);
-    // A RÉSZLETES BIZONYÍTÉK AZONOSSÁGA — ÚJRASZÁMOLVA, nem a rekordtól kérdezve (R196 §1).
-    if (digests.size) {
+    /**
+     * A RÉSZLETES BIZONYÍTÉK AZONOSSÁGA — ÚJRASZÁMOLVA, nem a rekordtól kérdezve (R196 §1).
+     *
+     * ÉS A HIÁNY NEM KIHAGYÁS (SAJÁT lelet, R196, az EXS15 pozitív kontrollján mérve). Az első
+     * alakom `if (digests.size)` kapuval állt: ha EGYETLEN újraszámolt lenyomat sem érkezett, a
+     * kapu az ellenőrzést NÉMÁN kihagyta — tehát egy teljes, horgonyzott, mai sorozat, aminek a
+     * bizonyítéka SEHOL nem volt, ELFOGADVA lett (kilépés 0, MÉRVE). A „nincs mit ellenőrizni"
+     * nem elfogadás (`KUKA-051`): minden MÉRT rekordhoz kell újraszámolt lenyomat, különben a
+     * bizonyíték azonossága nem eldönthető, és ezt NEVEZZÜK.
+     */
+    {
       const actual = digests.get(id);
       if (actual === undefined) {
         problems.push(`[${id}] a részletes bizonyíték-fájl NEM TALÁLHATÓ — a rekord lenyomata (${str(r.evidence_digest).slice(0, 12)}…) nem ellenőrizhető`);

@@ -394,6 +394,57 @@ if (!process.env.VS_EXS14_INNER) {
   }
 }
 
+// ── EXS15 — A SOROZAT ÖNHORDÓ: A LENYOMAT A SAJÁT BIZONYÍTÉK-PÉLDÁNYÁBÓL (R196 §1) ──────────────
+//
+// MIÉRT VALÓDI FOLYAMATTAL. Az állítás tárgya az, hogy az összesítő HONNAN olvassa a részletes
+// bizonyítékot — ez út-kérdés, amit csak a lemezen álló sorozaton lehet megmérni. És ez az
+// ellenpróba egyben a TELJES lánc POZITÍV KONTROLLJA is: egy hibátlan, horgonyzott, mai, saját
+// bizonyítékkal álló 19-program-os sorozaton a KAPU ZÖLD (kilépés 0). Ha a kapu ilyenkor sem tud
+// zöld lenni, akkor a „piros" nem jelent semmit (`KUKA-122`).
+if (!INNER) {
+  const tmp = mkdtempSync(join(tmpdir(), 'exs15-'));
+  const run = (args) => spawnSync(process.execPath, [fileURLToPath(import.meta.url), ...args], {
+    encoding: 'utf8', timeout: 60_000, env: { ...process.env, VS_EXS14_INNER: '1' },
+  });
+  try {
+    // ÉP, TELJES sorozat: horgony + 19 rekord + a sorozat SAJÁT bizonyíték-példányai.
+    const dir = join(tmp, 'ok', ANCHOR.series);
+    mkdirSync(join(dir, 'evidence'), { recursive: true });
+    writeFileSync(join(dir, BINDING_ANCHOR_FILE), JSON.stringify(ANCHOR, null, 2));
+    for (const pr of PROGRAMS) {
+      // A tartalom tetszőleges — a LENYOMAT abból SZÁMOLÓDIK, nem begépelt (KUKA-045).
+      const body = JSON.stringify({ program: pr.id, cases: (pr.cases || []).map((id) => ({ id, pass: true })) });
+      writeFileSync(join(dir, 'evidence', `${pr.id}.json`), body);
+      writeFileSync(join(dir, `${pr.id}.json`), JSON.stringify(
+        recFor(pr, { evidence_digest: evidenceDigest(Buffer.from(body)) }), null, 2));
+    }
+    const ok = run(['--gate', '--series-base', join(tmp, 'ok')]);
+    say('EXS15', ok.status === 0,
+      `az ÉP, TELJES, horgonyzott, SAJÁT bizonyítékkal álló sorozatot a KAPU elutasította `
+      + `(kilépés ${ok.status}) — ha a kapu sosem lehet zöld, a pirosa sem jelent semmit:\n      `
+      + String(ok.stdout || '').split('\n').filter((l) => /LELET|·/.test(l)).slice(0, 6).join('\n      '));
+    say('EXS15', /ELFOGADVA: IGEN/.test(ok.stdout), 'az ÉP teljes sorozat nem mondja ki, hogy ELFOGADVA: IGEN');
+
+    // UGYANAZ, de a sorozat SAJÁT bizonyíték-példánya NINCS MEG: a lenyomat NEM ellenőrizhető.
+    // A kapu NEM eshet vissza némán a `results/` alatti, FELÜLÍRHATÓ példányra (KUKA-051).
+    const bad = join(tmp, 'noev', ANCHOR.series);
+    mkdirSync(bad, { recursive: true });
+    writeFileSync(join(bad, BINDING_ANCHOR_FILE), JSON.stringify(ANCHOR, null, 2));
+    for (const pr of PROGRAMS) {
+      const body = JSON.stringify({ program: pr.id });
+      writeFileSync(join(bad, `${pr.id}.json`), JSON.stringify(
+        recFor(pr, { evidence_digest: evidenceDigest(Buffer.from(body)) }), null, 2));
+    }
+    const noev = run(['--gate', '--series-base', join(tmp, 'noev')]);
+    say('EXS15', noev.status === 3,
+      `a SAJÁT bizonyíték-példány nélküli teljes sorozat a kapun ÁTMENT (kilépés ${noev.status}, várt 3)`);
+    say('EXS15', /NEM TALÁLHATÓ/.test(noev.stdout),
+      'a hiányzó SAJÁT bizonyíték-példány nincs NEVEZVE — a kapu némán visszaeshetett a felülírható példányra');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
 // ── A LEMEZEN ÁLLÓ SOROZATOK (--aggregate | --gate) ─────────────────────────────────────────────
 let gateVerdict = null;
 if (MODE_AGGREGATE || MODE_GATE) {
@@ -441,14 +492,22 @@ if (MODE_AGGREGATE || MODE_GATE) {
     const records = files.map((f) => {
       try { return JSON.parse(readFileSync(join(base, d, f), 'utf8')); } catch { return `OLVASHATATLAN: ${f}`; }
     });
-    // A RÉSZLETES BIZONYÍTÉK ÚJRASZÁMOLT LENYOMATA A LEMEZRŐL (R196 §1) — nem a rekordtól kérdezve.
+    /**
+     * A RÉSZLETES BIZONYÍTÉK ÚJRASZÁMOLT LENYOMATA — A SOROZAT SAJÁT PÉLDÁNYÁBÓL (R196 §1).
+     *
+     * MIÉRT NEM A `results/` ALÓL. Az a fájlnév FIX, tehát minden futás FELÜLÍRJA — egy
+     * programonként folytatható sorozatban a korábbi programok bizonyítéka így eltűnne, és az
+     * újraszámolás NEM a rekordhoz tartozó fájlt mérné. MÉRVE (R196, valódi adaton): a mai
+     * `--only r61` futás után az előző sorozat `r61` rekordja azonnal eltérő lenyomatot kapott.
+     * A sorozat ezért ÖNHORDÓ: a saját `evidence/` könyvtárából mérünk. Ahol az nincs (a horgony
+     * bevezetése ELŐTTI sorozatok), ott a lenyomat NEM ellenőrizhető, és ezt a kapu KIMONDJA —
+     * nem esik vissza némán a felülírt, megosztott példányra (`KUKA-051`).
+     */
     const evidenceDigests = new Map();
+    const evDir = join(base, d, 'evidence');
     for (const p of PROGRAMS) {
-      const ev = join(ROOT, 'v3ref/external-checks/results', `${p.id}_${p.evidence || ''}`);
-      const cand = [ev, join(ROOT, 'v3ref/external-checks/results', `${p.id}.json`)]
-        .concat(p.evidence ? [join(ROOT, 'v3ref/external-checks/results', p.evidence)] : []);
-      const hit = cand.find((c) => existsSync(c));
-      if (hit) evidenceDigests.set(p.id, evidenceDigest(readFileSync(hit)));
+      const own = join(evDir, `${p.id}.json`);
+      if (existsSync(own)) evidenceDigests.set(p.id, evidenceDigest(readFileSync(own)));
     }
     const { verdict, problems: pr, anchorIssues, freshness, byId, invalidById } = verifySeries({
       records, programs: PROGRAMS, expected: anchor, live, evidenceDigests,
@@ -510,7 +569,7 @@ if (MODE_AGGREGATE || MODE_GATE) {
 }
 
 console.log('');
-console.log(`EXS-01 SOROZAT-KAPU (EXS01–EXS14, az EXS03b-vel): ${PROGRAMS.length} program · szerződés ${SERIES_CONTRACT}`);
+console.log(`EXS-01 SOROZAT-KAPU (EXS01–EXS15, az EXS03b-vel): ${PROGRAMS.length} program · szerződés ${SERIES_CONTRACT}`);
 console.log('  AMIT EZ NEM ÁLLÍT: a szintetikus összesítő-próba NEM termékelfogadás — a bizonyíték');
 console.log('  KEZELÉSÉT méri, nem a terméket (R194 §2).');
 if (problems.length && !INNER) {

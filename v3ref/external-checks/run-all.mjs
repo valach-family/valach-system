@@ -507,6 +507,33 @@ writeFileSync(indexPath, `${JSON.stringify(all, null, 2)}\n`);
 if (!seriesAnchorOk) {
   console.log('  SOROZAT:        rekord NEM íródott — a kötés-horgony a saját kapuján elesett (lásd fentebb).');
 } else {
+/**
+ * A RÉSZLETES BIZONYÍTÉK A SOROZAT SAJÁT KÖNYVTÁRÁBA IS BEKERÜL — ÉS EZT MÉRÉS KÉNYSZERÍTETTE KI.
+ *
+ * A LELET (R196, SAJÁT, valódi adaton). A per-program bizonyíték-fájl neve FIX
+ * (`results/<program>_<bizonyíték>.json`), tehát MINDEN futás FELÜLÍRJA. A sorozat viszont
+ * PROGRAMONKÉNT FOLYTATHATÓ: ha ma lefut az `r61`, holnap az `r83core`, akkor a holnapi futás
+ * ugyanabba a könyvtárba ír — és az `r61` rekordjában álló lenyomat már NEM a lemezen álló fájlra
+ * illeszkedik. MÉRVE: a mai `--only r61` futás után az előző sorozat `r61` rekordja azonnal
+ * `ervenytelen_rekord` lett („a részletes bizonyíték MÁS: a rekord 40c90d388cb7…-t állít, a lemezen
+ * álló fájl ÚJRASZÁMOLVA 635e227004b5…").
+ *
+ * EZ NEM AZ ŐR HIBÁJA — AZ ŐR IGAZAT MONDOTT: az a bizonyíték tényleg eltűnt. A hiba a TÁROLÁSBAN
+ * volt: a folytathatóságot ígértük, a bizonyítékot pedig MEGOSZTOTT, FELÜLÍRT helyen tartottuk.
+ * Egy ígéret, amit a tárolás nem bír el, nem ígéret (`KUKA-050`).
+ *
+ * EZÉRT A SOROZAT SAJÁT PÉLDÁNYT KAP (`series/<sorozat>/evidence/<program>.json`), és a rekord
+ * lenyomata EBBŐL készül — a `results/` alatti példány marad, mert a KÜLSŐ fél programjai azt
+ * olvassák név szerint (`KUKA-054`). Így a sorozat ÖNHORDÓ: egy későbbi futás nem semmisíti meg a
+ * korábbi programok bizonyítékát.
+ */
+const seriesEvidenceDir = join(seriesDir, 'evidence');
+mkdirSync(seriesEvidenceDir, { recursive: true });
+for (const s2 of summary) {
+  if (!s2.saved) continue;
+  s2.series_evidence = join(seriesEvidenceDir, `${s2.id}.json`);
+  cpSync(s2.saved, s2.series_evidence);
+}
 for (const s2 of summary) {
   const rec = makeRecord({
     binding: seriesBinding,
@@ -518,7 +545,8 @@ for (const s2 of summary) {
     cases: s2.case_rows || [],
     // A LENYOMAT A MEGOSZTOTT OTTHONBÓL: az összesítő UGYANEZZEL a függvénnyel számolja újra a
     // lemezen álló fájlból, tehát a két oldal nem csúszhat el (KUKA-003 · R196 §1).
-    evidence_digest: s2.saved ? evidenceDigest(readFileSync(s2.saved)) : '',
+    // A LENYOMAT A SOROZAT SAJÁT PÉLDÁNYÁBÓL (lásd a `seriesEvidence` jegyzetét alább).
+    evidence_digest: s2.series_evidence ? evidenceDigest(readFileSync(s2.series_evidence)) : '',
     failure: { kind: s2.failure_kind, why: s2.failure_why },
     ms: s2.ms,
   });
