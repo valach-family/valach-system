@@ -137,9 +137,9 @@ egysoros és hosszában korlátozott (`sanitizeWhy`, 400 karakter), a vágás **
 
 ---
 
-## 3. A CÉLZOTT ELLENPRÓBÁK — TIZENKÉT VISSZACSÚSZTATÁS, MINDEGYIK A SAJÁTJÁT PIROSÍTJA
+## 3. A CÉLZOTT ELLENPRÓBÁK — TIZENHAT VISSZACSÚSZTATÁS, MINDEGYIK A SAJÁTJÁT PIROSÍTJA
 
-Az őr ma `EXS01`–`EXS15` (az `EXS03b`-vel). A SPEC által kért öt ellenpróba mind megvan:
+Az őr ma `EXS01`–`EXS16` (az `EXS03b`-vel). A SPEC által kért öt ellenpróba mind megvan:
 a két reprodukált bemenet (`EXS09a` · `EXS09b`) · egyöntetűen idegen készlet (`EXS10`) ·
 meghamisított és hiányzó részletes bizonyíték (`EXS11`) · helyes teljes készlet (`EXS12`) ·
 érvényes hiányos készlet (`EXS13`).
@@ -161,8 +161,20 @@ visszacsúsztattam és megmértem, melyik őr tüzel:
 | 10 | a nem várt diagnosztikából újra termékhiba lesz | `EXS08` |
 | 11 | a hiányzó újraszámolt lenyomat újra néma kihagyás | `EXS15` |
 | 12 | az összesítő újra a felülírható `results/` alól olvas | `EXS15` |
+| 13 | a `commit` újra az AZONOSSÁG része | `EXS16` |
+| 14 | a MÉRT FORRÁS lenyomata nincs ellenőrizve | `EXS09a` |
+| 15 | a JELÖLT (nem könyvelt) származás átmegy | `EXS16` |
+| 16 | a különböző MÉRT FORRÁS nincs elutasítva | `EXS03` |
 
-Helyreállítás után az őr mind a tizenkét esetben **ismét zöld**.
+Helyreállítás után az őr mind a tizenhat esetben **ismét zöld**.
+
+**ÉS KÉT ELLENPRÓBÁM SAJÁT MAGA IS ELBUKOTT ELŐBB, MÉRVE** — mind a kettő ugyanaz a hiba-osztály
+(`KUKA-239`: a próba a VISELKEDÉST mérje, ne a fixtúra véletlen alakját):
+
+- az `EXS14` **nyolcból nyolcszor** tüzelt, mert a belső folyamata idegen mechanizmusból lépett ki
+  (`KUKA-483`);
+- az első `EXS16`-alakom a (13) visszacsúsztatásra **nem** tüzelt, mert a fixtúra alakjára
+  illeszkedett, nem a *shape*-re — a mérce ezért most **közvetlen** `seriesId`-összevetés.
 
 ### EGY SAJÁT LELET A PRÓBAPADRÓL (KUKA-483)
 
@@ -311,7 +323,10 @@ meghaladja** (11,1 → 12,3 s a mért szeleteken). A költségvetést nem a *tar
 
 ---
 
-## 5. KÉT SAJÁT LELET A JAVÍTÁS FUTTATÁSÁBÓL — mert a saját példám nem bizonyíték
+## 5. NÉGY SAJÁT LELET A JAVÍTÁS FUTTATÁSÁBÓL — mert a saját példám nem bizonyíték
+
+A `KUKA-483` a 3. szakaszban áll (a próbapadról). Az alábbi három a **futtatásból** és a
+**szállításból** jött — egyiket sem fixtúra adta.
 
 ### `KUKA-484` — a folytathatóság ígérete a tárolásban nem volt meg
 
