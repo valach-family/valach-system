@@ -17737,6 +17737,193 @@ Object.freeze({
     ],
   }),
 
+  Object.freeze({
+    id: 'KUKA-480',
+    date: '2026-10-11',
+    title: 'A BIZONYÍTÉK-KAPU A REKORDOKAT EGYMÁSHOZ MÉRTE, NEM ELŐRE RÖGZÍTETT ELVÁRT KÖTÉSHEZ — EGYÖNTETŰEN HAMIS KÉSZLET ÁTMENT',
+    what: 'Az R195-ben született `verifySeries` (EXS-01) a sorozat teljességét úgy döntötte el, hogy '
+      + 'a rekordokat EGYMÁSHOZ hasonlította: egy sorozatazonosító? egy commit? egy '
+      + 'konfiguráció-lenyomat? A kötés ÉRDEMI állapotát nem kérdezte meg, és a `recordProblems` a '
+      + 'lenyomatokra csak annyit mért, hogy „nem üres". A kötést ráadásul a futtató a programok '
+      + 'LEFUTÁSA UTÁN írta a rekordok mellé, tehát a VÁRT érték ugyanabból a futásból keletkezett, '
+      + 'amit igazolni kellett volna.',
+    why_wrong: 'Ha a készlet EGYÖNTETŰ, nincs mihez mérni — tehát egy egyöntetűen HAMIS készlet '
+      + 'átment. MÉRVE (chatgpt-v3, izolált Node-futtatás a `0d5ee24` fejen, a VÁLTOZATLAN modulon): '
+      + '`binding = { commit: a×40, clean: FALSE, config_digest: \'cfg\', programs_digest: \'\', '
+      + 'runner_digest: \'\' }` és `evidence_digest: \'unverified\'` mellett a '
+      + '`verifySeries({ records: [rekord], programs: [{ id: \'p\', cases: [\'c\'] }] })` '
+      + '`complete: TRUE · ok: TRUE · green: 1`-et adott. Vagyis egy PISZKOS forráson, hiányzó '
+      + 'manifeszt- és futtató-lenyomattal, kitalált bizonyíték-lenyomattal a kapu TELJES '
+      + 'BIZONYÍTÉKOT állított — pontosan az a hiba-osztály, amit a `KUKA-121` nevez: a bizonyíték a '
+      + 'SAJÁT állítását igazolta vissza. A sorozatazonosítót is a rekordtól fogadta el, holott az '
+      + 'ÁLLÍTÁS, nem adat.',
+    replaced_by: 'HÁROM, EGYMÁSSAL NEM KIELÉGÍTHETŐ RÉTEG. L1: a rekordok egymáshoz (ez volt meg). '
+      + 'L2: a KÖTÉS-HORGONY — a futtató a sorozat INDÍTÁSAKOR, a mérés ELŐTT, külön fájlba '
+      + '(`results/series/<sorozat>/binding.json`) rögzíti az ELVÁRT kötést, és az összesítő EHHEZ '
+      + 'mér; horgony nélkül nincs elfogadás. L3: a horgony az ÉLŐ állapothoz (commit · tiszta · '
+      + 'manifeszt- · futtató- · konfiguráció-lenyomat) — ez dönti el, hogy a készlet MAI eredmény-e '
+      + 'vagy TÖRTÉNETI. És az ÉRDEMI mérce most van: `clean === true` KAPU, könyvelt 40-hex commit '
+      + '(a `…+uncommitted` jelölt alak elesik), valódi sha256 alakú manifeszt-, futtató- és '
+      + 'bizonyíték-lenyomat, a bizonyíték-lenyomat a LEMEZRŐL ÚJRASZÁMOLVA, és a sorozatazonosító a '
+      + 'kötésből újraszámolva. A futtató nem ír olyan horgonyt, amit a saját kapuja elutasít: '
+      + 'piszkos forráson a sorozat NEM INDUL, rekord sem keletkezik.',
+    replacement: 'A VÁRT ÉRTÉK NEM A VIZSGÁLT ADATBÓL KELETKEZIK. Aki a bizonyítékot ellenőrzi, az '
+      + 'egy FÜGGETLENÜL, KORÁBBAN rögzített elváráshoz mérjen — és az „érdemi" állapotra az '
+      + '„értéke nem üres" soha nem mérce.',
+    decision: 'D-VS-3260',
+    found_by: 'chatgpt-v3 (R196) — a `0d5ee24` fejről olvasta a `seriesLedger.mjs` forrását, majd a '
+      + 'VÁLTOZATLAN modult izolált Node-futtatásban MEGHÍVTA, és a fenti bemenettel megmérte a '
+      + 'hamis zöldet (nem a forrás szövegéből következtetett rá).',
+    lesson: 'AZ EGYÖNTETŰSÉG NEM BIZONYÍTÉK. Egy készlet belső egyezése csak azt mondja, hogy '
+      + 'ugyanonnan jön — nem azt, hogy ONNAN, AHONNAN KELLENE. A kapunak KÜLSŐ, a mérés előtt '
+      + 'rögzített horgonyt kell adni, különben a hamisításhoz elég következetesnek lenni.',
+    guard_note: 'gépi jel: `npm run verify:external-series` — `EXS09a` (a chatgpt-v3 bemenete SZÓ '
+      + 'SZERINT, regresszióként) · `EXS10` (egyöntetűen idegen készlet, és a TÖRTÉNETI készlet '
+      + 'külön) · `EXS11` (meghamisított és hiányzó részletes bizonyíték) · `EXS12`/`EXS13` (helyes '
+      + 'teljes, illetve érvényes hiányos készlet). Mind az öt visszacsúsztatásra MÉRVE tüzel.',
+    home: 'v3',
+    positive: [
+      { paths: ['v3ref/external-checks/seriesLedger.mjs'], pattern: 'export function anchorProblems\\(', why: 'a KÖTÉS-HORGONY érvényessége nevezett feloldóban áll' },
+      { paths: ['v3ref/external-checks/seriesLedger.mjs'], pattern: 'export function bindingProblems\\(', why: 'a kötés ÉRDEMI állapotát (tisztaság, valódi lenyomat) külön feloldó méri' },
+      { paths: ['v3ref/external-checks/seriesLedger.mjs'], pattern: 'export function freshnessProblems\\(', why: 'a MAI vs. TÖRTÉNETI eredmény kérdése nevezett feloldóban áll (L3)' },
+      { paths: ['v3ref/external-checks/run-all.mjs'], pattern: 'BINDING_ANCHOR_FILE', why: 'a futtató a horgonyt KÜLÖN fájlba, a mérés ELŐTT rögzíti' },
+      { paths: ['v3ref/external-checks/seriesBinding.mjs'], pattern: 'export function liveBinding\\(', why: 'az ÉLŐ kötés mérése EGY otthonban él — a futtató és az összesítő ugyanazt hívja' },
+    ],
+    forbidden: [
+      { paths: ['v3ref/external-checks/seriesLedger.mjs'], pattern: '!str\\(rec\\.evidence_digest\\)', why: 'a KIVEZETETT „nem üres elég" mérce a bizonyíték-lenyomatra — az `unverified` szó is nem üres' },
+    ],
+  }),
+  Object.freeze({
+    id: 'KUKA-481',
+    date: '2026-10-11',
+    title: 'AZ OSZTÁLYOZÓ A LEFEDETTSÉGI HIÁNY MÖGÜL ELNYELTE A TARTALMI BUKÁST — KÉT TÉNYBŐL EGY MENT TOVÁBB',
+    what: 'Az R195-ös `classify` a program állapotát EGY szóval adta vissza, és a lefedettségi '
+      + 'hiányt vizsgálta ELŐBB: `if (want && want.some((id) => !got.includes(id))) return '
+      + '\'hianyos_meresu\';`. Ha tehát az elvárt esetek közül bármelyik nem futott le, azonnal '
+      + 'visszatért — a lefutott esetek eredményét MEG SEM KÉRDEZTE.',
+    why_wrong: 'MÉRVE (chatgpt-v3, a `0d5ee24` fejen): '
+      + '`classify({ ok: false, cases: [{ id: \'c\', pass: false }] }, [\'c\', \'d\'])` = '
+      + '`hianyos_meresu`. A `d` tényleg nem futott — de a `c` LEFUTOTT ÉS BUKOTT, és ez a tény '
+      + 'ELTŰNT. A lefedettségi hiány és a tartalmi bukás KÉT KÜLÖN TÉNY: az első a mérésről szól, a '
+      + 'második a TERMÉKRŐL. Egy osztályozó, ami kettőből egyet ad vissza, a másikat elhallgatja — és '
+      + 'a jelentés ebből idéz (`KUKA-131`). Ráadásul a kategória-szám „sikeresnek" nevezte azt a '
+      + 'rekordot is, aminek az AZONOSSÁGA sérült volt (idegen szerződés, piszkos kötés, hamisított '
+      + 'bizonyíték-lenyomat), mert a `sikeres` puszta `rec.ok === true`-ra állt.',
+    replaced_by: 'A KÉT TÉNY ORTOGONÁLIS, és MINDKETTŐ továbbmegy: a `classifyFacts` '
+      + '`coverage_gap` + `missing_cases` ÉS `content_failure` + `failed_cases` mezőt ad, a '
+      + 'kategória ebből SZÁRMAZIK, és a KETTŐ EGYÜTT esetének SAJÁT neve van '
+      + '(`hianyos_es_tartalmi_hibas`). A `tally` programonként továbbadja a tényeket (`facts`), az '
+      + 'összesítő pedig KIÍRJA őket. Az érvénytelen rekord külön kategória '
+      + '(`ervenytelen_rekord`), tehát a kategória-szám CSAK érvényes rekordot nevez sikeresnek. A '
+      + 'HATÁR VÁLTOZATLAN: tartalmi bukás csak az ELVÁRT, LEFUTOTT esetekből jöhet — a manifeszten '
+      + 'KÍVÜLI `merge/KORNYEZET-N` diagnosztikából nem gyártunk termékhibát (`KUKA-206`).',
+    replacement: 'AMIT KÉT TÉNYBŐL MÉRÜNK, AZT KÉT TÉNYKÉNT KELL TOVÁBBADNI. Az összevonás az '
+      + 'olvasó dolga, nem a mérőé — és ha az összevont alaknak nincs neve a két tény EGYÜTT '
+      + 'esetére, akkor az összevonás TÉNYT VESZÍT.',
+    decision: 'D-VS-3260',
+    found_by: 'chatgpt-v3 (R196) — a `0d5ee24` fejen a `classify`-t közvetlenül meghívta a fenti '
+      + 'bemenettel, és megmérte, hogy a bukott `c` eltűnik.',
+    lesson: 'A LEFEDETTSÉGI HIÁNY ÉS A TARTALMI BUKÁS KÉT KÜLÖN KÉRDÉSRE VÁLASZOL: „lefutott-e, amit '
+      + 'kértünk" és „amit lefutott, az jó volt-e". Egyik sem helyettesíti a másikat, és a '
+      + 'sorrendjük nem rangsor — a korai visszatérés a második tényt elhallgatja.',
+    guard_note: 'gépi jel: `npm run verify:external-series` — `EXS09b` (a chatgpt-v3 bemenete SZÓ '
+      + 'SZERINT: a két tény külön, és a kategória a KETTŐ EGYÜTT) · `EXS08` (a nem várt '
+      + 'diagnosztikából NEM lesz termékhiba, az `r83core` MÉRT alakján: 131 `KORNYEZET-N` eset '
+      + 'mellett `content_failure: false`) · `EXS11` (az érvénytelen rekord nem „sikeres").',
+    home: 'v3',
+    positive: [
+      { paths: ['v3ref/external-checks/seriesLedger.mjs'], pattern: 'export function classifyFacts\\(', why: 'a két tény NEVEZETT feloldóban, mezőnként áll' },
+      { paths: ['v3ref/external-checks/seriesLedger.mjs'], pattern: 'hianyos_es_tartalmi_hibas', why: 'a KETTŐ EGYÜTT esetének SAJÁT neve van — nincs mibe beolvadni' },
+      { paths: ['v3ref/external-checks/seriesLedger.mjs'], pattern: 'ervenytelen_rekord', why: 'a sérült azonosságú rekord nem „sikeres" és nem termék-lelet' },
+      { paths: ['tools/vs_verify_external_series.mjs'], pattern: 'lefedettségi hiány=', why: 'az összesítő a KÉT TÉNYT programonként kiírja, nem csak a kategóriát' },
+    ],
+    forbidden: [
+      { paths: ['v3ref/external-checks/seriesLedger.mjs'], pattern: "want\\.some\\(\\(id\\) => !got\\.includes\\(id\\)\\)\\) return 'hianyos_meresu'", why: 'a KIVEZETETT korai visszatérés, ami a tartalmi bukást elnyelte' },
+    ],
+  }),
+  Object.freeze({
+    id: 'KUKA-482',
+    date: '2026-10-11',
+    title: 'A SZINTETIKUS ŐR ZÖLDJE ÉS AZ ÖSSZESÍTETT SOROZAT PIROSA EGY KILÉPÉSI KÓDON OSZTOZOTT',
+    what: 'Az R195-ös `verify:external-series` `--aggregate` módban KIÍRTA, hogy a lemezen álló '
+      + 'sorozat „NEM ZÖLD", a folyamat kilépési kódja viszont KIZÁRÓLAG a szintetikus ellenpróbák '
+      + 'listájából jött. A két, egymástól független tény — „a kapu működik" és „a lánc bizonyítéka '
+      + 'elfogadható" — EGY számon osztozott, és a gépi hívó a 0-t látta.',
+    why_wrong: 'Aki a parancsot gépből hívta, zöldet kapott egy piros sorozatra. Ez UGYANAZ a '
+      + 'hiba-osztály, mint az R195 harmadik saját lelete (a `| tail -1` csővezeték elnyelte az őr '
+      + 'kilépési kódját, mert a csővezeték kódja a `tail`-é): A JEL MÁS MECHANIZMUSSAL IS '
+      + 'KIELÉGÍTHETŐ VOLT, MINT AMIT VIZSGÁL (`KUKA-012` · `KUKA-207` · `KUKA-239`). És a '
+      + 'státuszlekérdezés meg az elfogadási kapu SZEREPE sem volt kimondva, tehát a hívó nem '
+      + 'tudhatta, melyiket kapja.',
+    replaced_by: 'HÁROM MÓD, HÁROM KÓD, KIMONDOTT SZEREPPEL. (alap) a szintetikus ellenpróbák: '
+      + '0/1. `--aggregate` ÁLLAPOTLEKÉRDEZÉS: kiírja a sorozat állapotát és gépi alakban az '
+      + '`ELFOGADVA`-t meg egy `GEPI:` sort, de a sorozat pirossága NEM a saját kódja — és ezt a '
+      + 'kimenet KIMONDJA. `--gate` ELFOGADÁSI KAPU: 0 = elfogadva · 1 = a SZINTETIKUS próba bukott · '
+      + '3 = a SOROZAT nem fogadható el. A 3 szándékosan MÁS, mint az 1. Az ÜRES sorozat-könyvtár a '
+      + 'kapun PIROS (3), nem zöld: a „nincs mit elutasítani" nem elfogadás (`KUKA-051`).',
+    replacement: 'KÉT FÜGGETLEN TÉNY NEM OSZTOZHAT EGY KILÉPÉSI KÓDON, és minden mód MONDJA KI a '
+      + 'saját szerepét: a státuszlekérdezés nem kapu, a kapu nem státuszlekérdezés.',
+    decision: 'D-VS-3260',
+    found_by: 'chatgpt-v3 (R196) — a SPEC §1 kimondta: *„A szintetikus őr zöldje és az aggregált '
+      + 'sorozat pirosa egy CLI-kilépésben ne legyen összekeverve; a `--aggregate` mód állapota '
+      + 'legyen gépileg egyértelmű, a puszta státuszlekérdezés és az elfogadási kapu szerepe '
+      + 'kimondva."*',
+    lesson: 'A KILÉPÉSI KÓD EGY CSATORNA, ÉS EGY KÉRDÉSRE VÁLASZOL. Ha egy szerszám két dolgot mér, '
+      + 'akkor vagy két parancs, vagy két KÜLÖNBÖZŐ kód — és a kimenet mondja ki, melyik kérdést '
+      + 'kapta a hívó.',
+    guard_note: 'gépi jel: `npm run verify:external-series` — `EXS14`, ami VALÓDI gyermek-folyamatot '
+      + 'indít (a kilépési kódot függvényhívásból nem lehet megmérni): az állapotlekérdezés piros '
+      + 'sorozatra 0, a kapu 3, az ÜRES könyvtárra is 3, és a kimenet tartalmazza az `ELFOGADVA: NEM` '
+      + 'meg a szerep-mondatot.',
+    home: 'v3',
+    positive: [
+      { paths: ['tools/vs_verify_external_series.mjs'], pattern: 'MODE_GATE', why: 'az elfogadási kapu KÜLÖN mód, nem az állapotlekérdezés mellékhatása' },
+      { paths: ['tools/vs_verify_external_series.mjs'], pattern: 'process\\.exit\\(3\\)', why: 'a sorozat elfogadhatatlansága SAJÁT kódot kap (3), nem a szintetikus bukásét (1)' },
+      { paths: ['tools/vs_verify_external_series.mjs'], pattern: 'NEM elfogadási kapu', why: 'az állapotlekérdezés KIMONDJA a saját szerepét' },
+      { paths: ['tools/vs_verify_external_series.mjs'], pattern: 'GEPI: series=', why: 'az állapot GÉPILEG egyértelmű alakban is kijön' },
+    ],
+    forbidden: [],
+  }),
+  Object.freeze({
+    id: 'KUKA-483',
+    date: '2026-10-11',
+    title: 'AZ ELLENPRÓBA BELSŐ FOLYAMATA A SZINTETIKUS PRÓBÁKBÓL LÉPETT KI, ÍGY BÁRMELY MÁS VISSZACSÚSZÁS IS PIROSÍTOTTA',
+    what: 'Az `EXS14` (a kilépési kódok szétválasztásának ellenpróbája) valódi gyermek-folyamatot '
+      + 'indít a saját szerszámból, hogy a kilépési kódot MEGMÉRHESSE. Az első alakomban a '
+      + 'gyermek-folyamat a szintetikus ellenpróbákat IS lefuttatta, és azokból is kilépett.',
+    why_wrong: 'Ettől az `EXS14` állítása (`az állapotlekérdezés 0-val tér vissza`) MÁS '
+      + 'mechanizmussal is SÉRTHETŐ lett, mint amit vizsgál: bármely EGÉSZEN MÁS javítás '
+      + 'visszacsúszása elrontotta a belső futás szintetikus próbáit, a belső kilépés 1-re váltott, és '
+      + 'az `EXS14` pirosodott. MÉRVE a saját próbapadomon: a nyolc visszacsúsztatásos ellenpróbából '
+      + 'NYOLCBAN tüzelt az `EXS14` is, holott csak EGY szólt róla. Egy ilyen jel nem hamis zöldet '
+      + 'ad, hanem HASZNÁLHATATLAN PIROSAT: nem mondja meg, mi csúszott vissza, és a saját '
+      + 'regresszióját elfedi a zaj.',
+    replaced_by: 'A belső futás (`VS_EXS14_INNER`) a szintetikus próbákból NEM lép ki — a kilépési '
+      + 'kódja kizárólag a mód-szerződésé (állapotlekérdezés vs. elfogadási kapu). A kihagyás nem '
+      + 'néma: a belső futás KIÍRJA, hogy a szintetikus leletei nem ebből a kilépésből szólnak '
+      + '(`KUKA-050`). MÉRVE a javítás után: a TÍZ visszacsúsztatásos ellenpróba mindegyike PONTOSAN '
+      + 'a saját őrét pirosítja, az `EXS14` csak a sajátjánál (7.) tüzel.',
+    replacement: 'AZ ELLENPRÓBA IS JEL, TEHÁT RÁ IS ÁLL A SZABÁLY: csak azt mérje, amiről szól. Ha '
+      + 'egy ellenpróba MINDEN visszacsúszásra tüzel, akkor SEMMIRE nem tüzel.',
+    decision: 'D-VS-3260',
+    found_by: 'SAJÁT lelet (Claude-v3, R196) — a tíz visszacsúsztatásos ellenpróba MÉRÉSE hozta ki: '
+      + 'a „tüzelt" oszlopban az `EXS14` nyolcszor szerepelt, és ez a mintázat árulta el, hogy nem a '
+      + 'saját tárgyát méri. A külső fél ezt nem jelezte — a javítás ebben a körben született.',
+    lesson: 'AMIT AZ ŐRÖKRŐL TUDUNK, AZ AZ ŐRÖK PRÓBÁIRA IS IGAZ. Egy ellenpróba, ami idegen '
+      + 'mechanizmusra is reagál, elveszíti a diagnosztikai értékét — és a saját visszacsúszását a '
+      + 'többiek zaja mögé rejti. A „tüzelt-e" mellé ezért a „PONTOSAN az övé tüzelt-e" kérdés is jár.',
+    guard_note: 'gépi jel: `npm run verify:external-series` (`EXS14`) — a belső futás elkülönítése '
+      + 'maga a jel: a tíz visszacsúsztatásos ellenpróba MÉRT, egy-egyre szűkült tüzelési '
+      + 'mintázata a bizonyíték (a táblája az R196 jelentésében áll). Ellenpróbán: ha a belső futás '
+      + 'újra a szintetikus próbákból lép ki, a mintázat visszaszélesedik.',
+    home: 'v3',
+    positive: [
+      { paths: ['tools/vs_verify_external_series.mjs'], pattern: 'VS_EXS14_INNER', why: 'a belső futás NEVEZETTEN elkülönül, nem a véletlenen múlik' },
+      { paths: ['tools/vs_verify_external_series.mjs'], pattern: 'problems\\.length && !INNER', why: 'a belső futás a szintetikus próbákból NEM lép ki' },
+      { paths: ['tools/vs_verify_external_series.mjs'], pattern: 'belső futás: \\$\\{problems\\.length\\}', why: 'a kihagyás KIMONDOTT, nem néma (KUKA-050)' },
+    ],
+    forbidden: [],
+  }),
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

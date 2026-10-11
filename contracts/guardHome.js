@@ -533,6 +533,10 @@ const GUARD_HOME = Object.freeze({
   'KUKA-179': Object.freeze({ home: 'v3', note: 'a csomag-generátor és az ellenpár-battériája ITT van — a jel a proof:norm-chain-package tíz piros visszalépése és két pozitív ellenpárja, a kilépési kódon' }),
   'KUKA-178': Object.freeze({ home: 'v3', note: 'a tisztaság-tanú szigorított olvasata és a tanú-hitelesítő (freshUnitWitness) a V3 magreferenciájában él — a jel a v3ref/unitFailureKind.test.mjs tíz esete (hat F35-01 ellenpár + négy tanú-frissesség) és a verify:v3ref kilépési kódja' }),
   'KUKA-177': Object.freeze({ home: 'v3', note: 'a darabszám-származtatás és a bukás-okot eldöntő feloldó a V3 magreferenciájában él — a jel a v3ref/unitFailureKind.test.mjs négy ellenpárja és a verify:v3ref kilépési kódja' }),
+  'KUKA-480': Object.freeze({ home: 'v3', note: 'a három rétegű bizonyíték-kapu (rekord↔rekord · rekord↔HORGONY · horgony↔ÉLŐ állapot) a V3 magreferenciájában él — a jel a verify:external-series EXS09a/EXS10/EXS11/EXS12/EXS13 és a kötés-horgony a run-all.mjs-ben, a mérés ELŐTT' }),
+  'KUKA-481': Object.freeze({ home: 'v3', note: 'a lefedettségi hiány és a tartalmi bukás KÉT külön mezője a classifyFacts-ben él (V3) — a jel a verify:external-series EXS09b/EXS08/EXS11 és a programonkénti két tény kiírása az összesítőben' }),
+  'KUKA-482': Object.freeze({ home: 'v3', note: 'a három mód és a három kilépési kód a V3 szerszám-könyvtárában él — a jel a verify:external-series EXS14, VALÓDI gyermek-folyamattal mérve (állapotlekérdezés 0 · kapu 3 · üres könyvtár is 3)' }),
+  'KUKA-483': Object.freeze({ home: 'v3', note: 'az EXS14 belső futásának elkülönítése a V3 szerszám-könyvtárában él — a jel maga a tüzelési mintázat: a tíz visszacsúsztatásos ellenpróba PONTOSAN egy-egy őrt pirosít' }),
   'KUKA-176': Object.freeze({ home: 'v3', note: 'a verdikt-szerződés és a hibás-alak ág a V3 szerszám-könyvtárában él — a jel a verify:sweep-verdict SWV07, ellenpárokkal és VALÓDI gyermek-folyamattal' }),
 });
 

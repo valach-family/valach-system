@@ -44,8 +44,14 @@ import { spawnSync } from 'node:child_process';
 import { batteryUnits, unitPlan, UNIT_BUDGET_MS, EXTERNAL_CAP_MS } from './batteryUnits.mjs';
 // A SOROZAT-FŐKÖNYV (EXS-01, R194 §2): a programonként folytatható, forráshoz kötött mérés. A
 // döntése TISZTA FÜGGVÉNY, hogy a kapu próbából is hívható legyen (KUKA-207).
-import { configDigest, seriesId, makeRecord } from './seriesLedger.mjs';
+import {
+  configDigest, seriesId, makeRecord, makeAnchor, anchorProblems,
+  bindingMismatch, evidenceDigest, BINDING_ANCHOR_FILE,
+} from './seriesLedger.mjs';
 import { MUTATIONS } from '../mutations.mjs';
+// A KÖTÉS MÉRÉSE KÜLÖN OTTHONBAN (R196 §1 · KUKA-003): az ÖSSZESÍTŐ is UGYANEZT hívja, hogy a
+// frissesség-ellenőrzés ne két, egymástól elcsúszó példányon dőljön el.
+import { measureSource, liveBinding } from './seriesBinding.mjs';
 // A PROGRAM-REGISZTER ÉS AZ ESET-SZEMLE KÜLÖN MODULBAN ÁLL (EXT-02, R59/F02), hogy a verifier
 // HÍVHASSA ugyanazt a döntést, amit a futtató használ — ne a forrás szövegét olvassa (KUKA-009).
 import {
@@ -79,38 +85,8 @@ if (only && !PROGRAMS.some((p) => p.id === only)) {
 }
 const selected = only ? PROGRAMS.filter((p) => p.id === only) : PROGRAMS;
 
-// ── A FORRÁS-ÁLLAPOT MÉRÉSE ─────────────────────────────────────────────────────────────────────
-// A `commit` a programoknak továbbadott ÁLLÍTÁS. Itt derül ki, igaz-e: ha a lemásolt forrást érintő
-// nem-könyvelt változás áll a munkamásolatban, a bemondott commit MÁS forrásra vonatkozna.
-function measureSource() {
-  const git = (...a) => spawnSync('git', ['-C', ROOT, ...a], { encoding: 'utf8' });
-  const head = git('rev-parse', 'HEAD');
-  if (head.status !== 0) {
-    return {
-      commit: 'unknown',
-      clean: null,
-      dirty_files: [],
-      note: 'ez a könyvtár nem git-munkamásolat (vagy a git nem elérhető) — a commit BEMONDATLAN marad',
-    };
-  }
-  const sha = head.stdout.trim();
-  const st = git('status', '--porcelain', '--', 'v3ref');
-  // A generált kimenetek nem tartoznak a MÉRT forráshoz: a results/ és a mutációs eredmény-fájl
-  // piszkossága nem teszi mássá a lemásolt kódot.
-  const ignore = ['v3ref/external-checks/results/', 'v3ref/v3ref-mutation-result.json', 'v3ref/units/'];
-  const dirty = (st.status === 0 ? st.stdout.split('\n') : [])
-    .map((l) => l.trim()).filter(Boolean)
-    .map((l) => l.replace(/^\S+\s+/, ''))
-    .filter((f) => !ignore.some((i) => f.startsWith(i)));
-  return {
-    commit: dirty.length ? `${sha}+uncommitted` : sha,
-    clean: dirty.length === 0,
-    dirty_files: dirty,
-    note: dirty.length
-      ? 'a lemásolt forráson nem-könyvelt változás áll — a bemondott commit ezért jelölt'
-      : 'a lemásolt forrás a könyvelt állapoton áll',
-  };
-}
+// A FORRÁS-ÁLLAPOT MÉRÉSE a `seriesBinding.mjs`-ben él (R196 §1): a futtató ÉS az összesítő
+// ugyanazt a szabályt hívja, nem két példányt (KUKA-003 · KUKA-029).
 
 // ── A KÖRNYEZET ÖSSZERAKÁSA ─────────────────────────────────────────────────────────────────────
 // A programok mellett `source/v3ref/…`, `source-manifest.json` és `evidence/` kell — ezt eddig kézzel
@@ -160,7 +136,7 @@ function parseJson(text) {
 const casesOf = (v) => (Array.isArray(v) ? v : (v && Array.isArray(v.cases) ? v.cases : null));
 
 // ── Futtatás ────────────────────────────────────────────────────────────────────────────────────
-const src = measureSource();
+const src = measureSource(ROOT);
 const dir = stage(src);
 mkdirSync(OUT, { recursive: true });
 
@@ -182,6 +158,76 @@ const digestOf = (file) => {
   if (!existsSync(path)) return null;
   return createHash('sha256').update(readFileSync(path)).digest('hex');
 };
+
+/**
+ * A KÖTÉS-HORGONY A SOROZAT INDÍTÁSAKOR (EXS-01 · R196 §1) — ÉS EZ A LÉNYEG: A MÉRÉS ELŐTT.
+ *
+ * MIÉRT KELLETT IDE HOZNI. Az R195-ös alak a kötést a futás UTÁN, a rekordok mellé írta — tehát a
+ * VÁRT érték ugyanabból a futásból keletkezett, amit igazolni kellett volna. A chatgpt-v3 MÉRTE,
+ * mit jelent ez: egy piszkos forrású, kitalált lenyomatú, EGYÖNTETŰ készlet „teljes bizonyítékot"
+ * kapott, mert nem volt mihez mérni (`KUKA-121`: a bizonyíték a saját állítását igazolta vissza).
+ *
+ * A HORGONY EZÉRT A MÉRÉS ELŐTT, KÜLÖN FÁJLBA kerül: `results/series/<sorozat>/binding.json`. Ez a
+ * MEGBÍZHATÓ FUTTATÓ által rögzített ELVÁRT kötés, és az összesítő EHHEZ mér — nem a rekordok
+ * egyöntetűségéhez. Ugyanabba a sorozatba eső későbbi `--only` futás ugyanezt a horgonyt találja
+ * (a sorozatazonosító a kötésből SZÁRMAZIK, tehát a könyvtár és a kötés együtt jár), és a sorozat
+ * INDULÁSI idejét NEM írja át — a horgony a sorozat születését rögzíti, nem az utolsó futást.
+ *
+ * ÉS HA A LEMEZEN ÁLLÓ HORGONY MÁST MOND: az NEVEZETT HIBA, nem néma felülírás (`KUKA-050`). Ez
+ * konzisztencia-ellenőrzés, nem védelem egy minden fájlhoz hozzáférő író ellen (R196 §1).
+ */
+const seriesConfig = {
+  battery_units: batteryUnits(),
+  unit_plan: unitPlan({ startUnits: batteryUnits(), mutationCount: MUTATIONS.length }),
+  unit_budget_ms: UNIT_BUDGET_MS,
+  external_cap_ms: EXTERNAL_CAP_MS,
+  node: process.version,
+};
+// A KÖTÉST A MEGOSZTOTT MÉRŐ ADJA — ugyanaz, amit az összesítő is hív (R196 §1). A FUTTATÓ-lenyomat
+// a NEVEZETT fájl-listából jön (`RUNNER_FILES`), mert a futtató ma már nem egy fájl: a kapu
+// (`seriesLedger.mjs`) és a kötés-mérő (`seriesBinding.mjs`) is dönt a mérés eredményéről.
+const seriesBinding = liveBinding({ root: ROOT, here: HERE, configDigest: configDigest(seriesConfig) }).binding;
+const SERIES = seriesId(seriesBinding);
+const seriesDir = join(OUT, 'series', SERIES);
+const anchorPath = join(seriesDir, BINDING_ANCHOR_FILE);
+{
+  const fresh = makeAnchor({
+    binding: seriesBinding,
+    // AZ ELVÁRT KÉSZLET A TELJES MANIFESZT, NEM A MOSTANI `--only` VÁLASZTÁS: a részfutás nem
+    // szűkítheti le azt, amihez a teljességet mérjük (KUKA-206).
+    programs: PROGRAMS.map((p) => p.id),
+    config: seriesConfig,
+    recorded_by: 'run-all.mjs',
+  });
+  const own = anchorProblems(fresh);
+  if (own.length) {
+    // A FUTTATÓ NEM ÍR OLYAN HORGONYT, AMIT A SAJÁT KAPUJA ELUTASÍT (KUKA-129: a nyugta is igazat
+    // mond). Piszkos forráson a sorozat NEM indul — a részfutás nem lesz bizonyítékká attól, hogy
+    // lefutott. A mérés magára a futásra ettől nem áll le: a legacy index és a programok mennek.
+    console.log('  SOROZAT:        NEM INDUL — a kötés-horgony a SAJÁT kapuján elesik:');
+    for (const w of own) console.log(`                  · ${w}`);
+    console.log('                  a sorozat-rekordok ezért NEM íródnak ki (R196 §1).');
+  } else {
+    // A könyvtár CSAK akkor jön létre, ha a horgony megáll — különben egy ÜRES sorozat-könyvtár
+    // fantom-sorozatként jelenne meg az összesítőben (KUKA-041: a dísz-pipa elve).
+    mkdirSync(seriesDir, { recursive: true });
+    if (existsSync(anchorPath)) {
+      let prev = null;
+      try { prev = JSON.parse(readFileSync(anchorPath, 'utf8')); } catch { prev = null; }
+      const mm = prev ? bindingMismatch(prev.binding, seriesBinding) : ['a lemezen álló horgony OLVASHATATLAN'];
+      if (mm.length) {
+        console.error(`  SOROZAT-HIBA:   a lemezen álló horgony MÁST mond, mint a most mért kötés: ${mm.join(' · ')}`);
+        console.error('                  ugyanaz a sorozat-könyvtár NEM tartozhat két kötéshez (EXS-01) — a futás megszakad.');
+        process.exit(2);
+      }
+      console.log(`  SOROZAT:        ${SERIES} — a horgony MEGVAN (${prev.recorded_at}), a sorozat FOLYTATÓDIK`);
+    } else {
+      writeFileSync(anchorPath, `${JSON.stringify(fresh, null, 2)}\n`);
+      console.log(`  SOROZAT:        ${SERIES} — ÚJ kötés-horgony rögzítve (${fresh.recorded_at})`);
+    }
+  }
+}
+const seriesAnchorOk = anchorProblems(makeAnchor({ binding: seriesBinding, programs: PROGRAMS.map((p) => p.id) })).length === 0;
 
 const summary = [];
 for (const p of selected) {
@@ -454,22 +500,13 @@ writeFileSync(indexPath, `${JSON.stringify(all, null, 2)}\n`);
  * összesítést a `verifySeries` végzi — a részfutás tehát MEGMARAD és FOLYTATHATÓ, de teljes
  * verdiktet csak a teljes, ellenőrzött készlet adhat.
  */
-const seriesBinding = {
-  commit: src.commit,
-  clean: src.clean === true,
-  config_digest: configDigest({
-    battery_units: batteryUnits(),
-    unit_plan: unitPlan({ startUnits: batteryUnits(), mutationCount: MUTATIONS.length }),
-    unit_budget_ms: UNIT_BUDGET_MS,
-    external_cap_ms: EXTERNAL_CAP_MS,
-    node: process.version,
-  }),
-  programs_digest: digestOf('case-manifest.mjs'),
-  runner_digest: digestOf('run-all.mjs'),
-};
-const SERIES = seriesId(seriesBinding);
-const seriesDir = join(OUT, 'series', SERIES);
-mkdirSync(seriesDir, { recursive: true });
+// A KÖTÉS ÉS A HORGONY MÁR A SOROZAT INDÍTÁSAKOR rögzült (fentebb, a program-ciklus ELŐTT) — itt
+// már csak a per-program rekordok íródnak ki, UGYANAHHOZ a kötéshez. És ha a horgony a saját
+// kapuján elesett (piszkos forrás, kitalált lenyomat), rekord SEM keletkezik: a részfutás nem lesz
+// bizonyítékká attól, hogy lefutott (R196 §1).
+if (!seriesAnchorOk) {
+  console.log('  SOROZAT:        rekord NEM íródott — a kötés-horgony a saját kapuján elesett (lásd fentebb).');
+} else {
 for (const s2 of summary) {
   const rec = makeRecord({
     binding: seriesBinding,
@@ -479,9 +516,9 @@ for (const s2 of summary) {
     // környezeti kihagyás külön mezőben áll, és az összesítő is külön számolja.
     ok: s2.ok === true,
     cases: s2.case_rows || [],
-    evidence_digest: s2.saved
-      ? createHash('sha256').update(readFileSync(s2.saved)).digest('hex')
-      : '',
+    // A LENYOMAT A MEGOSZTOTT OTTHONBÓL: az összesítő UGYANEZZEL a függvénnyel számolja újra a
+    // lemezen álló fájlból, tehát a két oldal nem csúszhat el (KUKA-003 · R196 §1).
+    evidence_digest: s2.saved ? evidenceDigest(readFileSync(s2.saved)) : '',
     failure: { kind: s2.failure_kind, why: s2.failure_why },
     ms: s2.ms,
   });
@@ -489,7 +526,9 @@ for (const s2 of summary) {
   writeFileSync(join(seriesDir, `${s2.id}.json`), `${JSON.stringify(rec, null, 2)}\n`);
 }
 console.log(`  SOROZAT:        ${SERIES}  (${summary.length} rekord írva ide: ${seriesDir})`);
-console.log('  a sorozat összesítése:  npm run verify:external-series');
+console.log(`  kötés-horgony:  ${anchorPath}`);
+console.log('  a sorozat összesítése:  npm run verify:external-series -- --aggregate');
+}
 
 if (keep) console.log(`  a munkakönyvtár MEGMARADT: ${dir}`);
 else rmSync(dir, { recursive: true, force: true });

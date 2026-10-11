@@ -16,6 +16,77 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3260 — A BIZONYÍTÉK-KAPU ELŐRE RÖGZÍTETT, KÜLSŐ KÖTÉSHEZ MÉR, ÉS A KÉT TÉNY KÜLÖN MEGY TOVÁBB (R196 §1)
+
+A chatgpt-v3 az R195 fejéről (`0d5ee24`) **megmérte** a saját sorozat-kapum két hibáját: nem a
+forrás szövegéből következtetett rájuk, hanem a **változatlan** `seriesLedger.mjs`-t izolált
+Node-futtatásban meghívta.
+
+1. **Egy piszkos forrású, hiányzó lenyomatú, EGYÖNTETŰ készlet teljes bizonyítéknak számított.**
+   `clean: false`, üres `programs_digest`/`runner_digest`, `evidence_digest: 'unverified'` mellett a
+   `verifySeries` **`complete: true · ok: true · green: 1`**-et adott. Az ok: a kapu a rekordokat
+   **egymáshoz** mérte, és egyöntetű készletnél nincs mihez mérni. A kötést ráadásul a futtató a
+   programok lefutása **után** írta a rekordok mellé — a várt érték ugyanabból a futásból
+   keletkezett, amit igazolni kellett volna (`KUKA-121`).
+2. **A lefedettségi hiány mögül eltűnt a tartalmi bukás.**
+   `classify({ ok: false, cases: [{ id: 'c', pass: false }] }, ['c', 'd'])` = `hianyos_meresu` — a
+   `d` tényleg nem futott, de a `c` **lefutott és bukott**, és ez a tény elveszett.
+
+**A DÖNTÉS — HÁROM RÉTEG, ÉS KÉT TÉNY.**
+
+1. **A várt érték nem a vizsgált adatból keletkezik.** A megbízható futtató a sorozat
+   **indításakor**, a mérés **előtt**, külön fájlba rögzíti az elvárt kötést
+   (`results/series/<sorozat>/binding.json` — a **kötés-horgony**), és az összesítő **ehhez** mér.
+   Horgony nélkül a készlet **folytatható állapot**, de nem elfogadható bizonyíték.
+2. **Három, egymással nem kielégíthető réteg.** L1: a rekordok egymáshoz (egy sorozat · egy commit ·
+   egy konfiguráció). L2: a rekordok a horgonyhoz, mezőnként. L3: a horgony az **élő** állapothoz
+   (commit · tiszta · manifeszt- · futtató- · konfiguráció-lenyomat) — ez dönti el, hogy a készlet
+   **mai** eredmény-e vagy **történeti**. A történeti készlet a saját forrásáról beszélhet, mai
+   bizonyítékként **nem hivatkozható**.
+3. **Az „érdemi állapot" mércéje nem a „nem üres".** `clean === true` kapu; könyvelt 40-hex commit
+   (a `…+uncommitted` jelölt alak elesik); valódi sha256 alakú manifeszt-, futtató- és
+   bizonyíték-lenyomat; a bizonyíték-lenyomat a **lemezről újraszámolva**, nem a rekordtól kérdezve;
+   a sorozatazonosító a kötésből **újraszámolva**, mert a rekord `series` mezője **állítás**.
+4. **A kötés mérése EGY otthonban él** (`v3ref/external-checks/seriesBinding.mjs`): a futtató és az
+   összesítő **ugyanazt** hívja, különben a két példány az első szerkesztéskor némán elcsúszna
+   (`KUKA-003` · `KUKA-029` · `KUKA-051`). A **futtató** ezért nem egy fájl: a `runner_digest` a
+   nevezett `RUNNER_FILES` lista (`run-all.mjs` · `seriesBinding.mjs` · `seriesLedger.mjs`)
+   név+lenyomat párjaiból jön — bármelyik változása **más sorozat**, ahogy az R196 §3 kéri.
+5. **A két tény ortogonális, és mindkettő továbbmegy.** A `classifyFacts` `coverage_gap` +
+   `missing_cases` **és** `content_failure` + `failed_cases` mezőt ad; a kategória ebből származik, és
+   a kettő **együtt** esetének saját neve van (`hianyos_es_tartalmi_hibas`). A kategória-szám csak
+   **érvényes** rekordot nevez sikeresnek (`ervenytelen_rekord`). **A határ változatlan:** tartalmi
+   bukás csak az **elvárt, lefutott** esetekből jöhet — a manifeszten kívüli
+   `merge/KORNYEZET-N` diagnosztikából nem gyártunk termékhibát (`KUKA-206`).
+6. **Három mód, három kilépési kód, kimondott szereppel.** (alap) a szintetikus ellenpróbák: 0/1 ·
+   `--aggregate` **állapotlekérdezés** (a sorozat pirossága nem a saját kódja, és ezt a kimenet
+   kimondja) · `--gate` **elfogadási kapu**: 0 = elfogadva · 1 = a szintetikus próba bukott · **3** =
+   a sorozat nem fogadható el. Az üres sorozat-könyvtár a kapun **piros**: a „nincs mit elutasítani"
+   nem elfogadás (`KUKA-051`).
+7. **A futtató nem ír olyan horgonyt, amit a saját kapuja elutasít.** Piszkos forráson a sorozat
+   **nem indul**, rekord sem keletkezik, és az indok nevezett (`KUKA-129`).
+8. **A bizonyíték-csomag nem nyers napló.** A szabad szöveges indok egysoros és hosszában korlátozott
+   (`sanitizeWhy`, 400 karakter), a vágás nevezett — kulcs és üzleti adat nem kerül a rekordba.
+
+**A KORLÁT KIMONDVA, és ezt nem is állítjuk többnek:** ez **konzisztencia-ellenőrzés**, nem
+kriptográfiai védelem egy minden fájlhoz hozzáférő rosszindulatú író ellen — aki a rekordot és a
+horgonyt egyszerre írja át, azt ez a kapu nem fogja meg. Amit megfog: a piszkos forrást, a hiányzó
+vagy kitalált lenyomatot, az összeválogatott részfutásokat, a megszakadt fájlt, és a történeti
+készlet mai eredményként való hivatkozását.
+
+**A KIVEZETÉS:** `KUKA-480` (a rekordok egymáshoz mérése) · `KUKA-481` (a két tényből egy) ·
+`KUKA-482` (az összekeverhető kilépési kód) · `KUKA-483` (**saját lelet**: az ellenpróba belső
+folyamata idegen mechanizmusra is tüzelt).
+
+**AZ ELŐZŐ SOROZAT TÖRTÉNETI MARAD.** Az `a7c1607`-hez kötött `s5ea731c1bb3d` sorozatra **nem**
+írunk horgonyt és nem írunk rá új SHA-t (R196 §3 tiltja): a futtató megváltozott, tehát az
+összesítő magától **történeti**-nek nevezi, és a következő mérés új, érvényes kötést kap.
+
+**Gépi jel:** `npm run verify:external-series` (`EXS01`–`EXS14`, az `EXS03b`-vel) — **tíz**
+visszacsúsztatásos ellenpróbán mérve mindegyik **pontosan a sajátját** pirosítja.
+
+---
+
 ## D-VS-3259 — A DARABOLÁS TERVE VÉGES ÉS A CÉLRA IRÁNYUL, NEM SZÁZALÉKRA (R194 §1)
 
 Az R192-ben a mutációs battéria darabolásának leállítását egy **százalékos** szabályra tettem
