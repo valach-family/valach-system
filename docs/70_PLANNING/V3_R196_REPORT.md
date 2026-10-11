@@ -14,7 +14,10 @@ jelöltje **nem** a szűk hely: a teljes `v3ref` fa másolása egységenként **
 **két teljes battéria-futás 10 057 ms (92,8%)** — és abból a valódi próba-munka **97,4%**. A domináns
 költség tehát a SPEC saját korlátai között (teljes alapvonal minden egységben · nincs cache/preflight ·
 termékkód változatlan) **nem csökkenthető**, ezért a §2 záró szabálya szerint **fázisadatokkal
-jelentek**. Közben a javítás **futtatása két saját leletet** is kibuktatott, mind a kettő javítva.
+jelentek**. A sorozat **1-ről 12-re** jutott (mind érvényes, horgonyzott, mai), de az összegző verdikt
+**továbbra sem létezik**. Közben a javítás **futtatása négy saját leletet** is kibuktatott, mind a négy
+javítva — és a **záró söprés a saját kör-közbeni állításomat is megbuktatta**: a legfinomabb bontás
+ezen a gépen SEM fér bele egységesen (`3/253` = 12 348 ms), tehát az R195 szerkezeti lelete áll.
 A csomag **nem merge-kész**.
 
 ---
@@ -272,16 +275,39 @@ Ugyanazokon a szeleteken, amiket az R195 mért (a legfinomabb bontás, mutáció
 
 | egység | az R195 mérése | a MAI mérés | belefér a 12 000 ms-ba? |
 |---|---|---|---|
-| `1/253` | 12 981 ms (`r83core` bizonyítéka) | **11 133 ms** · kilépés 0 | **IGEN** |
-| `5/253` | 12 140 ms (`verify:v3ref`, független tanú) | **11 100 ms** · kilépés 0 | **IGEN** |
-| `2/253` | — | **11 327 ms** · kilépés 0 | **IGEN** |
+| `1/253` | 12 981 ms (`r83core` bizonyítéka) | 11 133 ms · kilépés 0 | igen |
+| `5/253` | 12 140 ms (`verify:v3ref`, független tanú) | 11 100 ms · kilépés 0 | igen |
+| `2/253` | — | 11 327 ms · kilépés 0 | igen |
+| **`3/253`** | — | **12 348 ms** (a záró söprés `verify:v3ref`-je) | **NEM** |
+| **`4/64`** | — | **13 691 ms** (ugyanott) | **NEM** |
 
-**És ezt pontosan kell érteni: a költség-útvonalon SEMMIT nem változtattam, tehát ez NEM javulás.**
-A különbség a **gép** — ez a konténer mérve 8–17%-kal gyorsabb az R195-énél ugyanazokon a szeleteken.
-A tartalék **vékony**: 11,1–11,3 s a 12 000 ms-os költségvetés **93–94%-a**, tehát 700–900 ms margó;
-az R195 gépén ugyanez a szerkezet a költségvetés **fölé** ment. **Más gépre ebből nem következtetek**
-(ugyanaz a korlát, amit az R195 is kimondott), és a fix költség **szerkezete** változatlan: egységenként
-~6,1 s (a költségvetés **57%-a**) elmegy, mielőtt egyetlen mutációt megmérnénk.
+### HELYESBÍTÉS — A HÁROM MINTÁM NEM VOLT BIZONYÍTÉK
+
+A három fenti szeletet én választottam, és mind a három belefért. **Ebből azt írtam le a kör közben,
+hogy „a legfinomabb bontás ezen a gépen belefér" — és ez az állítás HAMIS volt.** A záró söprés
+`verify:v3ref`-je, ami a szeleteken VÉGIGMEGY (nem hármat mintáz), kimondta:
+
+```
+RESULT (EGYSÉG 3/253): a szelet TISZTA · belefér a korlátba: NEM
+  GEPI-JEL: unit_over_budget
+  a falióra (12 348 ms) a saját költségvetés (12 000 ms) fölé ment
+NINCS TOVÁBBI FOK: a LEGFINOMABB megengedett, nem üres felosztás (253 egység, mutációnként egy)
+  sem fér bele a költségvetésbe — a mérés HIÁNYOS
+```
+
+**Tehát az R195 szerkezeti lelete EZEN A GÉPEN IS ÁLL.** A gép valóban gyorsabb (a bukó szeleten
+12 981 → 12 348 ms, ~5%), de **nem elég gyorsabb**: a legfinomabb felosztás **nem** fér bele
+egységesen, és a `verify:v3ref` ugyanazt a nevezett, véges verdiktet adja, mint az R195-ben.
+
+**Ez pontosan az a hiba-osztály, amire a repó szabálya szól** (*„A SAJÁT PÉLDÁM NEM BIZONYÍTÉK"* ·
+`D-VS-477`): amit én választok fixtúrának, az az én előfeltevésemet igazolja vissza. Három szelet
+nem a 253 szelet; a mérést a **teljes** készleten kell megismételni, és itt a saját söprésem buktatta
+ki a saját állításomat.
+
+**A szám, ami ezt megmagyarázza, a §4 (c)–(d) és a pooling-helyesbítés:** a fix költség ~**10,9 s**,
+a költségvetés **12 000 ms** — tehát a margó ~**1,1 s (9%)**, a szeletek közti szórás pedig **ezt
+meghaladja** (11,1 → 12,3 s a mért szeleteken). A költségvetést nem a *tartalom* feszíti, hanem a
+**fix költség + a szórás**. Más gépre ebből nem következtetek.
 
 ---
 
@@ -348,19 +374,132 @@ sorozatazonosítót adja (`KUKA-239`).
 
 ## 6. A SOROZAT MAI ÁLLAPOTA — PROGRAMONKÉNTI VERDIKT
 
-__SERIES_BLOCK__
+`npm run verify:external-series -- --aggregate`, a **mai** sorozatra:
+
+```
+SOROZAT s8efde465d71d · 12 rekord
+  HORGONY (a futtató rögzítette 2026-10-11T16:21:16.211Z): mért forrás 9e80eefd3059…
+           SZÁRMAZÁS: a2060778131c…
+  TELJES: NEM · HORGONYZOTT: IGEN · MAI: IGEN · ELFOGADVA: NEM
+  GEPI: complete=false anchored=true fresh=true accepted=false green=12 failed=0 invalid=0 measured=12 of=19
+```
+
+| kategória | darab | programok |
+|---|---|---|
+| **sikeres** | **12** | `r61` · `r53` · `r55` · `r16core` · `r92authz` · `r88core` · `r85core` · `r77` · `r75` · `r69` · `r67` · `r79core` |
+| **tartalmi hibás** | **0** | — |
+| **hiányos mérésű** | **0** | — |
+| **hiányos ÉS tartalmi hibás** | **0** | — |
+| **környezeti kihagyás** | **0** | — |
+| **érvénytelen rekord** | **0** | — |
+| **el nem indult** | **7** | `r83core` · `r81core` · `r79` · `r59a` · `r57a` · `r59` · `r57` |
+
+**Az R195-ben ugyanez 1 sikeres · 1 hiányos mérésű · 17 el nem indult volt.** A sorozat tehát
+**1-ről 12-re** jutott, és mind a 12 **érvényes, horgonyzott, mai** rekord.
+
+**ÉS AZ ÖSSZEGZŐ VERDIKT TOVÁBBRA IS NEM LÉTEZIK: `ELFOGADVA: NEM`.** 12/19 nem „részben zöld" —
+hét program **nem futott**, és a „nem futott" nem „0 hibás" (`KUKA-206`). A kapu ezt gépileg is
+kimondja (`accepted=false`), és a `--gate` **3**-mal lép ki.
+
+### MÉRT IDŐK, ÉS EGY SAJÁT KORLÁT NEVEZETTEN
+
+| program | mért idő |
+|---|---|
+| `r55` | **792 s** (64 egység × 12,4 s, 253 mutáció) |
+| `r53` | 10 s · `r61` 2 s |
+| a kilenc rövid program (`r16core` · `r92authz` · `r88core` · `r85core` · `r77` · `r75` · `r69` · `r67` · `r79core`) | **0–1 s** egyenként |
+
+**Az `r79`-et a SAJÁT 1500 s-os engedélyem vágta el (kilépés 124) — NEM termék-hiba, és nem is
+nevezem annak.** Mérve: az `r79` a 64 egységes fokról **128**-ra finomít, ~12,5 s/egység, tehát
+**~40 percet** kér. A SPEC 120 percet engedne programonként; ezt a következő futásnak megfelelő
+engedéllyel kell adni. Rekord **nem keletkezett** róla, tehát „el nem indult" marad.
+
+**A többi hat program (`r83core` · `r81core` · `r59a` · `r57a` · `r59` · `r57`) NEM INDULT EL, és ez
+döntés, nem feledékenység:** a §2 záró szabálya *„drága teljes lánc ne induljon"*, és ezek mind
+battéria- vagy összefűzés-programok (az R195-ben az `r83core` 52,5 perc volt). A sorozat
+**folytatható ugyanebből a kötésből**: `node v3ref/external-checks/run-all.mjs --only <program>` —
+az elkészült 12 rekord megmarad.
+
+### HÁROM SOROZAT ÁLL A LEMEZEN, ÉS MIND A HÁROM IGAZAT MOND
+
+Ez nem rendetlenség, hanem a `KUKA-486` szabályának a működése: **a futtató megváltozása új
+sorozatot nyit**, és a régit **nem írjuk át** (R196 §3 tiltja).
+
+| sorozat | kötés | állapot |
+|---|---|---|
+| **`s8efde465d71d`** | mért forrás `9e80eefd3059` · származás `a206077` | **A MAI** — horgonyzott, mai, 12 érvényes zöld rekord |
+| `sd73fde3419fa` | a `1f42ae6` futtatójával, a **régi** (commit-alapú) kötés-alakban | e kör **közbenső** futtató-állapota; a mai szerződés alatt a rekordjai nem érvényesek, és ezt a kapu NEVEZVE mondja ki |
+| `s0b1af9a4b62d` | az `ec2d2a6` futtatójával, saját bizonyíték-példány nélkül | e kör **első** futtató-állapota (a `KUKA-484` előtt) |
+| `s5ea731c1bb3d` | az `a7c1607`-hez kötve, horgony nélkül | az **R195 TÖRTÉNETI** sorozata — érintetlen, nem írtam rá horgonyt és nem írtam rá új SHA-t |
+
+### ÉS A DÖNTŐ PRÓBA: A SOROZAT TÚLÉLTE A SAJÁT BIZONYÍTÉKA COMMITOLÁSÁT
+
+A `KUKA-486` javítását a **szállítás** lépésén mértem meg, nem fixtúrán:
+
+```
+a206077 → f8ce5c7   (a sorozat SAJÁT bizonyítékának commitja)
+git diff --name-only a206077..f8ce5c7 -- 'v3ref/*.mjs' 'v3ref/external-checks/*.mjs'  →  0 fájl
+az összesítő a commit UTÁN:  MAI: IGEN · fresh=true
+```
+
+A javítás előtt ugyanez a lépés `MAI: NEM`-re váltott. **A horgony innentől túléli a saját
+bizonyítéka közzétételét** — enélkül elfogadott sorozat könyvelt állapotban soha nem létezhetett volna.
 
 ---
 
-## 7. AMIT EZ A JELENTÉS NEM ÁLLÍT
+## 7. A ZÁRÓ SÖPRÉS — SZÓ SZERINT
+
+```
+SÖPRÉS (40 verifier + 2 NEM IGAZOLT kihagyás, 223s): 38 zöld · 0 env-kihagyás · 2 piros
+NEM FUTOTT — NEM IGAZOLT — verify:external-checks
+NEM FUTOTT — NEM IGAZOLT — verify:browser-gate
+ÖSSZVERDIKT: NEM ZÖLD — 2 lánc nem futott és nem igazolt
+PIROS: verify:lefedes, verify:v3ref
+```
+
+| tétel | mit jelent |
+|---|---|
+| **38 zöld** | köztük `verify:kuka` **1211/1211**, `verify:external-series` (`EXS01`–`EXS16`), `verify:unit-admission`, `verify:doc-html` **9/9**, `verify:decision-numbers`, `verify:artifact-naming` **28/28** |
+| `verify:lefedes` **PIROS** | az `LT` sor **szándékosan** piros: a nevesített `personal.ownMatters` rés — **előző körökből nyitott tétel**, nem e kör romlása |
+| `verify:v3ref` **PIROS** | a `3/253` szelet **12 348 ms** — ez a **helyesbítés tárgya** (lásd a 4. szakaszt), és nevezetten *„a mérés HIÁNYOS"*, nem tartalmi bukás |
+| `verify:external-checks` **NEM IGAZOLT** | a 19 programos láncot **nem** futtattam egyben (a §2 záró szabálya); **12 programját programonként** futtattam, a sorozat a 6. szakaszban áll |
+| `verify:browser-gate` **NEM IGAZOLT** | a bemenete **0 fájlban** változott a `26f65da`…`HEAD` szakaszon, tehát az R195 újrahasználása áll — **a söprés ezt nem fogadja el igazolásként, és ezt nem írom át** |
+
+**Az összverdikt tehát NEM ZÖLD, és nem is nevezem annak.** A két piros közül az egyik előző körökből
+nyitott, a másik a saját helyesbítésem tárgya; a két „nem igazolt" kihagyás **nevezetten** jelenik
+meg, nem néma zöldként.
+
+---
+
+## 8. FOGYASZTÁS — A KÖR ÉS A MUNKAMENET
+
+Meglévő mérőből (`npm run meres:fogyasztas -- --session auto --from … --quick`):
+
+| ablak | hívás | fő-szál kontextus medián / max | ügynök | sáv |
+|---|---|---|---|---|
+| **a KÖR** (az R196 SPEC `14:47:30Z` → a jelentés) | **172** | **316 214** / 484 474 | **0** (0 ügynök) | **FIGYELMEZTETÉS** (a 300 000–400 000 sávban) — a mérő szava: *„rövid állapotmérés a munkablokk határán — MEGÁLLNI NEM KELL, új beszélgetés NEM kell"* |
+
+Lefedettség **teljes**. Al-ügynököt **nem** indítottam (a SPEC §4 tiltja). Ez a munkamenet a kör
+elején indult, tehát a kör és a munkamenet ablaka **ugyanaz** — külön munkamenet-sort ezért nem írok,
+hogy ne két néven álljon ugyanaz a szám (`KUKA-033`).
+
+A kör **hosszú mérései** faliórát fogyasztottak, nem hívást: `r55` 2 × 792 s · a záró söprés 223 s ·
+az `r79` elvágott futása 1500 s · a profilozás és a 4 egység-futás ~5 perc. Együtt **jóval** a
+megengedett 6 óra alatt.
+
+---
+
+## 9. AMIT EZ A JELENTÉS NEM ÁLLÍT
 
 - **Nem** állítja, hogy a csomag merge-kész. Merge, deploy, force-push, titok-/üzleti adatváltoztatás,
   V2-/production-módosítás, fizetős infrastruktúra, al-ügynök, Codex vagy más AI-review, gépvásárlás,
   CMD-/PR-lezárás és új általános átvilágítás **nem történt**.
 - **Nem** állítja, hogy a mérés költségét csökkentettem: **nem csökkentettem**, és a mért fázisadatokkal
   mondom ki, miért nem lehet a SPEC korlátai között.
-- **Nem** állítja, hogy a legfinomabb bontás „már belefér": **ezen a gépen** belefér (3/3 mintavett
-  szelet, 93–94% kihasználtság), az R195 gépén **nem** fért. A gépre ebből nem következtetek.
+- **Nem** állítja, hogy a legfinomabb bontás „már belefér" — és a kör közben ezt tévesen leírtam.
+  A záró söprés `verify:v3ref`-je a **`3/253`** szeleten **12 348 ms**-ot mért, tehát a legfinomabb
+  felosztás **ezen a gépen sem** fér bele egységesen; az R195 szerkezeti lelete **áll**. A három
+  mintám nem volt bizonyíték (`D-VS-477`).
 - **Nem** állítja, hogy a lánc teljes: a programonkénti verdikt a 6. szakaszban áll, és a hiányzó
   program **nem** „0 hibás", hanem **nem futott** (`KUKA-206`).
 - **Nem** állítja, hogy a bizonyíték-kapu kriptográfiai védelem: **konzisztencia-ellenőrzés**, és aki a
