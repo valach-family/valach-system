@@ -17686,6 +17686,56 @@ Object.freeze({
         why: 'és a KIVEZETETT tartalék az újrahívás űrlapján (a `KUKA-476` osztálya)' }),
     ]),
   }),
+  Object.freeze({
+    id: 'KUKA-479',
+    date: '2026-10-11',
+    title: 'A SZÁZALÉKOS LEÁLLÁSI SZABÁLY KÉT, NEM ÖSSZEVETHETŐ MÉRÉSBŐL KÖVETKEZTETETT, ÉS EGY FOKKAL A MŰKÖDŐ BONTÁS ELŐTT ÁLLT MEG',
+    what: 'Az R192-ben a battéria darabolásának leállítását egy SZÁZALÉKOS szabályra tettem '
+      + '(`refinementHelps`, 10%-os mérce): ha a kétszerezés után a bukott egység faliórája nem '
+      + 'közeledett érdemben a 12 000 ms-os költségvetéshez, a finomítás megállt. A két összevetett '
+      + 'szám a 64-es bontás ELSŐ bukott szelete (12 176 ms) és a 128-asé (12 014 ms) volt.',
+    why_wrong: 'A KÉT MÉRÉS NEM UGYANAZT A MUNKÁT MÉRI: a 64-es bontás szelete NÉGY mutációt futtat, '
+      + 'a 128-asé KETTŐT — tehát a különbségük nem „gyorsulás", és semmit nem mond a további '
+      + 'finomítás hasznáról. A következtetés („a finomítás FIX-dominált, nincs értelme") ezért nem '
+      + 'állt, és az ELLENPÉLDÁT a SAJÁT R193-as mérésem adta: a 256-os fokon MINDEN mintavett szelet '
+      + 'BELEFÉRT (10 246 · 9 412 · 9 967 ms, `portable: true`). A heurisztika tehát EGY FOKKAL a '
+      + 'működő bontás ELŐTT állt meg, és az `r81core`/`r83core` ettől nevezett `KORNYEZET-*` '
+      + 'eltérésre futott — tartalmi ok nélkül. Ugyanebben az alakban a dinamikus behúzás hibája '
+      + 'VISSZAESETT a tiltott osztóra és a vak kétszerezésre, vagyis a közös szabály rejtett '
+      + 'megkerülése lett belőle.',
+    replaced_by: 'A darabolás VÉGES TERVE a közös otthonban (`unitPlan` · `nextUnits` · '
+      + '`finestUnits`): a választott bontás, majd legfeljebb EGY finomítás egyenesen a megengedett '
+      + 'LEGFINOMABB, NEM ÜRES felosztásra (mutációnként egy egység), és ha az sem fér bele, '
+      + 'NEVEZETT, VÉGES megállás. A `startUnits` a legfinomabbra VÁGVA, mert a lépés-szerű '
+      + 'szeletelésnél (`i % n === k - 1`) a mutáció-szám fölötti egységek ÜRESEK, és minden üres '
+      + 'szelet még egyszer kifizeti a teljes fix költséget — MÉRVE: `n = 512` mellett 259 üres '
+      + 'szelet futna le. A kötelező döntés hiánya pedig nem tartalék-futás, hanem nem sikeres '
+      + 'lezárás (nem-nulla kilépés).',
+    replacement: 'NEM SZÁZALÉK, HANEM CÉL ÉS VÉGES TERV: a finomítás egy lépésben a legfinomabb '
+      + 'megengedett felosztásra megy, és ott véget ér.',
+    decision: 'D-VS-3259',
+    found_by: 'chatgpt-v3 (R194) — a külső ellenőrző fél olvasta a `bc06c85` kódját, és kimondta, '
+      + 'hogy a 10%-os szabály két, egymással nem összevethető mérésre épül, az R193 pedig maga adja '
+      + 'rá az ellenpéldát.',
+    lesson: 'KÉT MÉRÉS CSAK AKKOR ÖSSZEVETHETŐ, HA UGYANAZT A MUNKÁT MÉRI. Eltérő darabolás eltérő '
+      + 'szeletei eltérő mennyiségű munkát végeznek, tehát az idejük különbségéből sem gyorsulás, sem '
+      + '„a további finomítás haszontalan" nem következik. Ahol a cél ISMERT és VÉGES (itt: a '
+      + 'mutációnkénti egység), ott a terv a célra irányuljon, ne egy heurisztikus lépés-sorra.',
+    guard_note: 'gépi jel: `npm run verify:unit-admission` (`UAD09`) — a VISELKEDÉST hívja, nem a '
+      + 'forrás szövegét: a terv véges (≤ 2 fok), a legfinomabb felosztás elérhető, üres szeletet '
+      + 'nem engedünk, és a megállás minden esetben véges.',
+    home: 'v3',
+    positive: [
+      { paths: ['v3ref/external-checks/batteryUnits.mjs'], pattern: 'export function finestUnits\\(', why: 'a megengedett legfinomabb, nem üres felosztás NEVEZETT feloldóban áll' },
+      { paths: ['v3ref/external-checks/batteryUnits.mjs'], pattern: 'export function unitPlan\\(', why: 'a terv VÉGES és a közös otthonból jön' },
+      { paths: ['v3ref/mutate.mjs'], pattern: 'nextUnits\\(\\{ current: n', why: 'a repó hívója a közös, véges döntést kérdezi' },
+    ],
+    forbidden: [
+      { paths: ['v3ref/external-checks/batteryUnits.mjs'], pattern: 'MIN_REFINEMENT_GAIN', why: 'a KIVEZETETT százalékos mérce' },
+      { paths: ['v3ref/external-checks/batteryUnits.mjs', 'v3ref/mutate.mjs', 'v3ref/external-checks/r81_chatgpt-v3.mjs', 'v3ref/external-checks/r83_chatgpt-v3.mjs'], pattern: 'refinementHelps', why: 'a KIVEZETETT, két nem összevethető mérésre épülő döntés' },
+      { paths: ['v3ref/mutate.mjs'], pattern: 'Math\\.ceil\\(MUTATIONS\\.length / UNIT_SIZE\\)', why: 'a KIVEZETETT osztó (KUKA-045 · KUKA-177) — a darabszám nem a mutáció-számból jön' },
+    ],
+  }),
 
 ]);
 

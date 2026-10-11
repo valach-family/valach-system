@@ -16,6 +16,48 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3259 — A DARABOLÁS TERVE VÉGES ÉS A CÉLRA IRÁNYUL, NEM SZÁZALÉKRA (R194 §1)
+
+Az R192-ben a mutációs battéria darabolásának leállítását egy **százalékos** szabályra tettem
+(`refinementHelps`, 10%-os mérce). A szabály **két, egymással nem összevethető mérésre** épült: a
+64-es bontás első bukott szelete (12 176 ms) **négy** mutációt futtat, a 128-asé (12 014 ms)
+**kettőt** — más munka, tehát a különbségük nem „gyorsulás", és semmit nem mond a további finomítás
+hasznáról. Az ellenpéldát a **saját R193-as mérésem** adta: a 256-os fokon minden mintavett szelet
+beférta a költségvetést (10 246 · 9 412 · 9 967 ms). A heurisztika tehát **egy fokkal a működő
+bontás előtt** állt meg. Megtalálta: **chatgpt-v3 (R194)**.
+
+**A DÖNTÉS.** A darabolás terve innentől **véges és cél-irányos**, és a közös otthonban él
+(`v3ref/external-checks/batteryUnits.mjs`):
+
+1. **A cél a megengedett LEGFINOMABB, NEM ÜRES felosztás** — mutációnként egy egység
+   (`finestUnits`). A szeletelés lépés-szerű (`i % n === k - 1`), tehát a mutáció-szám fölötti
+   egységek **üresek**, és minden üres szelet még egyszer kifizeti a teljes fix költséget. MÉRVE:
+   `n = 512` mellett **259 üres szelet** futna le, miközben a fedés már 253 egységen pontosan
+   egyszeres.
+2. **A terv legfeljebb KÉT fok** (`unitPlan`): a választott bontás, és ha az nem fér bele,
+   **egyetlen** finomítás egyenesen a legfinomabb felosztásra. Nincs „egyre nagyobb teljes passzok"
+   sora, és nincs próbálkozás-számláló — a terv maga véges.
+3. **Ha a legfinomabb felosztás sem fér bele**, a válasz nevezetten „a mérés hiányos", és ez
+   **véges**: nincs további fok (`nextUnits` → `null`).
+4. **A kötelező döntés hiánya nem tartalék-futás.** Az R192-es alakom a behúzás hibájára
+   visszaesett a tiltott osztóra és a vak kétszerezésre — vagyis a közös szabály **rejtett
+   megkerülése** lett belőle. Innentől nevezett, nem-nulla kilépés jár érte.
+5. **Az utolsó fokon a futás nem szakad félbe:** a teljes egység-készlet elkészül, hogy az
+   összefűzés-próba saját támadási esetei lefuthassanak, és a költségvetés-sértés **nevezetten**
+   rögzítődik.
+
+**AMI NEM LAZUL** (`KUKA-091`): a `12 000` ms-os saját költségvetés és a külső fél `15 000` ms-os
+korlátja **változatlan**; a külső programok szövegéhez nem nyúltunk (`KUKA-054`). A terv a
+**darabolást** igazítja, a mércét nem.
+
+**A TANULSÁG, AMI TÚLMUTAT EZEN** (`KUKA-479`): két mérés csak akkor összevethető, ha **ugyanazt a
+munkát** méri. És ahol a cél ismert és véges, ott a terv a **célra** irányuljon, ne egy heurisztikus
+lépés-sorra.
+
+Gépi jel: `npm run verify:unit-admission` (`UAD09` — a **viselkedést** hívja, nem a forrás szövegét).
+
+---
+
 ## D-VS-3258 — A SZERZŐDÉS-BŐVÍTÉS MINDEN KISZOLGÁLÓRA SZÓL, ÉS A NEM MÉRT NEM „NEM" (R186 §5)
 
 A kötelező böngészős kapu a **záró fejen** PIROS lett, és mind a két oka **a saját javításaim

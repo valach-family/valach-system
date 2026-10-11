@@ -241,61 +241,77 @@ export function adaptiveUnitPlan({ spawnUnits, startUnits = batteryUnits(), maxU
 
 /**
  * ════════════════════════════════════════════════════════════════════════════════════════════════
- * A FINOMÍTÁS CSAK AKKOR MEGY TOVÁBB, HA A MÉRÉS SZERINT SEGÍT (R192 §3–4 — MÉRVE)
+ * A DARABOLÁS TERVE — VÉGES, ÉS A TÉNYLEGES CÉLRA IRÁNYUL (R194 §1)
  * ════════════════════════════════════════════════════════════════════════════════════════════════
  *
- * A LELET, KÖZVETLEN MÉRÉSSEL (R192 §3, ezen a 4 vCPU-s futtatón, `v3ref/mutate.mjs --unit=k/n`):
+ * AMI ITT ELŐTTE ÁLLT, ÉS AMIÉRT KIVEZETTÜK (`KUKA-479`). Az R192-ben egy SZÁZALÉKOS szabályt
+ * tettem ide (`refinementHelps`, 10%-os mérce): ha a kétszerezés után a bukott egység faliórája
+ * nem közeledett érdemben a költségvetéshez, a finomítás megállt. A szabály KÉT, EGYMÁSSAL NEM
+ * ÖSSZEVETHETŐ mérésre épült: a 64-es bontás ELSŐ bukott szelete négy mutációt futtat, a 128-asé
+ * kettőt — más MUNKA, tehát a különbségük nem „gyorsulás". A következtetés („a további finomítás
+ * haszontalan") ezért nem állt, és a SAJÁT R193-as mérésem adta rá az ellenpéldát: a 256-os fokon
+ * MINDEN mintavett szelet BELEFÉRT (10 246 · 9 412 · 9 967 ms). A heurisztika tehát egy fokkal a
+ * működő bontás ELŐTT állt meg. Megtalálta: **chatgpt-v3 (R194)**.
  *
- *   | darabolás | egy egység faliórája            |
- *   |-----------|---------------------------------|
- *   | 64        | 11 490 · 12 164 · 12 301 ms     |
- *   | 128       | 11 593 · 11 296 ms              |
- *   | 253       | 10 640 ms (belső `wall.ms` 9 175) |
+ * A SZABÁLY, AMI A HELYÉRE LÉP — NEM százalék, hanem CÉL és VÉGES terv:
+ *   · a CÉL a megengedett LEGFINOMABB, NEM ÜRES felosztás: mutációnként EGY egység. A szeletelés
+ *     lépés-szerű (`i % n === k - 1`), tehát `n > mutáció-szám` esetén a felső szeletek ÜRESEK —
+ *     és minden üres szelet a TELJES fix költséget (alapvonal + mind a nyolc hazugság-ellenpróba)
+ *     még egyszer kifizeti. MÉRVE: `n = 512` mellett 259 üres szelet futna le (~39 perc tisztán
+ *     veszteség), miközben a fedés már 253 egységen is PONTOSAN EGYSZERES.
+ *   · a TERV legfeljebb KÉT fok: a választott bontás, és ha az nem fér bele, EGYETLEN finomítás
+ *     egyenesen a legfinomabb megengedett felosztásra. Nincs „egyre nagyobb TELJES passzok" sora.
+ *   · ha a LEGFINOMABB felosztás sem fér bele, a válasz NEVEZETTEN „a mérés hiányos" — és ez
+ *     VÉGES: nincs további fok, amit próbálni lehetne (`KUKA-093`).
  *
- * AMIT EZ KIMOND, ÉS CSAK ANNYIT: az egység költségét NAGYRÉSZT a FIX rész adja (teljes alapvonal
- * + mind a nyolc hazugság-ellenpróba MINDEN egységben). MÉRVE: a darabszám NÉGYSZEREZÉSE
- * (64 → 253) a faliórát 12 301 → 10 640 ms-ra vitte (~13%), egy KÉTSZEREZÉS (64 → 128) pedig alig
- * 1–6%-ot. A `12 000 ms`-os költségvetéshez tehát a darabolás ezen a gépen CSAK a határon ér el, és
- * a tovább-felezés a TELJES falióra-keretet kétszerezi. AMIT EZ NEM ÁLLÍT: nem állítja, hogy a fix
- * rész pontos arányát megmértem (az egy külön mérés), és nem állítja, hogy más gépen is így áll.
+ * AMI NEM LAZUL (`KUKA-091`): a `12 000` ms-os saját költségvetés és a külső fél `15 000` ms-os
+ * korlátja VÁLTOZATLAN. A terv a DARABOLÁST igazítja, a mércét nem.
  *
- * ÉS EZ VOLT A 119 PERC OKA (R192 §3, közvetlen tanúval): a három hívó (`mutate.mjs --units-auto`,
- * `r81core`, `r83core`) IDŐ-bukásra `n *= 2`-t lépett, legfeljebb NÉGY próbálkozással. Az `r83core`
- * mérve 64-ről indult, és ~32 s alatt már 128-on járt (`--unit=3/128`), ~10 s/egység tempóval —
- * vagyis egy passz ~21 perc, és a NEGYEDIK próbálkozás már NEM is szakít félbe, hanem mind az 512
- * egységet lefuttatja. A védelem költsége nőtt azzá, ami ellen védett (`KUKA-290`).
- *
- * A SZABÁLY, AMI A VAK KÉTSZEREZÉS HELYÉRE LÉP — és ami NEM lazítás (`KUKA-091`): a költségvetés
- * és a külső korlát VÁLTOZATLAN. Csak annyit mondunk ki, hogy a finomítás **egyszer bizonyíthat**:
- * ha a kétszerezés után az egység költsége érdemben (≥ `MIN_REFINEMENT_GAIN`) nem közeledett a
- * költségvetéshez, akkor FIX-dominált a költség, és a további felezés MÉRVE nem segít — ott a
- * válasz nevezett „a mérés hiányos", nem újabb két passz. A döntés TISZTA FÜGGVÉNY, tehát próbából
- * közvetlenül hívható, valódi gyermek nélkül (`KUKA-207`).
+ * A DÖNTÉSEK TISZTA FÜGGVÉNYEK, tehát próbából közvetlenül hívhatók, valódi gyermek nélkül
+ * (`KUKA-207`) — a próba a VISELKEDÉST méri, nem a forrás szövegét (`KUKA-239`).
  */
-export const MIN_REFINEMENT_GAIN = 0.10;
 
 /**
- * @param {{prevUnitMs:number|null, nextUnitMs:number|null, budgetMs?:number}} m  MÉRT egység-faliórák
- * @returns {{helps:boolean, why:string}}
+ * A megengedett LEGFINOMABB, NEM ÜRES felosztás: mutációnként egy egység.
+ * Ennél nagyobb `n` csak ÜRES szeleteket ad, és azok a fix költséget sokszorozzák.
  */
-export function refinementHelps({ prevUnitMs = null, nextUnitMs = null, budgetMs = UNIT_BUDGET_MS } = {}) {
-  const a = Number(prevUnitMs); const b = Number(nextUnitMs);
-  // NINCS MÉG KÉT MÉRT PONT: a finomítás EGYSZER bizonyíthat — ez a „megengedő" ág (KUKA-122).
-  if (!Number.isFinite(a) || !Number.isFinite(b) || a <= 0 || b <= 0) {
-    return { helps: true, why: 'még nincs KÉT mért egység-költség — a finomítás egyszer bizonyíthat' };
+export function finestUnits(mutationCount) {
+  const m = Number(mutationCount);
+  return Number.isFinite(m) && m >= 1 ? Math.floor(m) : 1;
+}
+
+/**
+ * A VÉGES TERV: a választott bontás, majd legfeljebb EGY finomítás a legfinomabb felosztásra.
+ * A `startUnits` felülről a legfinomabbra VÁGVA — üres szeletet nem engedünk (R194 §1).
+ */
+export function unitPlan({ startUnits, mutationCount } = {}) {
+  const finest = finestUnits(mutationCount);
+  const raw = Number(startUnits);
+  const start = Math.min(finest, Math.max(1, Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : finest));
+  return start >= finest ? [start] : [start, finest];
+}
+
+/**
+ * MI A KÖVETKEZŐ FOK egy IDŐ miatti bukás után — vagy nincs több (véges megállás).
+ * @returns {{next:number|null, why:string}}
+ */
+export function nextUnits({ current, mutationCount } = {}) {
+  const finest = finestUnits(mutationCount);
+  const cur = Number(current);
+  if (!Number.isFinite(cur) || cur < 1) {
+    return { next: finest, why: `nincs mért bontás — egyenesen a legfinomabb megengedett felosztás (${finest} egység)` };
   }
-  if (b <= budgetMs) {
-    return { helps: true, why: `a finomított egység BELEFÉR (${b} ms ≤ ${budgetMs} ms)` };
-  }
-  const gain = (a - b) / a;
-  const pct = Math.round(gain * 1000) / 10;
-  if (gain >= MIN_REFINEMENT_GAIN) {
-    return { helps: true, why: `a kétszerezés ${pct}%-ot nyert (${a} → ${b} ms), ami eléri a ${Math.round(MIN_REFINEMENT_GAIN * 100)}%-os mércét` };
+  if (Math.floor(cur) >= finest) {
+    return {
+      next: null,
+      why: `a LEGFINOMABB megengedett, nem üres felosztás (${finest} egység, mutációnként egy) sem `
+        + 'fér bele a költségvetésbe — a mérés HIÁNYOS, és nincs további fok: a költségvetést nem '
+        + 'tágítjuk, a teendő a fix egység-költség vagy a gép felülvizsgálata',
+    };
   }
   return {
-    helps: false,
-    why: `a kétszerezés csak ${pct}%-ot nyert (${a} → ${b} ms), a költségvetés ${budgetMs} ms — az egység `
-      + 'költsége FIX-dominált, a további felezés MÉRVE nem közelít a költségvetéshez, csak a teljes '
-      + 'falióra-keretet kétszerezi',
+    next: finest,
+    why: `EGYETLEN finomítás a legfinomabb megengedett felosztásra (${Math.floor(cur)} → ${finest} egység); `
+      + 'nincs közbenső fok, mert a fix költség miatt a közbenső TELJES passzok csak a keretet fogyasztanák',
   };
 }

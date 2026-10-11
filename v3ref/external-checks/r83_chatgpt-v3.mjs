@@ -43,17 +43,24 @@ import { fileURLToPath } from 'node:url';
 // A javítás nem egy fájl javítása, hanem a SZABÁLY: a darabszám származik, a bukás okát nevezett
 // feloldó dönti el, és a tanút hitelesítjük.
 import { unitFailureKind, freshUnitWitness } from './source/v3ref/unitFailureKind.mjs';
-import { batteryUnits, refinementHelps } from './batteryUnits.mjs';
+import { batteryUnits, unitPlan, nextUnits, finestUnits } from './batteryUnits.mjs';
+// A MUTÁCIÓ-SZÁM a LEMÁSOLT forrásból jön (ez a program CSAK a másolt fában fut — KUKA-130).
+import { MUTATIONS } from './source/v3ref/mutations.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PIN = JSON.parse(readFileSync(join(HERE, 'source-manifest.json'), 'utf8')).commit;
 // A KIINDULÓ DARABSZÁM IS A KÖZÖS OTTHONBÓL JÖN (KUKA-003 · KUKA-018 · R36). A kézzel írt
 // négyes a battéria 149 mutációjánál SOHA nem fér bele, tehát minden futás egy teljes,
 // eldobott menettel kezdődött — és a szám ugyanúgy elcsúszott volna, mint a KUKA-177-ben.
-const UNITS_START = batteryUnits();
-const UNITS_MAX_ATTEMPTS = 4;
-// A FINOMÍTÁS DÖNTÉSE MÉRÉSEN ÁLL (R192 §4): a bukott egység MÉRT faliórája kell hozzá.
-let prevUnitMs = null; let tooSlowMs = null;
+/**
+ * A DARABOLÁS VÉGES TERVE A KÖZÖS OTTHONBÓL (R194 §1) — nincs próbálkozás-számláló és nincs
+ * százalékos heurisztika (`KUKA-479`): a választott bontás, majd legfeljebb EGY finomítás a
+ * legfinomabb megengedett, NEM ÜRES felosztásra. A `startUnits` a külső fél olvasójának
+ * korlátján belül marad (`batteryUnits()` ≤ 64), a cél viszont a mutációnkénti egység.
+ */
+const UNITS_PLAN = unitPlan({ startUnits: batteryUnits(), mutationCount: MUTATIONS.length });
+const UNITS_FINEST = finestUnits(MUTATIONS.length);
+let tooSlowMs = null;
 
 const runNode = (file, opts = {}) => spawnSync(process.execPath, [file], {
   cwd: HERE, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, ...opts,
@@ -62,7 +69,7 @@ const runNode = (file, opts = {}) => spawnSync(process.execPath, [file], {
 // ── (1) A VALÓDI EGYSÉGEK ELŐÁLLÍTÁSA az összefűzés-próbához ────────────────────────────────────
 const MUTATE = join(HERE, 'source', 'v3ref', 'mutate.mjs');
 const GENUINE = join(HERE, 'evidence', 'genuine-units');
-let UNITS = UNITS_START;
+let UNITS = UNITS_PLAN[0];
 const unitProblems = [];
 if (existsSync(MUTATE)) {
   rmSync(join(HERE, 'source', 'v3ref', 'units'), { recursive: true, force: true });
@@ -82,29 +89,30 @@ if (existsSync(MUTATE)) {
       try { raw = JSON.parse(readFileSync(join(unitsDir, `unit-${k}-of-${UNITS}.json`), 'utf8')); } catch { /* nincs tanú */ }
       const w = freshUnitWitness(raw, { k, n: UNITS, startedAt });
       const kind = w.ok ? unitFailureKind(w.unit) : 'unknown';
-      if (kind === 'too_slow' && attempt < UNITS_MAX_ATTEMPTS) { tooSlow = k; tooSlowMs = (raw && raw.wall && Number(raw.wall.ms)) || null; break; }
+      // AZ UTOLSÓ FOKON NEM SZAKÍTUNK FÉLBE: a teljes egység-készlet kell, hogy az ÖSSZEFŰZÉS-próba
+      // saját támadási esetei egyáltalán lefuthassanak (R194 §2) — a költségvetés-sértést NEVEZETTEN
+      // rögzítjük, nem elhallgatjuk.
+      if (kind === 'too_slow' && UNITS < UNITS_FINEST) { tooSlow = k; tooSlowMs = (raw && raw.wall && Number(raw.wall.ms)) || null; break; }
+      if (kind === 'too_slow') {
+        unitProblems.push(`a ${k}/${UNITS} egység a LEGFINOMABB megengedett felosztáson sem fért a `
+          + `költségvetésbe (${(raw && raw.wall && raw.wall.ms) || '?'} ms) — a mérés HIÁNYOS`);
+        continue;
+      }
       unitProblems.push(`a ${k}/${UNITS} egység NEM nullával zárt (${r.status})`
         + ` — a bukás oka: ${kind}${w.ok ? '' : ` (a tanú nem hitelesíthető: ${w.why})`}`);
     }
     if (!tooSlow) break;
     /**
-     * A FINOMÍTÁS CSAK AKKOR MEGY TOVÁBB, HA A MÉRÉS SZERINT SEGÍT (R192 §4 · `refinementHelps`).
-     *
-     * A LELET, KÖZVETLEN TANÚVAL (R192 §3): ez a hívó a mért-jó 64-ről indul, de IDŐ-bukásra vakon
-     * kétszerezett, legfeljebb NÉGY próbálkozással — és a NEGYEDIKEN már NEM is szakít félbe, hanem
-     * mind az egységet lefuttatja. Mérve: 64-ről ~32 s alatt 128-ra finomított (~10 s/egység), egy
-     * passz így ~21 perc, és a létra felső fokain a TELJES falióra-keret megy el. Mivel az egység
-     * költségét nagyrészt a FIX rész adja, a tovább-felezés mérve NEM közelít a költségvetéshez.
-     * A költségvetés és a külső korlát VÁLTOZATLAN (`KUKA-091`); csak a vak kétszerezés szűnik meg.
+     * A KÖVETKEZŐ FOK A KÖZÖS, VÉGES TERVBŐL JÖN (R194 §1). Nincs vak kétszerezés: egyetlen
+     * finomítás a legfinomabb megengedett felosztásra, majd VÉGES megállás. A költségvetés és a
+     * külső korlát VÁLTOZATLAN (`KUKA-091`).
      */
-    const verdict = refinementHelps({ prevUnitMs, nextUnitMs: tooSlowMs });
-    if (!verdict.helps) {
-      unitProblems.push(`a finomítás MÉRVE nem segít: ${verdict.why} — a mérés HIÁNYOS, `
-        + 'és nem futtatunk újabb, mérve haszontalan battéria-passzt');
+    const step = nextUnits({ current: UNITS, mutationCount: MUTATIONS.length });
+    if (step.next === null) {
+      unitProblems.push(`a darabolás nem finomítható tovább: ${step.why}`);
       break;
     }
-    prevUnitMs = tooSlowMs;
-    UNITS *= 2;                       // IDŐ miatti bukáson finomítunk — a költségvetés NEM tágul
+    UNITS = step.next;
   }
   const src = unitsDir;
   const files = existsSync(src) ? readdirSync(src).filter((f) => f.endsWith('.json')) : [];
@@ -150,7 +158,8 @@ const out = {
   node: process.version,
   at: new Date().toISOString(),
   verbatim: true,
-  genuine_units: { requested: UNITS, started_from: UNITS_START, problems: unitProblems },
+  // A TERV IS A BIZONYÍTÉK RÉSZE (R194 §1): mivel indult, mi volt a cél, hol állt meg.
+  genuine_units: { requested: UNITS, started_from: UNITS_PLAN[0], plan: UNITS_PLAN, finest: UNITS_FINEST, problems: unitProblems },
   merge: mergeOut,
   runner: runnerOut,
   runner_scope: 'a VALÓDI run-all.mjs, SZINTETIKUS program-kimenetekkel — a külső fél kimondott '

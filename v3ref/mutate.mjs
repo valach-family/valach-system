@@ -627,7 +627,6 @@ function runMutation(m, knownProbes) {
 // nem őr. A 20% tartalék a LASSABB gépé. KIMONDOTT KORLÁT: ez a MI gépünkön mért idő.
 const EXTERNAL_WALL_LIMIT_MS = 15000;
 const WALL_BUDGET_MS = Math.round(EXTERNAL_WALL_LIMIT_MS * 0.8);
-const UNIT_SIZE = 24;
 const UNIT_ARG = process.argv.find((a) => a.startsWith('--unit='));
 const MERGE_ONLY = process.argv.includes('--merge');
 const UNITS_DIR = join(REF, 'units');
@@ -641,7 +640,6 @@ const UNIT = (() => {
 })();
 /** A felosztás DETERMINISZTIKUS és körbeforgó: az egységek költsége így hasonló marad. */
 const sliceFor = (k, n) => MUTATIONS.filter((_, i) => i % n === k - 1);
-const AUTO_UNITS = Math.max(1, Math.ceil(MUTATIONS.length / UNIT_SIZE));
 
 // ── A DARABSZÁM SZÁRMAZTATVA, NEM KÉZZEL (`--units-auto`, R32/§B3) ──────────────────────────────
 //
@@ -653,14 +651,14 @@ const AUTO_UNITS = Math.max(1, Math.ceil(MUTATIONS.length / UNIT_SIZE));
 // tanít, hogy a pirosat át kell írni (KUKA-045).
 //
 // A SZABÁLY, AMI A SZÁM HELYÉRE LÉP: minden egység férjen bele a saját költségvetésébe. A darabszám
-// ebből SZÁRMAZIK: az ajánlott értékről indulunk, és ha egy egység nem fér bele, FINOMABBRA
-// osztunk — a KÖLTSÉGVETÉS SOHA nem tágul (KUKA-091: a javítás iránya nem az őr lazítása).
+// ebből SZÁRMAZIK — de NEM a `mutáció / egység-méret` osztóból, és NEM vak kétszerezésből: mindkettőt
+// KIVEZETTÜK (`KUKA-177` · `KUKA-479`). A közös otthon VÉGES TERVET ad (`unitPlan` · `nextUnits`):
+// a választott bontás, majd legfeljebb EGY finomítás a legfinomabb megengedett, NEM ÜRES felosztásra.
+// A KÖLTSÉGVETÉS SOHA nem tágul (KUKA-091: a javítás iránya nem az őr lazítása).
 //
-// ÉS A FINOMÍTÁS NEM LEHET NÉMA. A végtelen darabolás elfedne egy valódi lassulást, ezért: legfeljebb
-// `AUTO_MAX_ATTEMPTS` próbálkozás, és ha a tool SAJÁT ajánlásánál finomabbra kellett menni, a futtató
-// KIMONDJA. Ha a plafonon sem fér bele, a kilépés NEM 0 — a mérés akkor hiányos, nem zöld (KUKA-093).
+// ÉS A MEGÁLLÁS VÉGES ÉS NEM NÉMA: ha a legfinomabb felosztás sem fér bele, a kilépés NEM 0 — a mérés
+// akkor hiányos, nem zöld (KUKA-093). Próbálkozás-számláló nem kell: a terv maga véges.
 if (process.argv.includes('--units-auto')) {
-  const AUTO_MAX_ATTEMPTS = 4;
   const self = fileURLToPath(import.meta.url);
   const runNode = (args) => spawnSync(process.execPath, [self, ...args], { stdio: 'inherit' });
   /**
@@ -680,19 +678,28 @@ if (process.argv.includes('--units-auto')) {
    * (`package.json` → `v3ref:mutate:units`), ezért a behúzás ide, az ágba kerül — és a hiánya
    * NEVEZETT, nem néma (`KUKA-093`).
    */
-  let n = AUTO_UNITS; let startFrom = `a tartalék osztó (mutáció/egység-méret) — ${AUTO_UNITS}`;
-  let refinementHelps = null;
+  /**
+   * A KÖTELEZŐ DÖNTÉS HIÁNYA NEM TARTALÉK-FUTÁS, HANEM NEM SIKERES LEZÁRÁS (R194 §1).
+   *
+   * Az R192-es alakom a behúzás hibájára VISSZAESETT a tiltott osztóra és a vak kétszerezésre —
+   * vagyis a közös szabály REJTETT MEGKERÜLÉSE lett belőle, épp azon az úton, amit javítani
+   * akartam. A hiányzó kötelező konfigurációra ezért nevezett, nem-nulla kilépés jár: egy drága
+   * vak passz-sor nem helyettesíti a döntést (`KUKA-093` · `KUKA-236`).
+   */
+  let home = null;
   try {
-    const home = await import('./external-checks/batteryUnits.mjs');
-    n = home.batteryUnits();
-    refinementHelps = home.refinementHelps;
-    startFrom = `a közös otthon (batteryUnits.mjs) — ${n}`;
+    home = await import('./external-checks/batteryUnits.mjs');
   } catch (e) {
-    console.error(`  A KÖZÖS DARABSZÁM-OTTHON NEM OLVASHATÓ (${e && e.code || e}) — a tartalék osztóval indulok.`);
-    console.error('  EZ NEVEZETT HIÁNY: a darabszám ilyenkor NEM a deklarált otthonból jön.');
+    console.error(`  A KÖZÖS DARABOLÁS-OTTHON NEM OLVASHATÓ (${(e && e.code) || e}).`);
+    console.error('  EZ NEM TARTALÉK-FUTÁS, HANEM NEM SIKERES LEZÁRÁS: a kötelező döntés nélkül a');
+    console.error('  darabolás a közös szabály rejtett megkerülése lenne. A mérés NEM indul el.');
+    process.exit(2);
   }
-  console.log(`  A KEZDŐ DARABSZÁM: ${startFrom}.`);
-  let attempt = 0; let lastTooSlow = null; let prevUnitMs = null;
+  const plan = home.unitPlan({ startUnits: home.batteryUnits(), mutationCount: MUTATIONS.length });
+  let n = plan[0];
+  console.log(`  A DARABOLÁS TERVE (VÉGES): ${plan.join(' → ')} egység · a kezdő szám a közös otthonból, `
+    + `a cél a legfinomabb megengedett, NEM ÜRES felosztás (${home.finestUnits(MUTATIONS.length)}).`);
+  let attempt = 0; let lastTooSlow = null;
   for (;;) {
     attempt += 1;
     let tooSlow = null;
@@ -725,34 +732,23 @@ if (process.argv.includes('--units-auto')) {
     }
     if (!tooSlow) break;
     lastTooSlow = tooSlow;
-    if (attempt >= AUTO_MAX_ATTEMPTS) {
-      console.error(`  A ${n} egységre osztott battéria ${AUTO_MAX_ATTEMPTS} próbálkozás után SEM fér bele a `
-        + `${WALL_BUDGET_MS} ms-os egység-költségvetésbe (utoljára a ${lastTooSlow.k}/${lastTooSlow.n} szeleten).`);
-      console.error('  EZ NEM ZÖLD ÉS NEM PIROS TARTALOM: a MÉRÉS hiányos — a futtató-gép lassabb, mint amire a '
-        + 'darabolás méretezve van. A költségvetést nem tágítjuk; a teendő a gép vagy a battéria felülvizsgálata.');
-      process.exit(1);
-    }
     /**
-     * A FINOMÍTÁS CSAK AKKOR MEGY TOVÁBB, HA A MÉRÉS SZERINT SEGÍT (R192 §4 — `refinementHelps`).
-     * Az első bukás után MINDIG finomítunk egyszer (akkor még nincs két mért pont); utána a
-     * KÉT mért egység-költség dönt. A költségvetés NEM tágul (`KUKA-091`).
+     * A KÖVETKEZŐ FOK A KÖZÖS, VÉGES TERVBŐL JÖN (R194 §1): a választott bontás után EGYETLEN
+     * finomítás a legfinomabb megengedett felosztásra, majd VÉGES megállás. Nincs próbálkozás-
+     * számláló, mert a terv maga véges — és nincs százalékos heurisztika (`KUKA-479`).
      */
-    const verdict = refinementHelps
-      ? refinementHelps({ prevUnitMs, nextUnitMs: lastTooSlow.ms })
-      : { helps: true, why: 'a közös döntés nem olvasható — a régi, vak finomítás marad (NEVEZETT hiány)' };
-    if (!verdict.helps) {
-      console.error(`  A FINOMÍTÁS MÉRVE NEM SEGÍT: ${verdict.why}.`);
-      console.error('  EZ NEM ZÖLD ÉS NEM PIROS TARTALOM: a MÉRÉS hiányos — a költségvetést nem tágítjuk, és '
-        + 'nem futtatunk újabb, mérve haszontalan passzokat. A teendő a gép vagy a battéria felülvizsgálata.');
+    const step = home.nextUnits({ current: n, mutationCount: MUTATIONS.length });
+    if (step.next === null) {
+      console.error(`  NINCS TOVÁBBI FOK: ${step.why}.`);
+      console.error('  EZ NEM ZÖLD ÉS NEM PIROS TARTALOM: a MÉRÉS hiányos — a költségvetést nem tágítjuk.');
       process.exit(1);
     }
-    prevUnitMs = lastTooSlow.ms;
-    n *= 2;
-    console.error(`  A ${lastTooSlow.k}/${lastTooSlow.n} szelet nem fért a költségvetésbe (${lastTooSlow.ms ?? '?'} ms) — `
-      + `FINOMABBRA osztok: ${n} egység. (${verdict.why})`);
+    n = step.next;
+    console.error(`  A ${lastTooSlow.k}/${lastTooSlow.n} szelet nem fért a költségvetésbe `
+      + `(${lastTooSlow.ms ?? '?'} ms) — ${step.why}.`);
   }
-  if (n !== AUTO_UNITS) {
-    console.log(`  MEGJEGYZÉS: a tool ajánlása ${AUTO_UNITS} egység volt, de ezen a gépen ${n} kellett `
+  if (n !== plan[0]) {
+    console.log(`  MEGJEGYZÉS: a terv ${plan[0]} egységgel indult, de ezen a gépen ${n} kellett `
       + '— a költségvetés változatlan, a darabolás finomabb.');
   }
   const m = runNode(['--merge']);
@@ -1275,7 +1271,8 @@ if (survived || wrong || harness || stale) why.push('a mutációs battéria nem 
 if (!evidenceBound) why.push(`a bizonyíték-csomag NINCS a szülői főkönyvhöz kötve (${evidenceUnbound.join(', ')})`);
 const portableWhy = portable ? null
   : `a falióra (${wall} ms) a saját költségvetés (${WALL_BUDGET_MS} ms) fölé ment — `
-    + `darabold: ${AUTO_UNITS > 1 ? Array.from({ length: AUTO_UNITS }, (_, i) => `--unit=${i + 1}/${AUTO_UNITS}`).join(' · ') : '--unit=1/2 · --unit=2/2'} · --merge`;
+    + `darabold a VÉGES terv szerint (a közös otthonból): \`node v3ref/mutate.mjs --units-auto\` — `
+    + `a cél a legfinomabb megengedett, NEM ÜRES felosztás (${MUTATIONS.length} egység, mutációnként egy)`;
 
 // ── EGYSÉG-MÓD: a részeredmény fájlba megy, és SEMMIT nem állít a battéria egészéről ─────────────
 if (UNIT) {
