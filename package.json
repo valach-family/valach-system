@@ -60,6 +60,7 @@
     "verify:decision-numbers": "node tools/vs_verify_decision_numbers.mjs",
     "verify:doc-html": "node tools/vs_verify_doc_html.mjs",
     "verify:external-checks": "node v3ref/external-checks/run-all.mjs",
+    "verify:external-series": "node tools/vs_verify_external_series.mjs",
     "verify:external-decisions": "node tools/vs_verify_external_decisions.mjs",
     "verify:fogyasztas-meres": "node tools/v3_fogyasztas_meres.mjs --selftest",
     "hash:manifeszt": "node tools/v3_hash_manifeszt.mjs",

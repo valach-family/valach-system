@@ -41,7 +41,11 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
-import { batteryUnits } from './batteryUnits.mjs';
+import { batteryUnits, unitPlan, UNIT_BUDGET_MS, EXTERNAL_CAP_MS } from './batteryUnits.mjs';
+// A SOROZAT-FŐKÖNYV (EXS-01, R194 §2): a programonként folytatható, forráshoz kötött mérés. A
+// döntése TISZTA FÜGGVÉNY, hogy a kapu próbából is hívható legyen (KUKA-207).
+import { configDigest, seriesId, makeRecord } from './seriesLedger.mjs';
+import { MUTATIONS } from '../mutations.mjs';
 // A PROGRAM-REGISZTER ÉS AZ ESET-SZEMLE KÜLÖN MODULBAN ÁLL (EXT-02, R59/F02), hogy a verifier
 // HÍVHASSA ugyanazt a döntést, amit a futtató használ — ne a forrás szövegét olvassa (KUKA-009).
 import {
@@ -317,6 +321,8 @@ for (const p of selected) {
     expected_cases: [...p.cases], expected_from: p.cases_source,
     evidence_file: p.evidence, evidence_present: artifact.present, evidence_pin: artifact.pin,
     total: cases ? cases.length : null,
+    // A SOROZAT-REKORD az ESET-EREDMÉNYT is hordozza (R194 §2), nem csak a darabszámot.
+    case_rows: (cases || []).map((c) => ({ id: String((c && c.id) ?? ''), pass: Boolean(c && c.pass === true) })),
     present: audit.present, missing: audit.missing, unknown: audit.unknown,
     duplicate: audit.duplicate, failed: audit.failed,
     problems: audit.problems,
@@ -434,6 +440,56 @@ const all = {
 };
 const indexPath = join(OUT, 'external-checks-result.json');
 writeFileSync(indexPath, `${JSON.stringify(all, null, 2)}\n`);
+
+/**
+ * A SOROZAT-FŐKÖNYV ÍRÁSA (EXS-01, R194 §2) — A LEGKISEBB SZÜKSÉGES KIEGÉSZÍTÉS.
+ *
+ * MIÉRT NEM A FENTI INDEX ELÉG. Azt a fájlt a KÜLSŐ FÉL programjai olvassák név szerint (`r59` ·
+ * `r59a` · `r61` · `r83_runner`), tehát a nevéhez és alakjához nem nyúlunk (`KUKA-054`) — viszont
+ * minden futás FELÜLÍRJA, így két `--only` futás eredménye nem adódik össze, és a korábbi TELJES
+ * bizonyíték is elvész. MÉRVE: ma az index `scope: full` · `verdict.ok: true`-t ír egy 2026-10-09-i,
+ * PISZKOS forrásról, miközben a mellette álló per-program fájlok NÉGY különböző forrásból valók.
+ *
+ * EZÉRT A SOROZAT MELLÉ KERÜL: minden program a SAJÁT rekordját kapja, a kötéssel együtt, és az
+ * összesítést a `verifySeries` végzi — a részfutás tehát MEGMARAD és FOLYTATHATÓ, de teljes
+ * verdiktet csak a teljes, ellenőrzött készlet adhat.
+ */
+const seriesBinding = {
+  commit: src.commit,
+  clean: src.clean === true,
+  config_digest: configDigest({
+    battery_units: batteryUnits(),
+    unit_plan: unitPlan({ startUnits: batteryUnits(), mutationCount: MUTATIONS.length }),
+    unit_budget_ms: UNIT_BUDGET_MS,
+    external_cap_ms: EXTERNAL_CAP_MS,
+    node: process.version,
+  }),
+  programs_digest: digestOf('case-manifest.mjs'),
+  runner_digest: digestOf('run-all.mjs'),
+};
+const SERIES = seriesId(seriesBinding);
+const seriesDir = join(OUT, 'series', SERIES);
+mkdirSync(seriesDir, { recursive: true });
+for (const s2 of summary) {
+  const rec = makeRecord({
+    binding: seriesBinding,
+    program: { id: s2.id, digest: s2.program_digest },
+    exit: Number.isInteger(s2.exit) ? s2.exit : -1,
+    // A KIHAGYÁS NEM ZÖLD (KUKA-089 · KUKA-122): a rekord `ok`-ja a VALÓDI zöldre igaz, a nevezett
+    // környezeti kihagyás külön mezőben áll, és az összesítő is külön számolja.
+    ok: s2.ok === true,
+    cases: s2.case_rows || [],
+    evidence_digest: s2.saved
+      ? createHash('sha256').update(readFileSync(s2.saved)).digest('hex')
+      : '',
+    failure: { kind: s2.failure_kind, why: s2.failure_why },
+    ms: s2.ms,
+  });
+  rec.env_skipped = s2.env_skipped === true;
+  writeFileSync(join(seriesDir, `${s2.id}.json`), `${JSON.stringify(rec, null, 2)}\n`);
+}
+console.log(`  SOROZAT:        ${SERIES}  (${summary.length} rekord írva ide: ${seriesDir})`);
+console.log('  a sorozat összesítése:  npm run verify:external-series');
 
 if (keep) console.log(`  a munkakönyvtár MEGMARADT: ${dir}`);
 else rmSync(dir, { recursive: true, force: true });
