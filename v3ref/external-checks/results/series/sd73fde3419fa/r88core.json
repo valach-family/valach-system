@@ -1,0 +1,43 @@
+{
+  "contract": "EXS-01",
+  "series": "sd73fde3419fa",
+  "binding": {
+    "commit": "1f42ae68c031dd730bb054036ce7f123b0740591",
+    "clean": true,
+    "config_digest": "f0ce4e38338ca820",
+    "programs_digest": "e9622db45921f4bedcc0857f44aa86b520beef401ab6a709afb85584c87d3123",
+    "runner_digest": "6ceadaea89e9f0330a2dcb5e421b1fdc0c5faa96ddc159d2b0550c585bee0e71"
+  },
+  "program": "r88core",
+  "program_digest": "cc34182b78a350c98f23c62b41d214162c8ea7b9d1ff20614da6bdeb09d0b7a6",
+  "exit": 0,
+  "ok": true,
+  "cases": [
+    {
+      "id": "P01-same-book-basis",
+      "pass": true
+    },
+    {
+      "id": "F01-foreign-book-basis",
+      "pass": true
+    },
+    {
+      "id": "P02-successful-grant-is-paired",
+      "pass": true
+    },
+    {
+      "id": "F02-rejected-grant-leaves-no-event",
+      "pass": true
+    },
+    {
+      "id": "P03-outer-transaction-rolls-back",
+      "pass": true
+    }
+  ],
+  "evidence_digest": "837beb67d5fe8a53eaf8b210ea13cf96ef490c66899b47f07cc56bcfaf70c074",
+  "failure_kind": "unknown",
+  "failure_why": "nincs mért környezeti akadály a nyers eredményben",
+  "ms": 243,
+  "at": "2026-10-11T15:46:03.579Z",
+  "env_skipped": false
+}

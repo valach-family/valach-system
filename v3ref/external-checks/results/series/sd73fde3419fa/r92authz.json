@@ -1,0 +1,31 @@
+{
+  "contract": "EXS-01",
+  "series": "sd73fde3419fa",
+  "binding": {
+    "commit": "1f42ae68c031dd730bb054036ce7f123b0740591",
+    "clean": true,
+    "config_digest": "f0ce4e38338ca820",
+    "programs_digest": "e9622db45921f4bedcc0857f44aa86b520beef401ab6a709afb85584c87d3123",
+    "runner_digest": "6ceadaea89e9f0330a2dcb5e421b1fdc0c5faa96ddc159d2b0550c585bee0e71"
+  },
+  "program": "r92authz",
+  "program_digest": "39257983662f344e0cfcc47ab351b3ef5293bbcff1526c5240f85d792df9dcc2",
+  "exit": 0,
+  "ok": true,
+  "cases": [
+    {
+      "id": "F01",
+      "pass": true
+    },
+    {
+      "id": "F02",
+      "pass": true
+    }
+  ],
+  "evidence_digest": "9b6034ac38b396951fb2f05826c88ef8e68f1125fc43b759e5d33033ed4b0532",
+  "failure_kind": "unknown",
+  "failure_why": "nincs mért környezeti akadály a nyers eredményben",
+  "ms": 214,
+  "at": "2026-10-11T15:46:03.091Z",
+  "env_skipped": false
+}
