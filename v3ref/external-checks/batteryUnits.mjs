@@ -238,3 +238,64 @@ export function adaptiveUnitPlan({ spawnUnits, startUnits = batteryUnits(), maxU
       : `NEM FÉRT BELE: a futtató SAJÁT költségvetését lépte túl ${tulLepte.length} egységben`)}`);
   return { units: n, attempts: maxAttempts + 1, fitted: belefert, log: Object.freeze(log), result: r };
 }
+
+/**
+ * ════════════════════════════════════════════════════════════════════════════════════════════════
+ * A FINOMÍTÁS CSAK AKKOR MEGY TOVÁBB, HA A MÉRÉS SZERINT SEGÍT (R192 §3–4 — MÉRVE)
+ * ════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * A LELET, KÖZVETLEN MÉRÉSSEL (R192 §3, ezen a 4 vCPU-s futtatón, `v3ref/mutate.mjs --unit=k/n`):
+ *
+ *   | darabolás | egy egység faliórája            |
+ *   |-----------|---------------------------------|
+ *   | 64        | 11 490 · 12 164 · 12 301 ms     |
+ *   | 128       | 11 593 · 11 296 ms              |
+ *   | 253       | 10 640 ms (belső `wall.ms` 9 175) |
+ *
+ * AMIT EZ KIMOND, ÉS CSAK ANNYIT: az egység költségét NAGYRÉSZT a FIX rész adja (teljes alapvonal
+ * + mind a nyolc hazugság-ellenpróba MINDEN egységben). MÉRVE: a darabszám NÉGYSZEREZÉSE
+ * (64 → 253) a faliórát 12 301 → 10 640 ms-ra vitte (~13%), egy KÉTSZEREZÉS (64 → 128) pedig alig
+ * 1–6%-ot. A `12 000 ms`-os költségvetéshez tehát a darabolás ezen a gépen CSAK a határon ér el, és
+ * a tovább-felezés a TELJES falióra-keretet kétszerezi. AMIT EZ NEM ÁLLÍT: nem állítja, hogy a fix
+ * rész pontos arányát megmértem (az egy külön mérés), és nem állítja, hogy más gépen is így áll.
+ *
+ * ÉS EZ VOLT A 119 PERC OKA (R192 §3, közvetlen tanúval): a három hívó (`mutate.mjs --units-auto`,
+ * `r81core`, `r83core`) IDŐ-bukásra `n *= 2`-t lépett, legfeljebb NÉGY próbálkozással. Az `r83core`
+ * mérve 64-ről indult, és ~32 s alatt már 128-on járt (`--unit=3/128`), ~10 s/egység tempóval —
+ * vagyis egy passz ~21 perc, és a NEGYEDIK próbálkozás már NEM is szakít félbe, hanem mind az 512
+ * egységet lefuttatja. A védelem költsége nőtt azzá, ami ellen védett (`KUKA-290`).
+ *
+ * A SZABÁLY, AMI A VAK KÉTSZEREZÉS HELYÉRE LÉP — és ami NEM lazítás (`KUKA-091`): a költségvetés
+ * és a külső korlát VÁLTOZATLAN. Csak annyit mondunk ki, hogy a finomítás **egyszer bizonyíthat**:
+ * ha a kétszerezés után az egység költsége érdemben (≥ `MIN_REFINEMENT_GAIN`) nem közeledett a
+ * költségvetéshez, akkor FIX-dominált a költség, és a további felezés MÉRVE nem segít — ott a
+ * válasz nevezett „a mérés hiányos", nem újabb két passz. A döntés TISZTA FÜGGVÉNY, tehát próbából
+ * közvetlenül hívható, valódi gyermek nélkül (`KUKA-207`).
+ */
+export const MIN_REFINEMENT_GAIN = 0.10;
+
+/**
+ * @param {{prevUnitMs:number|null, nextUnitMs:number|null, budgetMs?:number}} m  MÉRT egység-faliórák
+ * @returns {{helps:boolean, why:string}}
+ */
+export function refinementHelps({ prevUnitMs = null, nextUnitMs = null, budgetMs = UNIT_BUDGET_MS } = {}) {
+  const a = Number(prevUnitMs); const b = Number(nextUnitMs);
+  // NINCS MÉG KÉT MÉRT PONT: a finomítás EGYSZER bizonyíthat — ez a „megengedő" ág (KUKA-122).
+  if (!Number.isFinite(a) || !Number.isFinite(b) || a <= 0 || b <= 0) {
+    return { helps: true, why: 'még nincs KÉT mért egység-költség — a finomítás egyszer bizonyíthat' };
+  }
+  if (b <= budgetMs) {
+    return { helps: true, why: `a finomított egység BELEFÉR (${b} ms ≤ ${budgetMs} ms)` };
+  }
+  const gain = (a - b) / a;
+  const pct = Math.round(gain * 1000) / 10;
+  if (gain >= MIN_REFINEMENT_GAIN) {
+    return { helps: true, why: `a kétszerezés ${pct}%-ot nyert (${a} → ${b} ms), ami eléri a ${Math.round(MIN_REFINEMENT_GAIN * 100)}%-os mércét` };
+  }
+  return {
+    helps: false,
+    why: `a kétszerezés csak ${pct}%-ot nyert (${a} → ${b} ms), a költségvetés ${budgetMs} ms — az egység `
+      + 'költsége FIX-dominált, a további felezés MÉRVE nem közelít a költségvetéshez, csak a teljes '
+      + 'falióra-keretet kétszerezi',
+  };
+}

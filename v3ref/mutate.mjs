@@ -663,7 +663,36 @@ if (process.argv.includes('--units-auto')) {
   const AUTO_MAX_ATTEMPTS = 4;
   const self = fileURLToPath(import.meta.url);
   const runNode = (args) => spawnSync(process.execPath, [self, ...args], { stdio: 'inherit' });
-  let n = AUTO_UNITS; let attempt = 0; let lastTooSlow = null;
+  /**
+   * A KEZDŐ DARABSZÁM A KÖZÖS OTTHONBÓL JÖN — NEM A TILTOTT OSZTÓBÓL (R192 §3, MÉRVE).
+   *
+   * A LELET. Ez az ág `AUTO_UNITS = ceil(MUTATIONS.length / UNIT_SIZE)`-ból indult, ami 253
+   * mutációnál **11** egység — és a `batteryUnits.mjs` SAJÁT szövege mondja ki, hogy (a) a
+   * „mutáció / N" osztó önmagában SOSEM lehet a szabály (`KUKA-045`), mert az egység költségének
+   * nagy része FIX, és (b) a 11-es bontás egysége ezen a gépen 31 662 ms-ot kért. A mért-jó,
+   * deklarált **64** viszont a 11 → 22 → 44 → 88 létrán EL SEM ÉRHETŐ. A darabszámnak EGY otthona
+   * van (`KUKA-003` · `KUKA-018` · `KUKA-129`), és eddig ez a hívó NEM onnan vette.
+   *
+   * MIÉRT DINAMIKUS A BEHÚZÁS: a közös otthon a `v3ref/external-checks/` alatt él, és a külső
+   * futtató a programokat egy IDEIGLENES mappába másolja, ahová csak a `file` + `companions`
+   * fájlok kerülnek — egy STATIKUS, fölé nyúló behúzás ott `ERR_MODULE_NOT_FOUND`-dal megölné a
+   * modult a MÉRÉS ELŐTT (`KUKA-130`, mérve: 57 ms). Ez az ág viszont CSAK a repóból fut
+   * (`package.json` → `v3ref:mutate:units`), ezért a behúzás ide, az ágba kerül — és a hiánya
+   * NEVEZETT, nem néma (`KUKA-093`).
+   */
+  let n = AUTO_UNITS; let startFrom = `a tartalék osztó (mutáció/egység-méret) — ${AUTO_UNITS}`;
+  let refinementHelps = null;
+  try {
+    const home = await import('./external-checks/batteryUnits.mjs');
+    n = home.batteryUnits();
+    refinementHelps = home.refinementHelps;
+    startFrom = `a közös otthon (batteryUnits.mjs) — ${n}`;
+  } catch (e) {
+    console.error(`  A KÖZÖS DARABSZÁM-OTTHON NEM OLVASHATÓ (${e && e.code || e}) — a tartalék osztóval indulok.`);
+    console.error('  EZ NEVEZETT HIÁNY: a darabszám ilyenkor NEM a deklarált otthonból jön.');
+  }
+  console.log(`  A KEZDŐ DARABSZÁM: ${startFrom}.`);
+  let attempt = 0; let lastTooSlow = null; let prevUnitMs = null;
   for (;;) {
     attempt += 1;
     let tooSlow = null;
@@ -680,7 +709,8 @@ if (process.argv.includes('--units-auto')) {
         catch { /* nincs egység-fájl: nem tudjuk, tehát nem mentegetünk */ }
         const w = freshUnitWitness(raw, { k, n, startedAt });
         const kind = w.ok ? unitFailureKind(w.unit) : 'unknown';
-        if (kind === 'too_slow') { tooSlow = { k, n }; break; }
+        // A MÉRT FALIÓRA IS KELL: a finomítás döntése MÉRÉSEN áll, nem a próbálkozás-számon.
+        if (kind === 'too_slow') { tooSlow = { k, n, ms: (raw && raw.wall && Number(raw.wall.ms)) || null }; break; }
         if (kind === 'content') {
           console.error(`  AZ EGYSÉG ${k}/${n} TARTALMI OKBÓL bukott — a darabolás ezen nem segít.`);
         } else {
@@ -702,8 +732,24 @@ if (process.argv.includes('--units-auto')) {
         + 'darabolás méretezve van. A költségvetést nem tágítjuk; a teendő a gép vagy a battéria felülvizsgálata.');
       process.exit(1);
     }
+    /**
+     * A FINOMÍTÁS CSAK AKKOR MEGY TOVÁBB, HA A MÉRÉS SZERINT SEGÍT (R192 §4 — `refinementHelps`).
+     * Az első bukás után MINDIG finomítunk egyszer (akkor még nincs két mért pont); utána a
+     * KÉT mért egység-költség dönt. A költségvetés NEM tágul (`KUKA-091`).
+     */
+    const verdict = refinementHelps
+      ? refinementHelps({ prevUnitMs, nextUnitMs: lastTooSlow.ms })
+      : { helps: true, why: 'a közös döntés nem olvasható — a régi, vak finomítás marad (NEVEZETT hiány)' };
+    if (!verdict.helps) {
+      console.error(`  A FINOMÍTÁS MÉRVE NEM SEGÍT: ${verdict.why}.`);
+      console.error('  EZ NEM ZÖLD ÉS NEM PIROS TARTALOM: a MÉRÉS hiányos — a költségvetést nem tágítjuk, és '
+        + 'nem futtatunk újabb, mérve haszontalan passzokat. A teendő a gép vagy a battéria felülvizsgálata.');
+      process.exit(1);
+    }
+    prevUnitMs = lastTooSlow.ms;
     n *= 2;
-    console.error(`  A ${lastTooSlow.k}/${lastTooSlow.n} szelet nem fért a költségvetésbe — FINOMABBRA osztok: ${n} egység.`);
+    console.error(`  A ${lastTooSlow.k}/${lastTooSlow.n} szelet nem fért a költségvetésbe (${lastTooSlow.ms ?? '?'} ms) — `
+      + `FINOMABBRA osztok: ${n} egység. (${verdict.why})`);
   }
   if (n !== AUTO_UNITS) {
     console.log(`  MEGJEGYZÉS: a tool ajánlása ${AUTO_UNITS} egység volt, de ezen a gépen ${n} kellett `

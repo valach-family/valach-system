@@ -13,6 +13,7 @@
  * UAD05  a fixtúra ALAKJA az ÍRÓTÓL származik, nem az emlékezetből (padlóval — KUKA-016/068)
  * UAD06  a támogatott futási szerződés SZABÁLY, és az ismeretlen verzió nem olvasható be
  * UAD08  a darabszámnak EGY deklarált otthona van, és az otthon tényleg hat (KUKA-129 · KUKA-126)
+ * UAD09  a LÉTRA is az otthonból indul, és a finomítás MÉRÉSEN áll, nem próbálkozás-számon (R192)
  */
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, cpSync, rmSync, existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -23,7 +24,9 @@ import { admitUnits, chainBacking, SUPPORTED_RUN_CONTRACTS } from '../v3ref/unit
 import { REQUIRED_EVIDENCE, indexDigest, expectedChainRows, chainRowKey } from '../v3ref/norms.mjs';
 import { EXPECTED_PROBES } from '../v3ref/manifest.mjs';
 import { contractRef } from '../v3ref/normContract.mjs';
-import { DECLARED_UNITS, unitsScriptLine, unitsScriptLineAuto, unitsScriptLineIsHomed } from '../v3ref/external-checks/batteryUnits.mjs';
+import { DECLARED_UNITS, unitsScriptLine, unitsScriptLineAuto, unitsScriptLineIsHomed,
+  batteryUnits, refinementHelps, MIN_REFINEMENT_GAIN, UNIT_BUDGET_MS } from '../v3ref/external-checks/batteryUnits.mjs';
+import { MUTATIONS } from '../v3ref/mutations.mjs';
 import { PROGRAMS } from '../v3ref/external-checks/case-manifest.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -399,7 +402,66 @@ say('UAD06', admit(noContract).problems.some((p) => /`run_contract`: a mező HI�
     'a parancs-sor generátor maga hibás — az UAD08 összevetése így önmagát igazolná vissza');
 }
 
-console.log(`MRG-01 BEADVÁNY-KAPU (UAD01–UAD08): ${CASES.length + 1} ellenpélda · 1 pozitív kontroll · `
+
+// ── UAD09 — A LÉTRA IS AZ OTTHONBÓL INDUL, ÉS A FINOMÍTÁS MÉRÉSEN ÁLL (R192 §3–4) ───────────────
+//
+// A LELET, AMIT EZ AZ ŐR MOSTANTÓL FOG. Az UAD08 azt mérte, hogy a `package.json` SORA az otthonból
+// származik-e — és a `--units-auto` alakot JOGGAL fogadta el „származtatott"-nak. Csak hogy a
+// `--units-auto` MAGA nem az otthonból vette a darabszámot, hanem a `ceil(mutáció / 24)` osztóból:
+// 253 mutációnál **11** egység. A `batteryUnits.mjs` ugyanakkor a MÉRT-JÓ **64**-et deklarálja, és a
+// saját szövegében mondja ki, hogy ez az osztó SOSEM lehet a szabály (`KUKA-045`). Az őr tehát ZÖLD
+// volt, miközben a tényleges szám egy tiltott alakból jött — pontosan a `KUKA-126` lecke a saját
+// szerzőjén: amit senki nem olvas vissza, az nem kötés.
+//
+// ÉS A MÁSODIK FELE: a három hívó IDŐ-bukásra VAKON kétszerezett (legfeljebb négyszer), az `r83core`
+// a negyediken már félbeszakítás nélkül. Mérve (R192 §3) ez a 119 perces, kimenet nélküli futás
+// egyik összetevője. A döntés ezért MÉRÉSEN áll: `refinementHelps`.
+{
+  const DIVISOR_START = Math.max(1, Math.ceil(MUTATIONS.length / 24));
+  const ladder = [DIVISOR_START, DIVISOR_START * 2, DIVISOR_START * 4, DIVISOR_START * 8];
+  // (a) A DEFEKT ALÁÍRÁSA, ELLENPÁRKÉNT: a tiltott osztó létrája a mért-jó darabszámot EL SEM ÉRI.
+  say('UAD09', !ladder.includes(DECLARED_UNITS),
+    `az ellenpár elromlott: a tiltott osztó létrája (${ladder.join(' → ')}) tartalmazza a deklarált `
+    + `${DECLARED_UNITS}-et, tehát ez a mérés már nem mutatná meg a R192-ben MÉRT hibát`);
+  // (b) A KEZDŐ DARABSZÁM AZ OTTHONBÓL JÖN — és az otthon a deklarált értéket adja.
+  say('UAD09', batteryUnits({}) === DECLARED_UNITS,
+    `a közös otthon nem a deklarált darabszámot adja (${batteryUnits({})} ≠ ${DECLARED_UNITS})`);
+  // (c) MIND A HÁROM HÍVÓ az otthonból indul ÉS a közös döntést kérdezi (egy szabály, több ház —
+  //     KUKA-003; az eltérő belépési pontok nem kapnak külön javítást, R192 §4).
+  for (const [nev, rel] of [
+    ['mutate.mjs --units-auto', 'v3ref/mutate.mjs'],
+    ['r81core', 'v3ref/external-checks/r81_chatgpt-v3.mjs'],
+    ['r83core', 'v3ref/external-checks/r83_chatgpt-v3.mjs'],
+  ]) {
+    const src = readFileSync(join(ROOT, rel), 'utf8');
+    const kod = src.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
+    say('UAD09', /batteryUnits\s*\(/.test(kod),
+      `a(z) ${nev} nem a közös otthonból veszi a kezdő darabszámot (\`batteryUnits()\`)`);
+    say('UAD09', /refinementHelps\s*\(/.test(kod),
+      `a(z) ${nev} VAKON kétszerez: nem kérdezi meg a közös \`refinementHelps\` döntést`);
+  }
+  // (d) A DÖNTÉS MINDKÉT IRÁNYBAN MÉR (KUKA-039), és a MÉRT alakokon — nem kitaláltakon.
+  const fixDominalt = refinementHelps({ prevUnitMs: 12301, nextUnitMs: 12150 });
+  const erdemi = refinementHelps({ prevUnitMs: 31326, nextUnitMs: 13271 });
+  const nincsAdat = refinementHelps({});
+  const belefer = refinementHelps({ prevUnitMs: 12301, nextUnitMs: 9175 });
+  say('UAD09', fixDominalt.helps === false,
+    'a FIX-dominált alakra (12 301 → 12 150 ms, a költségvetés fölött) a döntés MÉGIS finomítani '
+    + 'engedne — pontosan ez volt a 119 perces futás egyik összetevője');
+  say('UAD09', erdemi.helps === true,
+    'az ÉRDEMI javulásra (31 326 → 13 271 ms) a döntés nem engedné a finomítást — az őr akkor a '
+    + 'jogos finomítást is megállítaná (KUKA-122: a kapu legyen teljesíthető)');
+  say('UAD09', nincsAdat.helps === true,
+    'két mért pont nélkül a döntés már az ELSŐ körben megállítaná a finomítást');
+  say('UAD09', belefer.helps === true,
+    'a már BELEFÉRŐ egységre a döntés megállítaná a finomítást');
+  // (e) A MÉRCE ÉS A KÖLTSÉGVETÉS NEM LAZULT (KUKA-091): a javítás iránya nem az őr lazítása.
+  say('UAD09', UNIT_BUDGET_MS === 12000 && MIN_REFINEMENT_GAIN > 0 && MIN_REFINEMENT_GAIN < 1,
+    `a költségvetés vagy a finomítási mérce elcsúszott (budget=${UNIT_BUDGET_MS} ms, `
+    + `mérce=${MIN_REFINEMENT_GAIN})`);
+}
+
+console.log(`MRG-01 BEADVÁNY-KAPU (UAD01–UAD09): ${CASES.length + 1} ellenpélda · 1 pozitív kontroll · `
   + `${writerKeys.length} író-mező · kötelező készlet: ${REQUIRED_EVIDENCE.version} (${REQUIRED_EVIDENCE.clauses.length} klauzula)`);
 if (problems.length) {
   console.error(`\nPIROS (${problems.length}):`);

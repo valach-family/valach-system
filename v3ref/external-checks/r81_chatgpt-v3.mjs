@@ -41,7 +41,7 @@ import { activeCoreProgram, coreVariant } from './activeCoreProgram.mjs';
 // UGYANAZ A DÖNTÉS, UGYANABBÓL A FELOLDÓBÓL (UFK-01/02): a burkolónak is meg kell különböztetnie
 // az IDŐ és a TARTALOM miatti bukást — különben itt is elfedné a darabolás a valódi hibát (KUKA-009).
 import { unitFailureKind, freshUnitWitness } from './source/v3ref/unitFailureKind.mjs';
-import { batteryUnits } from './batteryUnits.mjs';
+import { batteryUnits, refinementHelps } from './batteryUnits.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PIN = JSON.parse(readFileSync(join(HERE, 'source-manifest.json'), 'utf8')).commit;
@@ -54,6 +54,8 @@ const PIN = JSON.parse(readFileSync(join(HERE, 'source-manifest.json'), 'utf8'))
 // eldobott menettel kezdődött — és a szám ugyanúgy elcsúszott volna, mint a KUKA-177-ben.
 const UNITS_START = batteryUnits();
 const UNITS_MAX_ATTEMPTS = 4;
+// A FINOMÍTÁS DÖNTÉSE MÉRÉSEN ÁLL (R192 §4): a bukott egység MÉRT faliórája kell hozzá.
+let prevUnitMs = null; let tooSlowMs = null;
 
 const runNode = (file, opts = {}) => spawnSync(process.execPath, [file], {
   cwd: HERE, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, ...opts,
@@ -91,12 +93,29 @@ if (existsSync(MUTATE)) {
       try { raw = JSON.parse(readFileSync(join(unitsDir, `unit-${k}-of-${UNITS}.json`), 'utf8')); } catch { /* nincs tanú */ }
       const w = freshUnitWitness(raw, { k, n: UNITS, startedAt });
       const kind = w.ok ? unitFailureKind(w.unit) : 'unknown';
-      if (kind === 'too_slow' && attempt < UNITS_MAX_ATTEMPTS) { tooSlow = k; break; }
+      if (kind === 'too_slow' && attempt < UNITS_MAX_ATTEMPTS) { tooSlow = k; tooSlowMs = (raw && raw.wall && Number(raw.wall.ms)) || null; break; }
       unitProblems.push(`a ${k}/${UNITS} egység NEM nullával zárt (${r.status})`
         + ` — a bukás oka: ${kind}${w.ok ? '' : ` (a tanú nem hitelesíthető: ${w.why})`}`);
     }
     if (!tooSlow) break;
-    UNITS *= 2;                       // az IDŐ miatti bukáson a darabolás segít — a költségvetés nem tágul
+    /**
+     * A FINOMÍTÁS CSAK AKKOR MEGY TOVÁBB, HA A MÉRÉS SZERINT SEGÍT (R192 §4 · `refinementHelps`).
+     *
+     * A LELET, KÖZVETLEN TANÚVAL (R192 §3): ez a hívó a mért-jó 64-ről indul, de IDŐ-bukásra vakon
+     * kétszerezett, legfeljebb NÉGY próbálkozással — és a NEGYEDIKEN már NEM is szakít félbe, hanem
+     * mind az egységet lefuttatja. Mérve: 64-ről ~32 s alatt 128-ra finomított (~10 s/egység), egy
+     * passz így ~21 perc, és a létra felső fokain a TELJES falióra-keret megy el. Mivel az egység
+     * költségét nagyrészt a FIX rész adja, a tovább-felezés mérve NEM közelít a költségvetéshez.
+     * A költségvetés és a külső korlát VÁLTOZATLAN (`KUKA-091`); csak a vak kétszerezés szűnik meg.
+     */
+    const verdict = refinementHelps({ prevUnitMs, nextUnitMs: tooSlowMs });
+    if (!verdict.helps) {
+      unitProblems.push(`a finomítás MÉRVE nem segít: ${verdict.why} — a mérés HIÁNYOS, `
+        + 'és nem futtatunk újabb, mérve haszontalan battéria-passzt');
+      break;
+    }
+    prevUnitMs = tooSlowMs;
+    UNITS *= 2;                       // IDŐ miatti bukáson finomítunk — a költségvetés NEM tágul
   }
   const src = unitsDir;
   const files = existsSync(src) ? readdirSync(src).filter((f) => f.endsWith('.json')) : [];
