@@ -101,20 +101,28 @@ tilt.
 megszűnése · a **commit-egyezés** megszűnése · a duplikátum-szűrés megszűnése · a verdikt nem számol
 a bukással · a **konfiguráció-egyezés** megszűnése.
 
-### És két saját lelet a próbapadomról — mert mind a kettő hamis zöldet adott
+### És három saját lelet a próbapadomról — mert mind hamis zöldet adott
 
 1. **Az `UAD09` (f) próbája a kimenet MONDATÁRA illesztett.** Ellenpróbán mérve **nem fogta meg** a
    visszacsúszást: a tartalék-ág visszaállításakor a mondat **továbbra is kiíródott**, csak a
    `process.exit(2)` tűnt el. A mérce ezért a **pontos kilépési kód** és az, hogy a mérés **el sem
    indult**.
-2. **Az `EXS03` a commit *vagy* a sorozat nevezett mondatát is elfogadta.** Ezért a commit-ellenőrzés
+2. **Az `EXS03` a commit VAGY a sorozat nevezett mondatát is elfogadta.** Ezért a commit-ellenőrzés
    kikapcsolásakor a **sorozat-ellenőrzés még tüzelt**, és a próba zölden állt egy olyan kapun, ami a
    forrás-egyezést már nem mérte. Szétválasztva: `EXS03` (eltérő commit, **egyező** sorozat) ·
    `EXS03b` (eltérő sorozat, **egyező** commit) · `EXS04` (eltérő konfiguráció, egyező commit és
    sorozat).
 
-**A tanulság mind a kettőből ugyanaz:** az állítás ne legyen **más mechanizmussal is kielégíthető**,
-mint amit vizsgál (`KUKA-207` · `KUKA-239`).
+3. **És egy harmadik, ebben a körben:** a záró jelentést úgy commitoltam, hogy a `verify:doc-html`
+   **8/9-en állt** — mert a verifiert `| tail -1`-be csövezve futtattam, a csővezeték kilépési kódja
+   pedig a `tail`-é (0), tehát az `&&` lánc **átengedte a commitot a piros őr mellett**. A lelet maga
+   igaz volt: a renderelő a **félkövérbe ágyazott kurzívot** (`**… *vagy* …**`) nem fordítja le, és
+   nyers `**` ment ki az operátornak szánt lapra (`KUKA-079` · `KUKA-012`). Javítva, és a lap most
+   **9/9**. A tanulság: **egy őr eredménye nem mehet csővezetéken**, különben a saját kilépési kódját
+   veszti el — ugyanaz a hiba-osztály, mint a fenti kettő, csak a shellben.
+
+**A tanulság mind a háromból ugyanaz:** a jel ne legyen **más mechanizmussal is kielégíthető**, mint
+amit vizsgál — se az állításban, se a csővezetékben (`KUKA-207` · `KUKA-239` · `KUKA-012`).
 
 ---
 
