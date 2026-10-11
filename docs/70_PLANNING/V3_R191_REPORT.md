@@ -129,8 +129,22 @@ forrás állapot: a lemásolt forrás a könyvelt állapoton áll
 ```
 
 Az R188 bizonyítéka ezzel szemben `1e4faa79…+uncommitted` volt — **nem** tiszta forráson készült, és
-a söprés is ezért sorolta „NEM IGAZOLT"-nak. **Az R189 §4 rögzített, tiszta forrást kért: ez a rész
-teljesült**, és mind a kilenc eredmény-fájl kötése a fenti commit.
+a söprés is ezért sorolta „NEM IGAZOLT"-nak. **Az R189 §4 rögzített, tiszta forrást kért: a ma
+lefutott kilenc program esetében ez teljesült**, és mind a kilenc eredmény-fájl kötése a fenti commit.
+
+**ÉS AMIT UGYANITT KI KELL MONDANI, MERT KÜLÖNBEN TÚLÁLLÍTÁS LENNE.** A záró söprés a láncot **ma is
+„NEM IGAZOLT"-nak sorolja, és ebben igaza van** — szó szerint ezt írja:
+
+```
+NEM FUTOTT — NEM IGAZOLT — verify:external-checks: zöld bizonyíték tiszta forráson:
+a bizonyíték NEM tiszta forráson készült (1e4faa791de8967976b08717a99c6e13cce56ef5+uncommitted)
+```
+
+Ez **nem** ellentmondás a fenti fejléccel, hanem két különböző tárgy: a söprés feloldója a lánc
+**ÖSSZEGZŐ** bizonyíték-artefaktumát méri, azt pedig a futtató **csak a futás VÉGÉN** írja — és a mai
+futás nem ért a végére. Tehát: **a kilenc PROGRAM-szintű eredmény mai és tiszta forrású, a lánc
+ÖSSZEGZŐ artefaktuma viszont továbbra is a RÉGI, `+uncommitted` alak.** A söprés ezt látja, ezért
+marad „NEM IGAZOLT" — és ezt nem írom át zöldre.
 
 ### A kilenc program, mind ZÖLD
 
@@ -206,6 +220,43 @@ igazold"*):
 | `verify:kuka` | a tanulság-regiszter a memória; minden KUKA-hivatkozásom ehhez mérődik | **1177/1177 PASS** · 469 bejegyzés · a `vs`-padló **92 VÁLTOZATLAN** |
 | `verify:decision-numbers` | a következő szabad szám nem emlékezetből megy | **4/4 PASS** · a következő szabad: **D-VS-3259** |
 
+### A ZÁRÓ SÖPRÉS — ÉS EGY ÚJ, NEVESÍTETT LELET
+
+A repó saját szabálya szerint a kör teljes söpréssel zárul; a két hosszú láncot **nevezetten**
+hagytam ki, mert külön futott (`--skip verify:external-checks,verify:browser-gate --reuse HEAD`):
+
+```
+SÖPRÉS (39 verifier + 2 NEM IGAZOLT kihagyás, 356s): 37 zöld · 0 env-kihagyás · 2 piros
+ÖSSZVERDIKT: NEM ZÖLD — 2 lánc nem futott és nem igazolt (verify:external-checks, verify:browser-gate)
+PIROS: verify:lefedes, verify:v3ref
+```
+
+| piros | mi ez |
+|---|---|
+| **`verify:lefedes`** | **ISMERT és SZÁNDÉKOS** — a nevesített `personal.ownMatters` rés (1 hiány, a cél nulla). Ugyanaz, mint az R188-ban |
+| **`verify:v3ref`** | **ÚJ EHHEZ A FUTÓ-GÉPHEZ, és NEM a termék hibája** — lásd alább |
+
+**A `verify:v3ref` pirosának gépi jele: `unit_over_budget`.** A battéria egy szelete a faliórán
+**12 002 ms**-ot kért a saját **12 000 ms**-os egység-költségvetés helyett, mire a futtató finomított:
+**11 → 22 → 44 → 88 egység** — és a **88 egységre** osztott battéria **négy próbálkozás után sem**
+fért bele (utoljára a 14/88 szeleten). A futtató saját mondata:
+
+> *„EZ NEM ZÖLD ÉS NEM PIROS TARTALOM: a MÉRÉS hiányos — a futtató-gép lassabb, mint amire a
+> darabolás méretezve van. A költségvetést nem tágítjuk; a teendő a gép vagy a battéria
+> felülvizsgálata."*
+
+**ÉS EZ UGYANAZ A JELENSÉG, AMI A KÜLSŐ LÁNCOT IS MEGÁLLÍTOTTA.** Az `r83core` — a sorban tizedik,
+~119 percet kimenet nélkül fogyasztó program — **szintén a mutációs battériát futtatja**
+(kísérői: `r83_merge_…`, `r83_runner_…`, **`batteryUnits.mjs`**). A finomító létra a költségvetésbe
+nem férő szeletnél a **teljes battériát újrafuttatja**, tehát a lánc nem „megállt", hanem
+**önmagát ismételte** — pontosan az a hiba-osztály, amit az R186 §3 már egyszer megmért
+(*„a finomító létra a teljes battériát újrafuttatta, és ~41 percet kért a 30 perces kereten"*).
+
+**Amit ez ad a következő körnek:** a 9/19 oka **nem ismeretlen**. A gépi jel megnevezi
+(`unit_over_budget`), és a teendőt is a futtató mondja ki — **a gép vagy a battéria felülvizsgálata**,
+**nem a költségvetés tágítása**. Ezért nem is tágítottam: az R189 §4 egy záró javítási kört engedett,
+de ez **nem e csomag okozta hiba**, és a futtató a költségvetés tágítását kimondottan tiltja.
+
 ---
 
 ## 6. NYITOTT LELETEK ÉS MÉRÉSI HIÁNYOK — nevezetten
@@ -220,6 +271,7 @@ igazold"*):
 | **a bemutató csonkjának séma-paritása** (`KUKA-477`) | **NYITOTT** — a teljes séma-paritáshoz nincs gépi őr |
 | **az út-tisztító symlink-korlátja** (`KUKA-474`) | **NYITOTT** — lexikális kanonizálás, a jelképes lánc nem derül ki |
 | **a mai fej független elfogadása** | **NINCS MEG.** A legfrissebb befejezett review a `011aa32`-t fedi; a mai termék-kód (`5cf442b`) **nem fedett** |
+| **a battéria darabolása vs. a futtató-gép sebessége** (`unit_over_budget`) | **ÚJ, NYITOTT, NEVESÍTETT.** A `verify:v3ref` ezen a gépen piros (12 002 ms / 12 000 ms, 88 egységre osztva sem fér be), és ugyanez állítja meg az `r83core`-t a külső láncban. A teendő a futtató szerint a **gép vagy a battéria** felülvizsgálata — a költségvetés tágítása tiltott |
 | **élő AI · PG18 · felhős mentés · általános sémaparitás · `Personal.ownMatters`** | **KÜLÖN NYITOTT TÉTELEK** — ez a csomag nem indította el őket (R189 záró bekezdése) |
 
 **Hiányzó adat nem nulla** (R189 §5): ahol nem mértem, ott nem írok számot — a tíz nem futott
@@ -274,5 +326,10 @@ két hosszú mérés (a 120 perces lánc és a ~17,7 perces kapu) **faliórát**
 - **Nem** állítja, hogy a kapu zöldje a termék egészét igazolja: a kapu a **26 próba-fájl** 154
   helyzetét és a **két** bemutató-történet végigvihetőségét méri — egy harmadik úton ugyanaz a
   hiba-osztály ma is átmenne (`KUKA-477`).
+- **Nem** állítja, hogy a söprés összverdiktje zöld: **NEM ZÖLD** — két lánc nem futott és nem
+  igazolt, és **két piros** van (`verify:lefedes` szándékos · `verify:v3ref` a gép/darabolás
+  viszonyán). A kapu és a lánc verdiktje a külön futásból jön, nem a söprésből.
+- **Nem** állítja, hogy a `verify:v3ref` pirosa termék-hiba, és azt sem, hogy a mag mutációs
+  battériája ma zöld: **a mérés hiányos** ezen a gépen, és a hiányos mérés nem verdikt.
 - **Nem** PG 18-kompatibilitás, **nem** felhős mentés bizonyítéka, **nem** élő AI, és **nem** épít új
   üzleti funkciót.
