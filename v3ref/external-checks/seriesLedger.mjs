@@ -199,13 +199,32 @@ export function verifySeries({ records, programs } = {}) {
  * mérés nem futott le érvényesen (`KUKA-206`: a „nem futott" nem „részben"). A nevezett környezeti
  * kihagyás SEM sikeres: külön kategóriát kap, mert zöld bizonyítékot nem ad (`KUKA-089`).
  */
-export function classify(rec) {
+export function classify(rec, expectedCases) {
   if (!rec) return 'el_nem_indult';
   if (rec.ok === true) return 'sikeres';
   if (rec.env_skipped === true) return 'kornyezeti_kihagyas';
+  /**
+   * A HATÁR, AMIT MÉRÉS ÉLESÍTETT (R194 §3, az `r83core` futásán). A program `assertion_failure`-rel
+   * zárt, és 131 bukott esete volt — csak hogy MIND `merge/KORNYEZET-N` nevű, vagyis a manifesztben
+   * NEM SZEREPLŐ diagnosztika, miközben a NÉGY ELVÁRT összefűzés-eset EL SEM INDULT (a valódi
+   * egységek nem készültek el, mert 131 egység a költségvetés fölé ment). Ezt „tartalmi hibának"
+   * nevezni TERMÉK-leletet állítana ott, ahol a MÉRÉS maradt hiányos.
+   *
+   * A SZABÁLY EZÉRT AZ ELVÁRT KÉSZLETRE KÉRDEZ: ha az elvárt esetek közül bármelyik NEM futott le,
+   * a program HIÁNYOS MÉRÉSŰ — nem tudjuk, mit mondana (`KUKA-206`: a „nem futott" nem „részben").
+   * Tartalmi hibás csak az, aminek az elvárt esetei LEFUTTAK, és közülük bukott valamelyik.
+   */
+  const want = Array.isArray(expectedCases) ? expectedCases.map(String) : null;
+  const got = Array.isArray(rec.cases) ? rec.cases.map((c) => str(c && c.id)) : [];
+  if (want && want.some((id) => !got.includes(id))) return 'hianyos_meresu';
+  if (want && want.length) {
+    const byId = new Map(got.map((id, i) => [id, rec.cases[i]]));
+    if (want.some((id) => byId.get(id) && byId.get(id).pass !== true)) return 'tartalmi_hibas';
+    return 'hianyos_meresu';
+  }
   const kind = str(rec.failure_kind);
   if (kind === 'content') return 'tartalmi_hibas';
-  if (Array.isArray(rec.cases) && rec.cases.length && rec.cases.some((c) => c.pass !== true)) return 'tartalmi_hibas';
+  if (got.length && rec.cases.some((c) => c.pass !== true)) return 'tartalmi_hibas';
   return 'hianyos_meresu';
 }
 
@@ -216,7 +235,8 @@ export function tally({ byId, programs } = {}) {
   };
   for (const p of (Array.isArray(programs) ? programs : [])) {
     const id = String(p.id);
-    out[classify(byId instanceof Map ? byId.get(id) : (byId || {})[id])].push(id);
+    const rec = byId instanceof Map ? byId.get(id) : (byId || {})[id];
+    out[classify(rec, p.cases)].push(id);
   }
   return out;
 }

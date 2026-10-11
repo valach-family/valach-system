@@ -157,10 +157,22 @@ const fullSet = () => PROGRAMS.map((p) => recFor(p));
 {
   say('EXS08', classify(null) === 'el_nem_indult', 'a rekord NÉLKÜLI program nem „el nem indult"');
   say('EXS08', classify({ ok: true }) === 'sikeres', 'a zöld rekord nem „sikeres"');
-  say('EXS08', classify({ ok: false, failure_kind: 'content' }) === 'tartalmi_hibas',
-    'a tartalmi hiba nem „tartalmi hibás"');
+  // TARTALMI HIBA: az ELVÁRT esetek LEFUTTAK, és közülük bukott valamelyik.
+  say('EXS08', classify({ ok: false, failure_kind: 'content', cases: [{ id: 'A', pass: false }, { id: 'B', pass: true }] }, ['A', 'B']) === 'tartalmi_hibas',
+    'a lefutott, de bukott elvárt eset nem „tartalmi hibás"');
   say('EXS08', classify({ ok: false, failure_kind: 'too_slow' }) === 'hianyos_meresu',
     'az IDŐ miatti bukás nem „hiányos mérésű" — pedig nem tudjuk, mit mondana a program');
+  /**
+   * ÉS A HATÁR, AMIT AZ `r83core` FUTÁSA ÉLESÍTETT (R194 §3): sok bukott eset, de MIND a manifeszten
+   * KÍVÜLI diagnosztika, miközben az ELVÁRT esetek el sem indultak. Ez HIÁNYOS MÉRÉS, nem termék-lelet.
+   */
+  say('EXS08', classify({
+    ok: false,
+    failure_kind: 'assertion_failure',
+    cases: Array.from({ length: 131 }, (_, i) => ({ id: `merge/KORNYEZET-${i + 3}`, pass: false })),
+  }, ['merge/P01-genuine', 'merge/F01-missing-probe-status']) === 'hianyos_meresu',
+    'a manifeszten KÍVÜLI diagnosztika-áradat „tartalmi hibának" számít, pedig az ELVÁRT esetek el sem '
+    + 'indultak — ez termék-leletet állítana ott, ahol a MÉRÉS maradt hiányos (KUKA-206)');
   say('EXS08', classify({ ok: false, env_skipped: true }) === 'kornyezeti_kihagyas',
     'a nevezett környezeti kihagyás „sikeres"-nek számít — pedig zöld bizonyítékot NEM ad (KUKA-089)');
   const t = tally({ byId: new Map(), programs: PROGRAMS });

@@ -1,0 +1,55 @@
+{
+  "contract": "EXS-01",
+  "series": "s5ea731c1bb3d",
+  "binding": {
+    "commit": "a7c1607e6e41564743d6147ec8944cc542ea1ce0",
+    "clean": true,
+    "config_digest": "f0ce4e38338ca820",
+    "programs_digest": "e9622db45921f4bedcc0857f44aa86b520beef401ab6a709afb85584c87d3123",
+    "runner_digest": "ab694c99d5ae2e5bb54f16cd9cdcd1f0ab0332a4999b0fedce6c99fce881f925"
+  },
+  "program": "r61",
+  "program_digest": "94b768131418e36523bf80ab3ade8f422340f1a803474fdd410b25a8af2fa2d2",
+  "exit": 0,
+  "ok": true,
+  "cases": [
+    {
+      "id": "P03",
+      "pass": true
+    },
+    {
+      "id": "R01",
+      "pass": true
+    },
+    {
+      "id": "R02",
+      "pass": true
+    },
+    {
+      "id": "R03",
+      "pass": true
+    },
+    {
+      "id": "U01",
+      "pass": true
+    },
+    {
+      "id": "U02",
+      "pass": true
+    },
+    {
+      "id": "U03",
+      "pass": true
+    },
+    {
+      "id": "U04",
+      "pass": true
+    }
+  ],
+  "evidence_digest": "40c90d388cb74e28971dd8b808c1d6f2b40df60727b553db957efe867f88d7f2",
+  "failure_kind": "unknown",
+  "failure_why": "nincs mért környezeti akadály a nyers eredményben",
+  "ms": 1724,
+  "at": "2026-10-11T12:57:40.106Z",
+  "env_skipped": false
+}

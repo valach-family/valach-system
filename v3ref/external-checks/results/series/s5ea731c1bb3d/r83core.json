@@ -1,0 +1,559 @@
+{
+  "contract": "EXS-01",
+  "series": "s5ea731c1bb3d",
+  "binding": {
+    "commit": "a7c1607e6e41564743d6147ec8944cc542ea1ce0",
+    "clean": true,
+    "config_digest": "f0ce4e38338ca820",
+    "programs_digest": "e9622db45921f4bedcc0857f44aa86b520beef401ab6a709afb85584c87d3123",
+    "runner_digest": "ab694c99d5ae2e5bb54f16cd9cdcd1f0ab0332a4999b0fedce6c99fce881f925"
+  },
+  "program": "r83core",
+  "program_digest": "9026a3be44aafdd75e4a9498140b01d2ca18fa9651e713be30a1501b26b5e7ed",
+  "exit": 1,
+  "ok": false,
+  "cases": [
+    {
+      "id": "runner/all-green",
+      "pass": true
+    },
+    {
+      "id": "runner/original-real-failure",
+      "pass": true
+    },
+    {
+      "id": "runner/original-and-sub-failure",
+      "pass": true
+    },
+    {
+      "id": "merge/KORNYEZET-3",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-4",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-5",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-6",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-7",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-8",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-9",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-10",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-11",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-12",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-13",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-14",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-15",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-16",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-17",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-18",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-19",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-20",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-21",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-22",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-23",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-24",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-25",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-26",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-27",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-28",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-29",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-30",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-31",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-32",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-33",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-34",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-35",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-36",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-37",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-38",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-39",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-40",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-41",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-42",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-43",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-44",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-45",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-46",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-47",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-48",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-49",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-50",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-51",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-52",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-53",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-54",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-55",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-56",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-57",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-58",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-59",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-60",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-61",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-62",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-63",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-64",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-65",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-66",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-67",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-68",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-69",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-70",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-71",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-72",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-73",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-74",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-75",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-76",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-77",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-78",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-79",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-80",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-81",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-82",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-83",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-84",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-85",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-86",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-87",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-88",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-89",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-90",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-91",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-92",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-93",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-94",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-95",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-96",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-97",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-98",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-99",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-100",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-101",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-102",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-103",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-104",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-105",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-106",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-107",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-108",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-109",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-110",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-111",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-112",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-113",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-114",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-115",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-116",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-117",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-118",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-119",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-120",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-121",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-122",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-123",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-124",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-125",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-126",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-127",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-128",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-129",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-130",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-131",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-132",
+      "pass": false
+    },
+    {
+      "id": "merge/KORNYEZET-133",
+      "pass": false
+    }
+  ],
+  "evidence_digest": "fbb452b6c50ce18c930eabe625f780b8bae98b9815f2e8dbbd8886292193e923",
+  "failure_kind": "assertion_failure",
+  "failure_why": "VALÓDI eset-hiba (nem időtúllépés): merge/KORNYEZET-3 (assertion_failure) · merge/KORNYEZET-4 (assertion_failure) · merge/KORNYEZET-5 (assertion_failure) · merge/KORNYEZET-6 (assertion_failure) · merge/KORNYEZET-7 (assertion_failure) · merge/KORNYEZET-8 (assertion_failure) · merge/KORNYEZET-9 (assertion_failure) · merge/KORNYEZET-10 (assertion_failure) · merge/KORNYEZET-11 (assertion_failure) · merge/KORNYEZET-12 (assertion_failure) · merge/KORNYEZET-13 (assertion_failure) · merge/KORNYEZET-14 (assertion_failure) · merge/KORNYEZET-15 (assertion_failure) · merge/KORNYEZET-16 (assertion_failure) · merge/KORNYEZET-17 (assertion_failure) · merge/KORNYEZET-18 (assertion_failure) · merge/KORNYEZET-19 (assertion_failure) · merge/KORNYEZET-20 (assertion_failure) · merge/KORNYEZET-21 (assertion_failure) · merge/KORNYEZET-22 (assertion_failure) · merge/KORNYEZET-23 (assertion_failure) · merge/KORNYEZET-24 (assertion_failure) · merge/KORNYEZET-25 (assertion_failure) · merge/KORNYEZET-26 (assertion_failure) · merge/KORNYEZET-27 (assertion_failure) · merge/KORNYEZET-28 (assertion_failure) · merge/KORNYEZET-29 (assertion_failure) · merge/KORNYEZET-30 (assertion_failure) · merge/KORNYEZET-31 (assertion_failure) · merge/KORNYEZET-32 (assertion_failure) · merge/KORNYEZET-33 (assertion_failure) · merge/KORNYEZET-34 (assertion_failure) · merge/KORNYEZET-35 (assertion_failure) · merge/KORNYEZET-36 (assertion_failure) · merge/KORNYEZET-37 (assertion_failure) · merge/KORNYEZET-38 (assertion_failure) · merge/KORNYEZET-39 (assertion_failure) · merge/KORNYEZET-40 (assertion_failure) · merge/KORNYEZET-41 (assertion_failure) · merge/KORNYEZET-42 (assertion_failure) · merge/KORNYEZET-43 (assertion_failure) · merge/KORNYEZET-44 (assertion_failure) · merge/KORNYEZET-45 (assertion_failure) · merge/KORNYEZET-46 (assertion_failure) · merge/KORNYEZET-47 (assertion_failure) · merge/KORNYEZET-48 (assertion_failure) · merge/KORNYEZET-49 (assertion_failure) · merge/KORNYEZET-50 (assertion_failure) · merge/KORNYEZET-51 (assertion_failure) · merge/KORNYEZET-52 (assertion_failure) · merge/KORNYEZET-53 (assertion_failure) · merge/KORNYEZET-54 (assertion_failure) · merge/KORNYEZET-55 (assertion_failure) · merge/KORNYEZET-56 (assertion_failure) · merge/KORNYEZET-57 (assertion_failure) · merge/KORNYEZET-58 (assertion_failure) · merge/KORNYEZET-59 (assertion_failure) · merge/KORNYEZET-60 (assertion_failure) · merge/KORNYEZET-61 (assertion_failure) · merge/KORNYEZET-62 (assertion_failure) · merge/KORNYEZET-63 (assertion_failure) · merge/KORNYEZET-64 (assertion_failure) · merge/KORNYEZET-65 (assertion_failure) · merge/KORNYEZET-66 (assertion_failure) · merge/KORNYEZET-67 (assertion_failure) · merge/KORNYEZET-68 (assertion_failure) · merge/KORNYEZET-69 (assertion_failure) · merge/KORNYEZET-70 (assertion_failure) · merge/KORNYEZET-71 (assertion_failure) · merge/KORNYEZET-72 (assertion_failure) · merge/KORNYEZET-73 (assertion_failure) · merge/KORNYEZET-74 (assertion_failure) · merge/KORNYEZET-75 (assertion_failure) · merge/KORNYEZET-76 (assertion_failure) · merge/KORNYEZET-77 (assertion_failure) · merge/KORNYEZET-78 (assertion_failure) · merge/KORNYEZET-79 (assertion_failure) · merge/KORNYEZET-80 (assertion_failure) · merge/KORNYEZET-81 (assertion_failure) · merge/KORNYEZET-82 (assertion_failure) · merge/KORNYEZET-83 (assertion_failure) · merge/KORNYEZET-84 (assertion_failure) · merge/KORNYEZET-85 (assertion_failure) · merge/KORNYEZET-86 (assertion_failure) · merge/KORNYEZET-87 (assertion_failure) · merge/KORNYEZET-88 (assertion_failure) · merge/KORNYEZET-89 (assertion_failure) · merge/KORNYEZET-90 (assertion_failure) · merge/KORNYEZET-91 (assertion_failure) · merge/KORNYEZET-92 (assertion_failure) · merge/KORNYEZET-93 (assertion_failure) · merge/KORNYEZET-94 (assertion_failure) · merge/KORNYEZET-95 (assertion_failure) · merge/KORNYEZET-96 (assertion_failure) · merge/KORNYEZET-97 (assertion_failure) · merge/KORNYEZET-98 (assertion_failure) · merge/KORNYEZET-99 (assertion_failure) · merge/KORNYEZET-100 (assertion_failure) · merge/KORNYEZET-101 (assertion_failure) · merge/KORNYEZET-102 (assertion_failure) · merge/KORNYEZET-103 (assertion_failure) · merge/KORNYEZET-104 (assertion_failure) · merge/KORNYEZET-105 (assertion_failure) · merge/KORNYEZET-106 (assertion_failure) · merge/KORNYEZET-107 (assertion_failure) · merge/KORNYEZET-108 (assertion_failure) · merge/KORNYEZET-109 (assertion_failure) · merge/KORNYEZET-110 (assertion_failure) · merge/KORNYEZET-111 (assertion_failure) · merge/KORNYEZET-112 (assertion_failure) · merge/KORNYEZET-113 (assertion_failure) · merge/KORNYEZET-114 (assertion_failure) · merge/KORNYEZET-115 (assertion_failure) · merge/KORNYEZET-116 (assertion_failure) · merge/KORNYEZET-117 (assertion_failure) · merge/KORNYEZET-118 (assertion_failure) · merge/KORNYEZET-119 (assertion_failure) · merge/KORNYEZET-120 (assertion_failure) · merge/KORNYEZET-121 (assertion_failure) · merge/KORNYEZET-122 (assertion_failure) · merge/KORNYEZET-123 (assertion_failure) · merge/KORNYEZET-124 (assertion_failure) · merge/KORNYEZET-125 (assertion_failure) · merge/KORNYEZET-126 (assertion_failure) · merge/KORNYEZET-127 (assertion_failure) · merge/KORNYEZET-128 (assertion_failure) · merge/KORNYEZET-129 (assertion_failure) · merge/KORNYEZET-130 (assertion_failure) · merge/KORNYEZET-131 (assertion_failure) · merge/KORNYEZET-132 (assertion_failure) · merge/KORNYEZET-133 (assertion_failure)",
+  "ms": 3148834,
+  "at": "2026-10-11T13:50:26.783Z",
+  "env_skipped": false
+}

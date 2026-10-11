@@ -1,15 +1,149 @@
 {
   "program": "r83_merge_chatgpt-v3.core.mjs + r83_runner_chatgpt-v3.core.mjs",
-  "source_commit": "bc06c85a28257b3940c449f1fb38e68737b9c495",
+  "source_commit": "a7c1607e6e41564743d6147ec8944cc542ea1ce0",
   "node": "v22.22.0",
-  "at": "2026-10-11T08:31:04.206Z",
+  "at": "2026-10-11T13:50:26.766Z",
   "verbatim": true,
   "genuine_units": {
-    "requested": 128,
+    "requested": 253,
     "started_from": 64,
+    "plan": [
+      64,
+      253
+    ],
+    "finest": 253,
     "problems": [
-      "a finomítás MÉRVE nem segít: a kétszerezés csak 3.7%-ot nyert (12582 → 12114 ms), a költségvetés 12000 ms — az egység költsége FIX-dominált, a további felezés MÉRVE nem közelít a költségvetéshez, csak a teljes falióra-keretet kétszerezi — a mérés HIÁNYOS, és nem futtatunk újabb, mérve haszontalan battéria-passzt",
-      "37 egység-fájl született a várt 128 helyett"
+      "a 1/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12981 ms) — a mérés HIÁNYOS",
+      "a 6/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12679 ms) — a mérés HIÁNYOS",
+      "a 9/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12391 ms) — a mérés HIÁNYOS",
+      "a 10/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12040 ms) — a mérés HIÁNYOS",
+      "a 11/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12279 ms) — a mérés HIÁNYOS",
+      "a 12/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12359 ms) — a mérés HIÁNYOS",
+      "a 13/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12077 ms) — a mérés HIÁNYOS",
+      "a 16/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12516 ms) — a mérés HIÁNYOS",
+      "a 17/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13458 ms) — a mérés HIÁNYOS",
+      "a 18/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13402 ms) — a mérés HIÁNYOS",
+      "a 19/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12233 ms) — a mérés HIÁNYOS",
+      "a 21/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12595 ms) — a mérés HIÁNYOS",
+      "a 22/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12150 ms) — a mérés HIÁNYOS",
+      "a 28/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12193 ms) — a mérés HIÁNYOS",
+      "a 34/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12116 ms) — a mérés HIÁNYOS",
+      "a 36/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12748 ms) — a mérés HIÁNYOS",
+      "a 37/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13626 ms) — a mérés HIÁNYOS",
+      "a 38/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12970 ms) — a mérés HIÁNYOS",
+      "a 39/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12615 ms) — a mérés HIÁNYOS",
+      "a 40/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13188 ms) — a mérés HIÁNYOS",
+      "a 41/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12495 ms) — a mérés HIÁNYOS",
+      "a 42/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13623 ms) — a mérés HIÁNYOS",
+      "a 43/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12637 ms) — a mérés HIÁNYOS",
+      "a 44/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12593 ms) — a mérés HIÁNYOS",
+      "a 49/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12051 ms) — a mérés HIÁNYOS",
+      "a 50/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13002 ms) — a mérés HIÁNYOS",
+      "a 51/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13097 ms) — a mérés HIÁNYOS",
+      "a 52/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13842 ms) — a mérés HIÁNYOS",
+      "a 53/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13191 ms) — a mérés HIÁNYOS",
+      "a 54/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13721 ms) — a mérés HIÁNYOS",
+      "a 55/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12011 ms) — a mérés HIÁNYOS",
+      "a 56/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13058 ms) — a mérés HIÁNYOS",
+      "a 57/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13577 ms) — a mérés HIÁNYOS",
+      "a 58/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12532 ms) — a mérés HIÁNYOS",
+      "a 59/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13211 ms) — a mérés HIÁNYOS",
+      "a 60/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12574 ms) — a mérés HIÁNYOS",
+      "a 61/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12298 ms) — a mérés HIÁNYOS",
+      "a 62/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13002 ms) — a mérés HIÁNYOS",
+      "a 63/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13270 ms) — a mérés HIÁNYOS",
+      "a 64/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13803 ms) — a mérés HIÁNYOS",
+      "a 65/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12555 ms) — a mérés HIÁNYOS",
+      "a 66/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (14125 ms) — a mérés HIÁNYOS",
+      "a 67/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13842 ms) — a mérés HIÁNYOS",
+      "a 68/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13311 ms) — a mérés HIÁNYOS",
+      "a 69/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12939 ms) — a mérés HIÁNYOS",
+      "a 70/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13794 ms) — a mérés HIÁNYOS",
+      "a 71/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12656 ms) — a mérés HIÁNYOS",
+      "a 72/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13399 ms) — a mérés HIÁNYOS",
+      "a 73/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12447 ms) — a mérés HIÁNYOS",
+      "a 74/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12140 ms) — a mérés HIÁNYOS",
+      "a 75/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13431 ms) — a mérés HIÁNYOS",
+      "a 77/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13030 ms) — a mérés HIÁNYOS",
+      "a 78/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13433 ms) — a mérés HIÁNYOS",
+      "a 79/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12652 ms) — a mérés HIÁNYOS",
+      "a 80/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12653 ms) — a mérés HIÁNYOS",
+      "a 81/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13275 ms) — a mérés HIÁNYOS",
+      "a 82/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12656 ms) — a mérés HIÁNYOS",
+      "a 84/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12094 ms) — a mérés HIÁNYOS",
+      "a 85/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12405 ms) — a mérés HIÁNYOS",
+      "a 86/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13296 ms) — a mérés HIÁNYOS",
+      "a 87/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13213 ms) — a mérés HIÁNYOS",
+      "a 88/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12002 ms) — a mérés HIÁNYOS",
+      "a 89/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13064 ms) — a mérés HIÁNYOS",
+      "a 90/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12881 ms) — a mérés HIÁNYOS",
+      "a 91/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (14035 ms) — a mérés HIÁNYOS",
+      "a 92/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13889 ms) — a mérés HIÁNYOS",
+      "a 93/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13535 ms) — a mérés HIÁNYOS",
+      "a 94/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (14617 ms) — a mérés HIÁNYOS",
+      "a 95/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (14303 ms) — a mérés HIÁNYOS",
+      "a 96/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (14282 ms) — a mérés HIÁNYOS",
+      "a 97/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12629 ms) — a mérés HIÁNYOS",
+      "a 98/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13119 ms) — a mérés HIÁNYOS",
+      "a 100/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13639 ms) — a mérés HIÁNYOS",
+      "a 101/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12866 ms) — a mérés HIÁNYOS",
+      "a 102/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13355 ms) — a mérés HIÁNYOS",
+      "a 103/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12719 ms) — a mérés HIÁNYOS",
+      "a 104/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13229 ms) — a mérés HIÁNYOS",
+      "a 105/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13684 ms) — a mérés HIÁNYOS",
+      "a 106/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13308 ms) — a mérés HIÁNYOS",
+      "a 107/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13406 ms) — a mérés HIÁNYOS",
+      "a 108/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12462 ms) — a mérés HIÁNYOS",
+      "a 109/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12457 ms) — a mérés HIÁNYOS",
+      "a 113/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12217 ms) — a mérés HIÁNYOS",
+      "a 117/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (14797 ms) — a mérés HIÁNYOS",
+      "a 118/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13124 ms) — a mérés HIÁNYOS",
+      "a 119/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12373 ms) — a mérés HIÁNYOS",
+      "a 120/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12609 ms) — a mérés HIÁNYOS",
+      "a 121/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12050 ms) — a mérés HIÁNYOS",
+      "a 122/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12358 ms) — a mérés HIÁNYOS",
+      "a 123/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13513 ms) — a mérés HIÁNYOS",
+      "a 124/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (14863 ms) — a mérés HIÁNYOS",
+      "a 125/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13732 ms) — a mérés HIÁNYOS",
+      "a 126/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12853 ms) — a mérés HIÁNYOS",
+      "a 127/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12184 ms) — a mérés HIÁNYOS",
+      "a 133/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12526 ms) — a mérés HIÁNYOS",
+      "a 135/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (14039 ms) — a mérés HIÁNYOS",
+      "a 136/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (14524 ms) — a mérés HIÁNYOS",
+      "a 137/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13884 ms) — a mérés HIÁNYOS",
+      "a 138/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12053 ms) — a mérés HIÁNYOS",
+      "a 139/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (14586 ms) — a mérés HIÁNYOS",
+      "a 140/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13081 ms) — a mérés HIÁNYOS",
+      "a 141/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13707 ms) — a mérés HIÁNYOS",
+      "a 142/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13347 ms) — a mérés HIÁNYOS",
+      "a 143/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13403 ms) — a mérés HIÁNYOS",
+      "a 144/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12733 ms) — a mérés HIÁNYOS",
+      "a 146/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12491 ms) — a mérés HIÁNYOS",
+      "a 147/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13030 ms) — a mérés HIÁNYOS",
+      "a 148/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13065 ms) — a mérés HIÁNYOS",
+      "a 149/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12283 ms) — a mérés HIÁNYOS",
+      "a 150/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12278 ms) — a mérés HIÁNYOS",
+      "a 151/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13865 ms) — a mérés HIÁNYOS",
+      "a 152/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12932 ms) — a mérés HIÁNYOS",
+      "a 153/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13631 ms) — a mérés HIÁNYOS",
+      "a 154/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12580 ms) — a mérés HIÁNYOS",
+      "a 155/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12047 ms) — a mérés HIÁNYOS",
+      "a 156/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12656 ms) — a mérés HIÁNYOS",
+      "a 158/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (14036 ms) — a mérés HIÁNYOS",
+      "a 159/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12498 ms) — a mérés HIÁNYOS",
+      "a 161/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12690 ms) — a mérés HIÁNYOS",
+      "a 162/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12224 ms) — a mérés HIÁNYOS",
+      "a 163/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13860 ms) — a mérés HIÁNYOS",
+      "a 164/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12916 ms) — a mérés HIÁNYOS",
+      "a 165/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13363 ms) — a mérés HIÁNYOS",
+      "a 166/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (16256 ms) — a mérés HIÁNYOS",
+      "a 167/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12551 ms) — a mérés HIÁNYOS",
+      "a 168/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13623 ms) — a mérés HIÁNYOS",
+      "a 169/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13304 ms) — a mérés HIÁNYOS",
+      "a 170/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (14251 ms) — a mérés HIÁNYOS",
+      "a 209/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12245 ms) — a mérés HIÁNYOS",
+      "a 212/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12017 ms) — a mérés HIÁNYOS",
+      "a 228/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12421 ms) — a mérés HIÁNYOS"
     ]
   },
   "merge": null,
@@ -164,18 +298,921 @@
       "id": "merge/KORNYEZET-3",
       "pass": false,
       "result": {
-        "error": "a finomítás MÉRVE nem segít: a kétszerezés csak 3.7%-ot nyert (12582 → 12114 ms), a költségvetés 12000 ms — az egység költsége FIX-dominált, a további felezés MÉRVE nem közelít a költségvetéshez, csak a teljes falióra-keretet kétszerezi — a mérés HIÁNYOS, és nem futtatunk újabb, mérve haszontalan battéria-passzt"
+        "error": "a 1/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12981 ms) — a mérés HIÁNYOS"
       }
     },
     {
       "id": "merge/KORNYEZET-4",
       "pass": false,
       "result": {
-        "error": "37 egység-fájl született a várt 128 helyett"
+        "error": "a 6/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12679 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-5",
+      "pass": false,
+      "result": {
+        "error": "a 9/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12391 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-6",
+      "pass": false,
+      "result": {
+        "error": "a 10/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12040 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-7",
+      "pass": false,
+      "result": {
+        "error": "a 11/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12279 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-8",
+      "pass": false,
+      "result": {
+        "error": "a 12/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12359 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-9",
+      "pass": false,
+      "result": {
+        "error": "a 13/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12077 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-10",
+      "pass": false,
+      "result": {
+        "error": "a 16/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12516 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-11",
+      "pass": false,
+      "result": {
+        "error": "a 17/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13458 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-12",
+      "pass": false,
+      "result": {
+        "error": "a 18/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13402 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-13",
+      "pass": false,
+      "result": {
+        "error": "a 19/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12233 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-14",
+      "pass": false,
+      "result": {
+        "error": "a 21/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12595 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-15",
+      "pass": false,
+      "result": {
+        "error": "a 22/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12150 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-16",
+      "pass": false,
+      "result": {
+        "error": "a 28/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12193 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-17",
+      "pass": false,
+      "result": {
+        "error": "a 34/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12116 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-18",
+      "pass": false,
+      "result": {
+        "error": "a 36/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12748 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-19",
+      "pass": false,
+      "result": {
+        "error": "a 37/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13626 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-20",
+      "pass": false,
+      "result": {
+        "error": "a 38/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12970 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-21",
+      "pass": false,
+      "result": {
+        "error": "a 39/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12615 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-22",
+      "pass": false,
+      "result": {
+        "error": "a 40/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13188 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-23",
+      "pass": false,
+      "result": {
+        "error": "a 41/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12495 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-24",
+      "pass": false,
+      "result": {
+        "error": "a 42/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13623 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-25",
+      "pass": false,
+      "result": {
+        "error": "a 43/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12637 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-26",
+      "pass": false,
+      "result": {
+        "error": "a 44/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12593 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-27",
+      "pass": false,
+      "result": {
+        "error": "a 49/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12051 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-28",
+      "pass": false,
+      "result": {
+        "error": "a 50/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13002 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-29",
+      "pass": false,
+      "result": {
+        "error": "a 51/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13097 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-30",
+      "pass": false,
+      "result": {
+        "error": "a 52/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13842 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-31",
+      "pass": false,
+      "result": {
+        "error": "a 53/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13191 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-32",
+      "pass": false,
+      "result": {
+        "error": "a 54/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13721 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-33",
+      "pass": false,
+      "result": {
+        "error": "a 55/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12011 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-34",
+      "pass": false,
+      "result": {
+        "error": "a 56/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13058 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-35",
+      "pass": false,
+      "result": {
+        "error": "a 57/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13577 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-36",
+      "pass": false,
+      "result": {
+        "error": "a 58/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12532 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-37",
+      "pass": false,
+      "result": {
+        "error": "a 59/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13211 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-38",
+      "pass": false,
+      "result": {
+        "error": "a 60/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12574 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-39",
+      "pass": false,
+      "result": {
+        "error": "a 61/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12298 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-40",
+      "pass": false,
+      "result": {
+        "error": "a 62/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13002 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-41",
+      "pass": false,
+      "result": {
+        "error": "a 63/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13270 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-42",
+      "pass": false,
+      "result": {
+        "error": "a 64/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13803 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-43",
+      "pass": false,
+      "result": {
+        "error": "a 65/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12555 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-44",
+      "pass": false,
+      "result": {
+        "error": "a 66/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (14125 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-45",
+      "pass": false,
+      "result": {
+        "error": "a 67/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13842 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-46",
+      "pass": false,
+      "result": {
+        "error": "a 68/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13311 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-47",
+      "pass": false,
+      "result": {
+        "error": "a 69/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12939 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-48",
+      "pass": false,
+      "result": {
+        "error": "a 70/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13794 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-49",
+      "pass": false,
+      "result": {
+        "error": "a 71/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12656 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-50",
+      "pass": false,
+      "result": {
+        "error": "a 72/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13399 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-51",
+      "pass": false,
+      "result": {
+        "error": "a 73/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12447 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-52",
+      "pass": false,
+      "result": {
+        "error": "a 74/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12140 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-53",
+      "pass": false,
+      "result": {
+        "error": "a 75/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13431 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-54",
+      "pass": false,
+      "result": {
+        "error": "a 77/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13030 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-55",
+      "pass": false,
+      "result": {
+        "error": "a 78/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13433 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-56",
+      "pass": false,
+      "result": {
+        "error": "a 79/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12652 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-57",
+      "pass": false,
+      "result": {
+        "error": "a 80/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12653 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-58",
+      "pass": false,
+      "result": {
+        "error": "a 81/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13275 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-59",
+      "pass": false,
+      "result": {
+        "error": "a 82/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12656 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-60",
+      "pass": false,
+      "result": {
+        "error": "a 84/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12094 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-61",
+      "pass": false,
+      "result": {
+        "error": "a 85/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12405 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-62",
+      "pass": false,
+      "result": {
+        "error": "a 86/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13296 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-63",
+      "pass": false,
+      "result": {
+        "error": "a 87/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13213 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-64",
+      "pass": false,
+      "result": {
+        "error": "a 88/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12002 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-65",
+      "pass": false,
+      "result": {
+        "error": "a 89/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13064 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-66",
+      "pass": false,
+      "result": {
+        "error": "a 90/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12881 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-67",
+      "pass": false,
+      "result": {
+        "error": "a 91/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (14035 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-68",
+      "pass": false,
+      "result": {
+        "error": "a 92/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13889 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-69",
+      "pass": false,
+      "result": {
+        "error": "a 93/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13535 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-70",
+      "pass": false,
+      "result": {
+        "error": "a 94/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (14617 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-71",
+      "pass": false,
+      "result": {
+        "error": "a 95/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (14303 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-72",
+      "pass": false,
+      "result": {
+        "error": "a 96/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (14282 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-73",
+      "pass": false,
+      "result": {
+        "error": "a 97/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12629 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-74",
+      "pass": false,
+      "result": {
+        "error": "a 98/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13119 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-75",
+      "pass": false,
+      "result": {
+        "error": "a 100/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13639 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-76",
+      "pass": false,
+      "result": {
+        "error": "a 101/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12866 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-77",
+      "pass": false,
+      "result": {
+        "error": "a 102/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13355 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-78",
+      "pass": false,
+      "result": {
+        "error": "a 103/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12719 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-79",
+      "pass": false,
+      "result": {
+        "error": "a 104/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13229 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-80",
+      "pass": false,
+      "result": {
+        "error": "a 105/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13684 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-81",
+      "pass": false,
+      "result": {
+        "error": "a 106/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13308 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-82",
+      "pass": false,
+      "result": {
+        "error": "a 107/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13406 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-83",
+      "pass": false,
+      "result": {
+        "error": "a 108/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12462 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-84",
+      "pass": false,
+      "result": {
+        "error": "a 109/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12457 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-85",
+      "pass": false,
+      "result": {
+        "error": "a 113/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12217 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-86",
+      "pass": false,
+      "result": {
+        "error": "a 117/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (14797 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-87",
+      "pass": false,
+      "result": {
+        "error": "a 118/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13124 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-88",
+      "pass": false,
+      "result": {
+        "error": "a 119/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12373 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-89",
+      "pass": false,
+      "result": {
+        "error": "a 120/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12609 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-90",
+      "pass": false,
+      "result": {
+        "error": "a 121/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12050 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-91",
+      "pass": false,
+      "result": {
+        "error": "a 122/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12358 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-92",
+      "pass": false,
+      "result": {
+        "error": "a 123/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13513 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-93",
+      "pass": false,
+      "result": {
+        "error": "a 124/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (14863 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-94",
+      "pass": false,
+      "result": {
+        "error": "a 125/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13732 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-95",
+      "pass": false,
+      "result": {
+        "error": "a 126/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12853 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-96",
+      "pass": false,
+      "result": {
+        "error": "a 127/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12184 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-97",
+      "pass": false,
+      "result": {
+        "error": "a 133/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12526 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-98",
+      "pass": false,
+      "result": {
+        "error": "a 135/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (14039 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-99",
+      "pass": false,
+      "result": {
+        "error": "a 136/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (14524 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-100",
+      "pass": false,
+      "result": {
+        "error": "a 137/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13884 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-101",
+      "pass": false,
+      "result": {
+        "error": "a 138/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12053 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-102",
+      "pass": false,
+      "result": {
+        "error": "a 139/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (14586 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-103",
+      "pass": false,
+      "result": {
+        "error": "a 140/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13081 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-104",
+      "pass": false,
+      "result": {
+        "error": "a 141/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13707 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-105",
+      "pass": false,
+      "result": {
+        "error": "a 142/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13347 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-106",
+      "pass": false,
+      "result": {
+        "error": "a 143/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13403 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-107",
+      "pass": false,
+      "result": {
+        "error": "a 144/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12733 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-108",
+      "pass": false,
+      "result": {
+        "error": "a 146/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12491 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-109",
+      "pass": false,
+      "result": {
+        "error": "a 147/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13030 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-110",
+      "pass": false,
+      "result": {
+        "error": "a 148/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13065 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-111",
+      "pass": false,
+      "result": {
+        "error": "a 149/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12283 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-112",
+      "pass": false,
+      "result": {
+        "error": "a 150/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12278 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-113",
+      "pass": false,
+      "result": {
+        "error": "a 151/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13865 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-114",
+      "pass": false,
+      "result": {
+        "error": "a 152/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12932 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-115",
+      "pass": false,
+      "result": {
+        "error": "a 153/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13631 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-116",
+      "pass": false,
+      "result": {
+        "error": "a 154/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12580 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-117",
+      "pass": false,
+      "result": {
+        "error": "a 155/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12047 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-118",
+      "pass": false,
+      "result": {
+        "error": "a 156/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12656 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-119",
+      "pass": false,
+      "result": {
+        "error": "a 158/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (14036 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-120",
+      "pass": false,
+      "result": {
+        "error": "a 159/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12498 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-121",
+      "pass": false,
+      "result": {
+        "error": "a 161/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12690 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-122",
+      "pass": false,
+      "result": {
+        "error": "a 162/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12224 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-123",
+      "pass": false,
+      "result": {
+        "error": "a 163/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13860 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-124",
+      "pass": false,
+      "result": {
+        "error": "a 164/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12916 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-125",
+      "pass": false,
+      "result": {
+        "error": "a 165/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13363 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-126",
+      "pass": false,
+      "result": {
+        "error": "a 166/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (16256 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-127",
+      "pass": false,
+      "result": {
+        "error": "a 167/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12551 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-128",
+      "pass": false,
+      "result": {
+        "error": "a 168/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13623 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-129",
+      "pass": false,
+      "result": {
+        "error": "a 169/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (13304 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-130",
+      "pass": false,
+      "result": {
+        "error": "a 170/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (14251 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-131",
+      "pass": false,
+      "result": {
+        "error": "a 209/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12245 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-132",
+      "pass": false,
+      "result": {
+        "error": "a 212/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12017 ms) — a mérés HIÁNYOS"
+      }
+    },
+    {
+      "id": "merge/KORNYEZET-133",
+      "pass": false,
+      "result": {
+        "error": "a 228/253 egység a LEGFINOMABB megengedett felosztáson sem fért a költségvetésbe (12421 ms) — a mérés HIÁNYOS"
       }
     }
   ],
   "passed": 3,
-  "failed": 2,
+  "failed": 131,
   "cases_mapped_from": "a két program SAJÁT `cases` listája, `merge/` és `runner/` előtaggal"
 }
