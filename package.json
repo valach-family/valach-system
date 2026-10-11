@@ -31,6 +31,7 @@
     "proof:r93-findings": "node v3app/findings_r93.mjs",
     "proof:r95-findings": "node v3app/findings_r95.mjs",
     "test:e2e": "playwright test",
+    "diag:r190-k3": "playwright test --config playwright.diag.config.mjs",
     "v3ref:evidence": "node v3ref/run.mjs --json",
     "v3ref:mutate": "node v3ref/mutate.mjs",
     "v3ref:mutate:units": "node v3ref/mutate.mjs --units-auto",
