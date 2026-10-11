@@ -2,7 +2,7 @@
   "program": "r92_chatgpt-v3.core.mjs",
   "node": "v22.22.0",
   "exit_code": 0,
-  "source_commit": "abe54a0ee10d3554ffcbf1a6561d5e5da38ff799",
+  "source_commit": "5ca9701937fdd90dec47003efefb54371a04d6fd",
   "source_commit_from": "staged_manifest",
   "core_root_from": "staged_sandbox",
   "readable": true,
@@ -28,8 +28,8 @@
   "unknown": [],
   "duplicates": [],
   "ok": true,
-  "stderr": "(node:7299) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n",
+  "stderr": "(node:3326) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n",
   "source_md5": "1a65be2a8b3b43fc28f3cd93b3ea2874",
   "verbatim": true,
-  "at": "2026-10-09T20:09:50.920Z"
+  "at": "2026-10-11T04:39:04.255Z"
 }
