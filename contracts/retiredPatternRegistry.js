@@ -18004,6 +18004,53 @@ Object.freeze({
       { paths: ['v3ref/external-checks/seriesLedger.mjs'], pattern: 'if \\(digests\\.size\\)', why: 'a KIVEZETETT néma kihagyás: a bemenet hiányára kikapcsoló ellenőrzés' },
     ],
   }),
+  Object.freeze({
+    id: 'KUKA-486',
+    date: '2026-10-11',
+    title: 'A SOROZAT AZONOSSÁGA A COMMITON ÁLLT, EZÉRT A SAJÁT BIZONYÍTÉKA KÖZZÉTÉTELÉT SEM ÉLTE TÚL',
+    what: 'Az R196 §1 kötés-horgonya a `commit`-ot is az AZONOSSÁG részévé tette: a `seriesId` a '
+      + 'commit-azonosítóból is származott, és a frissesség-ellenőrzés (L3) a horgony commitját '
+      + 'vetette össze az ÉLŐ HEAD-del.',
+    why_wrong: 'A mérés bizonyítékát COMMITOLNI kell — és ettől a HEAD megváltozik, miközben a MÉRT '
+      + 'FORRÁS egyetlen bájtot sem. MÉRVE: a 12 programos, horgonyzott, MAI sorozat bizonyítékát '
+      + 'commitoltam (`1f42ae6` → `661f22f`), a commit **nulla** mért forrás-fájlt érintett (csak '
+      + '`docs/` és `results/`), a sorozat mégis azonnal `MAI: NEM`-re váltott. Vagyis a horgony a '
+      + 'saját bizonyítéka közzétételét sem élte túl: elfogadott sorozat SOHA nem létezhetett volna '
+      + 'könyvelt állapotban, és a kapu a gyakorlatban használhatatlan volt. A szám, amit mértem, MÁS '
+      + 'kérdésre felelt („ugyanaz a fa-azonosító?"), mint amire használtam („ugyanaz a MÉRÉS?") — '
+      + 'ez a `KUKA-033` alakja a bizonyíték-kapun.',
+    replaced_by: 'A SOROZAT AZONOSSÁGA A MÉRT FORRÁS TARTALMA: a `v3ref/*.mjs` köteg lenyomata '
+      + '(BND-01 — pontosan amit a battéria futtat) + a manifeszt-, futtató- és '
+      + 'konfiguráció-lenyomat + a tisztaság. A `commit` külön mezőbe, `provenance`-ba került: '
+      + 'MINDEN rekordon és a horgonyon ott van (melyik könyvelt állapot írta — ez kell a '
+      + 'visszakereséshez), és a saját mércéje megmaradt (könyvelt 40-hex; a `…+uncommitted` jelölt '
+      + 'alak elesik), de NEM azonosság. Két rekord, amit ugyanaz a mért forrás adott, ugyanabba a '
+      + 'sorozatba esik akkor is, ha közben a bizonyíték commitja új fa-azonosítót adott; az eltérő '
+      + 'TARTALOM viszont továbbra is külön sorozat.',
+    replacement: 'AMI AZONOSSÁGOT AD, AZ A TARTALOM, NEM A TÁROLÓ AZONOSÍTÓJA. Ha egy mérés '
+      + 'azonosságát a verziókövetés azonosítójához kötjük, akkor a mérés rögzítése maga rontja el a '
+      + 'mérést — a kulcs azt fedje, ami a MÉRÉS EREDMÉNYÉT meghatározza.',
+    decision: 'D-VS-3260',
+    found_by: 'SAJÁT lelet (Claude-v3, R196) — nem próbából, hanem a SZÁLLÍTÁS lépéséből: a 12 '
+      + 'programos sorozat bizonyítékának commitolása után az összesítő azonnal `MAI: NEM`-et írt, '
+      + 'miközben `git diff --name-only` szerint 0 mért forrás-fájl változott.',
+    lesson: 'A MECHANIZMUST A SAJÁT ÉLETCIKLUSÁN KELL VÉGIGVINNI, NEM CSAK EGY FUTÁSON. Egy kapu, '
+      + 'ami egy friss mérésre zöld, de a mérés RÖGZÍTÉSE után pirosra vált, nem kapu — és ez csak '
+      + 'akkor derül ki, ha a szállítás lépését (commit · közzététel) is lefuttatjuk, nem állunk meg '
+      + 'a zöld mérésnél.',
+    guard_note: 'gépi jel: `npm run verify:external-series` (`EXS16`) — KÖZVETLEN mércével: két '
+      + 'kötés, ami CSAK egy `commit` mezőben tér el, UGYANAZT a sorozatazonosítót adja, az eltérő '
+      + 'MÉRT FORRÁS viszont mást; és a teljes készlet két különböző származással is MAI és '
+      + 'elfogadott marad, miközben a JELÖLT (nem könyvelt) származás elesik.',
+    home: 'v3',
+    positive: [
+      { paths: ['v3ref/external-checks/seriesLedger.mjs'], pattern: 'export function canonProvenance\\(', why: 'a származás NEVEZETT, külön feloldóban áll — nem azonosság' },
+      { paths: ['v3ref/external-checks/seriesLedger.mjs'], pattern: 'bundle_digest', why: 'az azonosság a MÉRT FORRÁS tartalmán áll (BND-01)' },
+      { paths: ['v3ref/external-checks/seriesLedger.mjs'], pattern: 'export function provenanceProblems\\(', why: 'a commit megtartotta a SAJÁT mércéjét (könyvelt 40-hex), csak nem azonosság' },
+      { paths: ['v3ref/external-checks/seriesBinding.mjs'], pattern: 'provenance: \\{ commit', why: 'a megosztott mérő a kötést és a származást KÜLÖN adja' },
+    ],
+    forbidden: [],
+  }),
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

@@ -186,13 +186,18 @@ const seriesConfig = {
 // A KÖTÉST A MEGOSZTOTT MÉRŐ ADJA — ugyanaz, amit az összesítő is hív (R196 §1). A FUTTATÓ-lenyomat
 // a NEVEZETT fájl-listából jön (`RUNNER_FILES`), mert a futtató ma már nem egy fájl: a kapu
 // (`seriesLedger.mjs`) és a kötés-mérő (`seriesBinding.mjs`) is dönt a mérés eredményéről.
-const seriesBinding = liveBinding({ root: ROOT, here: HERE, configDigest: configDigest(seriesConfig) }).binding;
+const seriesLive = liveBinding({ root: ROOT, here: HERE, configDigest: configDigest(seriesConfig) });
+const seriesBinding = seriesLive.binding;
+// A SZÁRMAZÁS külön: melyik könyvelt állapot írta. A sorozat AZONOSSÁGA a mért forrás TARTALMA,
+// nem ez — különben a sorozat a saját bizonyítéka commitolását sem élné túl (R196 §1, mérve).
+const seriesProvenance = seriesLive.provenance;
 const SERIES = seriesId(seriesBinding);
 const seriesDir = join(OUT, 'series', SERIES);
 const anchorPath = join(seriesDir, BINDING_ANCHOR_FILE);
 {
   const fresh = makeAnchor({
     binding: seriesBinding,
+    provenance: seriesProvenance,
     // AZ ELVÁRT KÉSZLET A TELJES MANIFESZT, NEM A MOSTANI `--only` VÁLASZTÁS: a részfutás nem
     // szűkítheti le azt, amihez a teljességet mérjük (KUKA-206).
     programs: PROGRAMS.map((p) => p.id),
@@ -227,7 +232,7 @@ const anchorPath = join(seriesDir, BINDING_ANCHOR_FILE);
     }
   }
 }
-const seriesAnchorOk = anchorProblems(makeAnchor({ binding: seriesBinding, programs: PROGRAMS.map((p) => p.id) })).length === 0;
+const seriesAnchorOk = anchorProblems(makeAnchor({ binding: seriesBinding, provenance: seriesProvenance, programs: PROGRAMS.map((p) => p.id) })).length === 0;
 
 const summary = [];
 for (const p of selected) {
@@ -537,6 +542,7 @@ for (const s2 of summary) {
 for (const s2 of summary) {
   const rec = makeRecord({
     binding: seriesBinding,
+    provenance: seriesProvenance,
     program: { id: s2.id, digest: s2.program_digest },
     exit: Number.isInteger(s2.exit) ? s2.exit : -1,
     // A KIHAGYÁS NEM ZÖLD (KUKA-089 · KUKA-122): a rekord `ok`-ja a VALÓDI zöldre igaz, a nevezett

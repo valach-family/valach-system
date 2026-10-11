@@ -76,17 +76,19 @@ const seriesBaseArg = (() => {
 const hex = (n, seed) => createHash('sha256').update(String(seed)).digest('hex').slice(0, n);
 const CFG = configDigest({ battery_units: 64, unit_plan: [64, 253], unit_budget_ms: 12_000, external_cap_ms: 15_000, node: process.version });
 const BINDING = {
-  commit: hex(40, 'r196-fixture-commit'),
-  clean: true,
-  config_digest: CFG,
+  bundle_digest: hex(64, 'r196-fixture-bundle'),
   programs_digest: hex(64, 'r196-fixture-manifest'),
   runner_digest: hex(64, 'r196-fixture-runner'),
+  config_digest: CFG,
+  clean: true,
 };
-const ANCHOR = makeAnchor({ binding: BINDING, programs: PROGRAMS.map((p) => p.id), recorded_by: 'fixtúra' });
+const PROV = { commit: hex(40, 'r196-fixture-commit') };
+const ANCHOR = makeAnchor({ binding: BINDING, provenance: PROV, programs: PROGRAMS.map((p) => p.id), recorded_by: 'fixtúra' });
 const EV = (id) => hex(64, `r196-evidence-${id}`);
 const recFor = (p, over = {}) => ({
   ...makeRecord({
     binding: BINDING,
+    provenance: PROV,
     program: { id: p.id, digest: hex(64, `dg-${p.id}`) },
     exit: 0,
     ok: true,
@@ -136,11 +138,11 @@ const LIVE = { ...BINDING };
 // kapun, ami a forrás-egyezést már nem mérte. A két ellenőrzést ezért KÜLÖN-KÜLÖN kell mérni.
 {
   const recs = fullSet();
-  recs[3] = recFor(PROGRAMS[3], { binding: { ...BINDING, commit: hex(40, 'r196-idegen-commit') } });
+  recs[3] = recFor(PROGRAMS[3], { binding: { ...BINDING, bundle_digest: hex(64, 'r196-idegen-forras') } });
   const { verdict, problems: pr } = verifySeries({ records: recs, programs: PROGRAMS, expected: ANCHOR, live: LIVE, evidenceDigests: fullDigests() });
-  say('EXS03', verdict.ok === false, 'az ELTÉRŐ forrású rekord MÉGIS teljes verdiktbe került');
+  say('EXS03', verdict.ok === false, 'az ELTÉRŐ MÉRT FORRÁSÚ rekord MÉGIS teljes verdiktbe került');
   say('EXS03', pr.some((x) => /KÜLÖNBÖZŐ forrásból/i.test(x)),
-    `az eltérő COMMIT nincs NEVEZETTEN elutasítva (a sorozatazonosító egyezett): ${pr.slice(0, 3).join(' · ')}`);
+    `az eltérő MÉRT FORRÁS nincs NEVEZETTEN elutasítva (a sorozatazonosító egyezett): ${pr.slice(0, 3).join(' · ')}`);
 }
 
 // ── EXS03b — ELTÉRŐ SOROZAT-AZONOSÍTÓ, UGYANAZON commit alatt ───────────────────────────────────
@@ -254,7 +256,8 @@ const LIVE = { ...BINDING };
   // (a) PISZKOS forrás + HIÁNYZÓ érdemi lenyomatok → az R195-ös alak `complete:true · ok:true · green:1`-et adott.
   const programs = [{ id: 'p', cases: ['c'] }];
   const rossz = makeRecord({
-    binding: { commit: 'a'.repeat(40), clean: false, config_digest: 'cfg', programs_digest: '', runner_digest: '' },
+    binding: { bundle_digest: '', clean: false, config_digest: 'cfg', programs_digest: '', runner_digest: '' },
+    provenance: { commit: 'a'.repeat(40) },
     program: { id: 'p', digest: '' }, exit: 0, ok: true, cases: [{ id: 'c', pass: true }], evidence_digest: 'unverified',
   });
   const r = verifySeries({ records: [rossz], programs });
@@ -268,6 +271,8 @@ const LIVE = { ...BINDING };
     `az "unverified" szó lenyomatként átment — a „nem üres" nem mérce: ${r.problems.slice(0, 4).join(' · ')}`);
   say('EXS09a', r.problems.some((x) => /MANIFESZT-lenyomata nem valódi/i.test(x)) && r.problems.some((x) => /FUTTATÓ-lenyomata nem valódi/i.test(x)),
     `a HIÁNYZÓ manifeszt-/futtató-lenyomat nincs NEVEZVE: ${r.problems.slice(0, 5).join(' · ')}`);
+  say('EXS09a', r.problems.some((x) => /MÉRT FORRÁS-lenyomata nem valódi/i.test(x)),
+    `a HIÁNYZÓ mért forrás-lenyomat nincs NEVEZVE: ${r.problems.slice(0, 6).join(' · ')}`);
 
   // (b) A LEFEDETTSÉGI HIÁNY MÖGÜL A TARTALMI BUKÁS NEM TŰNHET EL.
   const f = classifyFacts({ ok: false, cases: [{ id: 'c', pass: false }] }, ['c', 'd']);
@@ -284,10 +289,10 @@ const LIVE = { ...BINDING };
 // EZ AZ A RÉS, AMIT AZ R195 NEM FOGOTT MEG: a rekordok EGYMÁSSAL egyeztek, tehát L1 átengedte őket.
 // A horgony (L2) és az élő állapot (L3) az, ami most kimondja, hogy ez nem a mi mérésünk.
 {
-  const idegen = { ...BINDING, commit: hex(40, 'r196-teljesen-idegen') };
+  const idegen = { ...BINDING, bundle_digest: hex(64, 'r196-teljesen-idegen') };
   const recs = PROGRAMS.map((p) => ({
     ...makeRecord({
-      binding: idegen, program: { id: p.id, digest: hex(64, `dg-${p.id}`) }, exit: 0, ok: true,
+      binding: idegen, provenance: PROV, program: { id: p.id, digest: hex(64, `dg-${p.id}`) }, exit: 0, ok: true,
       cases: (p.cases || []).map((id) => ({ id, pass: true })), evidence_digest: EV(p.id),
     }),
   }));
@@ -297,7 +302,7 @@ const LIVE = { ...BINDING };
   say('EXS10', r.problems.some((x) => /nem az ELVÁRT/i.test(x)),
     `az idegen kötés nincs a HORGONYHOZ mérve (a rekordok egymással egyeztek): ${r.problems.slice(0, 3).join(' · ')}`);
   // ÉS A TÖRTÉNETI KÉSZLET: ugyanez a készlet a SAJÁT horgonyával teljes — de nem MAI eredmény.
-  const sajatHorgony = makeAnchor({ binding: idegen, programs: PROGRAMS.map((p) => p.id) });
+  const sajatHorgony = makeAnchor({ binding: idegen, provenance: PROV, programs: PROGRAMS.map((p) => p.id) });
   const h = verifySeries({ records: recs, programs: PROGRAMS, expected: sajatHorgony, live: LIVE, evidenceDigests: fullDigests() });
   say('EXS10', h.verdict.ok === true && h.verdict.accepted === false && h.verdict.fresh === false,
     `a TÖRTÉNETI (saját forrásáról szóló) teljes készlet MAI eredménynek számít: ${JSON.stringify(h.verdict).slice(0, 180)}`);
@@ -392,6 +397,51 @@ if (!process.env.VS_EXS14_INNER) {
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
+}
+
+// ── EXS16 — A SOROZAT TÚLÉLI A SAJÁT BIZONYÍTÉKA COMMITOLÁSÁT (R196 §1, SAJÁT lelet) ────────────
+//
+// A LELET, MÉRVE. Az első alakomban a `commit` is az AZONOSSÁG része volt. Amikor a 12 programos
+// sorozat SAJÁT bizonyítékát commitoltam (`1f42ae6` → `661f22f`), a commit **nulla** mért
+// forrás-fájlt érintett — csak `docs/`-ot és `results/`-ot —, a sorozat mégis azonnal `MAI: NEM`-re
+// váltott. Egy horgony, ami a saját bizonyítéka közzétételét nem éli túl, SOHA nem adhat elfogadott
+// sorozatot: a mechanizmus a gyakorlatban használhatatlan volt.
+//
+// A MÉRCE EZÉRT A MÉRT FORRÁS TARTALMA. Ez az ellenpróba pontosan azt méri, hogy egy ELTÉRŐ
+// COMMIT, de AZONOS mért forrás (a) ugyanabba a sorozatba esik, (b) MAI marad, és (c) elfogadható —
+// miközben az ELTÉRŐ TARTALOM továbbra is elesik (azt az EXS03/EXS10 méri).
+{
+  /**
+   * A KÖZVETLEN MÉRCE: két kötés, ami CSAK egy `commit` mezőben tér el, UGYANAZT a sorozatot adja.
+   * Ha a `commit` visszakerül az azonosságba (`canonBinding`), ez a két azonosító ELVÁLIK — és
+   * pontosan ez volt a mért hiba. Ezt függvény-szinten kérdezzük, mert a shape-et méri, nem egy
+   * fixtúra véletlen alakját (`KUKA-239`).
+   */
+  say('EXS16', seriesId({ ...BINDING, commit: 'a'.repeat(40) }) === seriesId({ ...BINDING, commit: 'b'.repeat(40) }),
+    'a CSAK commitban eltérő kötés KÉT sorozatot ad — a commit visszakerült az AZONOSSÁGBA, tehát a '
+    + 'sorozat nem élné túl a saját bizonyítéka commitolását (R196 §1, mérve: 1f42ae6 → 661f22f, '
+    + '0 mért forrás-fájl változott, mégis MAI: NEM)');
+  say('EXS16', seriesId({ ...BINDING, bundle_digest: hex(64, 'mas-forras') }) !== seriesId(BINDING),
+    'az eltérő MÉRT FORRÁS ugyanazt a sorozatot adja — az azonosság elvesztette a tartalmi mércéjét');
+
+  const prov2 = { commit: hex(40, 'r196-masodik-commit') };
+  // Ugyanaz a kötés (tartalom), MÁS származás — mintha a bizonyítékot közben commitoltuk volna.
+  const recs = PROGRAMS.map((p, i) => recFor(p, i % 2 === 0 ? {} : { provenance: prov2 }));
+  say('EXS16', new Set(recs.map((r) => r.series)).size === 1,
+    'az azonos MÉRT FORRÁSÚ, de más commitú rekordok KÜLÖN sorozatba estek — a sorozat nem élné túl a '
+    + 'saját bizonyítéka commitolását');
+  const r = verifySeries({ records: recs, programs: PROGRAMS, expected: ANCHOR, live: LIVE, evidenceDigests: fullDigests() });
+  say('EXS16', r.problems.length === 0,
+    `az eltérő COMMIT (azonos mért forrás) LELETET adott — pedig ugyanazt a mérést írja le: ${r.problems.slice(0, 3).join(' · ')}`);
+  say('EXS16', r.verdict.fresh === true && r.verdict.accepted === true,
+    `a sorozat a saját bizonyítéka commitolása után NEM maradt MAI/elfogadott: ${JSON.stringify(r.verdict).slice(0, 200)}`);
+  say('EXS16', Array.isArray(r.verdict.provenances) && r.verdict.provenances.length === 2,
+    `a KÉT származás nincs KIÍRVA (a commit nem veszhet el, csak nem azonosság): ${JSON.stringify(r.verdict.provenances)}`);
+  // ÉS A HATÁR: a JELÖLT (nem könyvelt) származás továbbra is elesik.
+  const dirty = PROGRAMS.map((p) => recFor(p, { provenance: { commit: `${hex(40, 'x')}+uncommitted` } }));
+  const d = verifySeries({ records: dirty, programs: PROGRAMS, expected: ANCHOR, live: LIVE, evidenceDigests: fullDigests() });
+  say('EXS16', d.verdict.accepted === false && d.problems.some((x) => /JELÖLT, nem könyvelt/i.test(x)),
+    `a JELÖLT (nem könyvelt) származás ELFOGADVA — a commit elvesztette a saját mércéjét: ${d.problems.slice(0, 3).join(' · ')}`);
 }
 
 // ── EXS15 — A SOROZAT ÖNHORDÓ: A LENYOMAT A SAJÁT BIZONYÍTÉK-PÉLDÁNYÁBÓL (R196 §1) ──────────────
@@ -569,7 +619,7 @@ if (MODE_AGGREGATE || MODE_GATE) {
 }
 
 console.log('');
-console.log(`EXS-01 SOROZAT-KAPU (EXS01–EXS15, az EXS03b-vel): ${PROGRAMS.length} program · szerződés ${SERIES_CONTRACT}`);
+console.log(`EXS-01 SOROZAT-KAPU (EXS01–EXS16, az EXS03b-vel): ${PROGRAMS.length} program · szerződés ${SERIES_CONTRACT}`);
 console.log('  AMIT EZ NEM ÁLLÍT: a szintetikus összesítő-próba NEM termékelfogadás — a bizonyíték');
 console.log('  KEZELÉSÉT méri, nem a terméket (R194 §2).');
 if (problems.length && !INNER) {

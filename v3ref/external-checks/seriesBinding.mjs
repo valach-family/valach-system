@@ -13,6 +13,9 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
+// A MÉRT FORRÁS TARTALMI LENYOMATA (BND-01) — EGY otthon, és pontosan azt a kötegt fedi, amit a
+// battéria futtat (`v3ref/*.mjs`). A sorozat AZONOSSÁGA ezen áll, nem a commit-azonosítón (R196 §1).
+import { digestOfBundle } from '../bundleDigest.mjs';
 
 /**
  * A FUTTATÓ, AMI A VERDIKTET HOZZA — NÉVSZERINT, mert a „futtató" ma már nem egy fájl.
@@ -87,14 +90,19 @@ export function measureSource(root) {
  */
 export function liveBinding({ root, here, configDigest }) {
   const src = measureSource(root);
+  let bundle = null;
+  try { bundle = String(digestOfBundle(root)).replace(/^sha256:/, ''); } catch { bundle = null; }
   return {
+    // A KÖTÉS = A MÉRT FORRÁS TARTALMA. A commit NEM része: lásd a `provenance`-t alább.
     binding: {
-      commit: src.commit,
-      clean: src.clean === true,
-      config_digest: configDigest,
+      bundle_digest: bundle,
       programs_digest: fileDigest(here, PROGRAMS_FILE),
       runner_digest: runnerDigest(here),
+      config_digest: configDigest,
+      clean: src.clean === true,
     },
+    // A SZÁRMAZÁS: melyik könyvelt állapot írta. Ez a visszakereséshez kell, nem az azonossághoz.
+    provenance: { commit: src.commit },
     source: src,
   };
 }

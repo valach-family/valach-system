@@ -107,25 +107,51 @@ export function configDigest(config = {}) {
  * eltérő forrású futás MÁS sorozatba — tehát nem lehet véletlenül összeválogatni (R194 §2).
  */
 export function seriesId(binding = {}) {
-  const b = {
-    commit: str(binding.commit),
-    clean: binding.clean === true,
-    config_digest: str(binding.config_digest),
-    programs_digest: str(binding.programs_digest),
-    runner_digest: str(binding.runner_digest),
-  };
-  return `s${sha(JSON.stringify(b)).slice(0, 12)}`;
+  return `s${sha(JSON.stringify(canonBinding(binding))).slice(0, 12)}`;
 }
 
-/** A kötés kanonikus alakja — a horgony és a rekord UGYANEZT a négy+egy mezőt hordozza. */
+/**
+ * A KÖTÉS KANONIKUS ALAKJA — ÉS A COMMIT NINCS BENNE (R196 §1, SAJÁT lelet).
+ *
+ * MIÉRT NEM. Az első alakom a `commit`-ot is az AZONOSSÁG részévé tette, és ettől a mechanizmus a
+ * gyakorlatban HASZNÁLHATATLAN volt: amikor a sorozat SAJÁT bizonyítékát commitoltam, a HEAD
+ * megváltozott, a horgony kötése viszont a régi commitot hordozta — tehát a frissen mért sorozat
+ * AZONNAL „TÖRTÉNETI"-nek látszott. MÉRVE: a `1f42ae6`…`661f22f` commit **nulla** mért forrás-fájlt
+ * érintett (csak `docs/` és `results/`), a sorozat mégis `MAI: NEM`-re váltott. Egy horgony, ami a
+ * saját bizonyítéka közzétételét nem éli túl, soha nem adhat elfogadott sorozatot.
+ *
+ * A HELYES KULCS A MÉRT FORRÁS TARTALMA: a `v3ref/*.mjs` köteg lenyomata (BND-01 — pontosan amit a
+ * battéria futtat), a manifeszt, a futtató és a darabolási konfiguráció, plusz a tisztaság. Ha
+ * ezekből bármelyik más, az MÁS mérés. Ha mind egyezik, akkor UGYANAZ a mérés — akkor is, ha
+ * közben a `docs/` vagy a `results/` commitja új azonosítót adott a fának.
+ *
+ * A COMMIT EZZEL NEM VÉSZ EL: `provenance`-ként ott van minden rekordon és a horgonyon (melyik
+ * könyvelt állapot írta — ez kell a visszakereséshez), csak nem az azonosság kulcsa (`KUKA-033`:
+ * a szám, amit mérünk, ne más kérdésre feleljen, mint amire használjuk).
+ */
 export function canonBinding(binding = {}) {
   return {
-    commit: str(binding && binding.commit),
-    clean: Boolean(binding && binding.clean),
-    config_digest: str(binding && binding.config_digest),
+    bundle_digest: str(binding && binding.bundle_digest),
     programs_digest: str(binding && binding.programs_digest),
     runner_digest: str(binding && binding.runner_digest),
+    config_digest: str(binding && binding.config_digest),
+    clean: Boolean(binding && binding.clean),
   };
+}
+
+/** A SZÁRMAZÁS kanonikus alakja — a könyvelt állapot, ami a mérést írta (nem azonosság). */
+export function canonProvenance(p = {}) {
+  return { commit: str(p && p.commit) };
+}
+
+/** A származás érvényessége: könyvelt, 40-hex commit. A jelölt (`+uncommitted`) alak elesik. */
+export function provenanceProblems(prov, { label = 'származás' } = {}) {
+  const c = canonProvenance(prov).commit;
+  if (!c) return [`a ${label}ban nincs commit`];
+  if (/\+uncommitted$/.test(c)) return [`a ${label} JELÖLT, nem könyvelt forrásra mutat: ${c}`];
+  if (c === 'unknown') return [`a ${label} forrása BEMONDATLAN (nem git-munkamásolat)`];
+  if (!isHex(c, 40)) return [`a ${label} commitja nem 40-hex sha: ${JSON.stringify(c.slice(0, 24))}`];
+  return [];
 }
 
 /**
@@ -135,17 +161,14 @@ export function canonBinding(binding = {}) {
  */
 export function bindingProblems(binding, { label = 'kötés' } = {}) {
   const p = [];
-  const b = canonBinding(binding);
   if (!binding || typeof binding !== 'object') return [`a ${label} nem objektum`];
-  if (!b.commit) p.push(`a ${label}ben nincs commit`);
-  else if (/\+uncommitted$/.test(b.commit)) p.push(`a ${label} JELÖLT, nem könyvelt forrásra mutat: ${b.commit}`);
-  else if (b.commit === 'unknown') p.push(`a ${label} forrása BEMONDATLAN (nem git-munkamásolat)`);
-  else if (!isHex(b.commit, 40)) p.push(`a ${label} commitja nem 40-hex sha: ${JSON.stringify(b.commit.slice(0, 24))}`);
+  const b = canonBinding(binding);
   // A TISZTASÁG KAPU, NEM MEZŐ (R196 §1): piszkos forráson készült mérés nem teljes bizonyíték.
   if (b.clean !== true) p.push(`a ${label} PISZKOS forrásra mutat (clean=${JSON.stringify(binding.clean)}) — nem teljes bizonyíték`);
-  if (!isHex(b.config_digest, 16)) p.push(`a ${label} konfiguráció-lenyomata nem valódi (16-hex) lenyomat: ${JSON.stringify(b.config_digest)}`);
+  if (!isHex(b.bundle_digest, 64)) p.push(`a ${label} MÉRT FORRÁS-lenyomata nem valódi (64-hex) lenyomat: ${JSON.stringify(b.bundle_digest)}`);
   if (!isHex(b.programs_digest, 64)) p.push(`a ${label} MANIFESZT-lenyomata nem valódi (64-hex) lenyomat: ${JSON.stringify(b.programs_digest)}`);
   if (!isHex(b.runner_digest, 64)) p.push(`a ${label} FUTTATÓ-lenyomata nem valódi (64-hex) lenyomat: ${JSON.stringify(b.runner_digest)}`);
+  if (!isHex(b.config_digest, 16)) p.push(`a ${label} konfiguráció-lenyomata nem valódi (16-hex) lenyomat: ${JSON.stringify(b.config_digest)}`);
   return p;
 }
 
@@ -154,7 +177,7 @@ export function bindingMismatch(got, expected) {
   const a = canonBinding(got);
   const b = canonBinding(expected);
   const out = [];
-  for (const k of ['commit', 'clean', 'config_digest', 'programs_digest', 'runner_digest']) {
+  for (const k of ['bundle_digest', 'programs_digest', 'runner_digest', 'config_digest', 'clean']) {
     if (a[k] !== b[k]) {
       const sh = (v) => (typeof v === 'string' && v.length > 16 ? `${v.slice(0, 12)}…` : JSON.stringify(v));
       out.push(`${k}: ${sh(a[k])} ≠ ELVÁRT ${sh(b[k])}`);
@@ -164,11 +187,13 @@ export function bindingMismatch(got, expected) {
 }
 
 /** A per-program SOROZAT-REKORD. Ez hordozza a kötést, a TÉNYLEGES kilépést és az eset-eredményt. */
-export function makeRecord({ binding, program, exit, ok, cases, evidence_digest, failure, ms } = {}) {
+export function makeRecord({ binding, provenance, program, exit, ok, cases, evidence_digest, failure, ms } = {}) {
   return {
     contract: SERIES_CONTRACT,
     series: seriesId(binding),
     binding: canonBinding(binding),
+    // A SZÁRMAZÁS külön mező: melyik könyvelt állapot írta. Nem az azonosság kulcsa (lásd fentebb).
+    provenance: canonProvenance(provenance),
     program: str(program && program.id),
     program_digest: str(program && program.digest),
     exit: Number.isInteger(exit) ? exit : null,
@@ -189,11 +214,12 @@ export function makeRecord({ binding, program, exit, ok, cases, evidence_digest,
  * Ez a lényeg: a horgony a MÉRÉS ELŐTT keletkezik, a vizsgált rekordoktól függetlenül. Az összesítő
  * innen tudja, mihez kell mérnie — nem a rekordok egyöntetűségéből.
  */
-export function makeAnchor({ binding, programs, config, recorded_by, recorded_at } = {}) {
+export function makeAnchor({ binding, provenance, programs, config, recorded_by, recorded_at } = {}) {
   return {
     contract: SERIES_CONTRACT,
     series: seriesId(binding),
     binding: canonBinding(binding),
+    provenance: canonProvenance(provenance),
     programs: (Array.isArray(programs) ? programs : []).map((p) => String(p && p.id ? p.id : p)),
     config: config && typeof config === 'object' ? config : null,
     recorded_by: str(recorded_by) || 'run-all.mjs',
@@ -255,7 +281,8 @@ export function recordInvalid(rec, { expected } = {}) {
   if (!isHex(rec.evidence_digest, 64)) {
     p.push(`a bizonyíték-lenyomat nem valódi (64-hex) sha256: ${JSON.stringify(str(rec.evidence_digest).slice(0, 24))}`);
   }
-  if (!rec.binding || typeof rec.binding !== 'object') p.push('nincs kötés (commit/konfiguráció)');
+  p.push(...provenanceProblems(rec.provenance, { label: 'rekord-származás' }));
+  if (!rec.binding || typeof rec.binding !== 'object') p.push('nincs kötés (mért forrás/konfiguráció)');
   else {
     p.push(...bindingProblems(rec.binding, { label: 'rekord-kötés' }));
     // A SOROZATAZONOSÍTÓ ÁLLÍTÁS, NEM ADAT: a kötésből ÚJRASZÁMOLJUK (R196 §1).
@@ -341,10 +368,17 @@ export function verifySeries({ records, programs, expected, live, evidenceDigest
     problems.push(`a készlet ${seriesSet.length} KÜLÖNBÖZŐ sorozatból áll (${seriesSet.join(' · ')}) — `
       + 'külön futások legjobb részei nem válogathatók össze');
   }
-  const commits = [...new Set(recs.map((r) => str(r && r.binding && r.binding.commit)))];
-  if (commits.length > 1) {
-    problems.push(`a készlet ${commits.length} KÜLÖNBÖZŐ forrásból áll: ${commits.map((c) => c.slice(0, 12) || '(nincs)').join(' · ')}`);
+  const bundles = [...new Set(recs.map((r) => str(r && r.binding && r.binding.bundle_digest)))];
+  if (bundles.length > 1) {
+    problems.push(`a készlet ${bundles.length} KÜLÖNBÖZŐ forrásból áll: ${bundles.map((c) => c.slice(0, 12) || '(nincs)').join(' · ')}`);
   }
+  /**
+   * A COMMIT ELTÉRHET, ÉS EZ NEM LELET (R196 §1). Két rekord, amit UGYANAZ a mért forrás adott, de
+   * közben a `docs/` vagy a `results/` commitja új azonosítót adott a fának, UGYANAZT a mérést írja
+   * le — az azonosság a TARTALOM. A származásokat ezért csak KIÍRJUK, nem utasítjuk el; a külön
+   * forrást a `bundle_digest` fogja meg fentebb.
+   */
+  const commits = [...new Set(recs.map((r) => str(r && r.provenance && r.provenance.commit)))];
   const configs = [...new Set(recs.map((r) => str(r && r.binding && r.binding.config_digest)))];
   if (configs.length > 1) {
     problems.push(`a készlet ${configs.length} KÜLÖNBÖZŐ konfigurációval készült: ${configs.join(' · ')}`);
@@ -401,6 +435,8 @@ export function verifySeries({ records, programs, expected, live, evidenceDigest
   const verdict = {
     contract: SERIES_CONTRACT,
     series: seriesSet.length === 1 ? seriesSet[0] : null,
+    // A SZÁRMAZÁSOK: tájékoztatás, nem verdikt (több könyvelt állapot UGYANAZT a forrást adhatja).
+    provenances: commits.filter(Boolean),
     complete,
     // TELJES VERDIKT CSAK A TELJES, ELLENŐRZÖTT KÉSZLETBŐL (R194 §2).
     ok: okSet,
