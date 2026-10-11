@@ -1,8 +1,8 @@
 {
-  "at": "2026-10-11T15:46:07.358Z",
+  "at": "2026-10-11T16:36:20.722Z",
   "node": "v22.22.0",
   "source": {
-    "commit": "1f42ae68c031dd730bb054036ce7f123b0740591",
+    "commit": "a2060778131c0c42a0d5e59bc9ddad9540d072c9",
     "clean": true,
     "dirty_files": [],
     "note": "a lemásolt forrás a könyvelt állapoton áll"
@@ -11,7 +11,7 @@
     "complete": false,
     "scope": "partial",
     "ran": [
-      "r79core"
+      "r55"
     ],
     "skipped": [
       "r16core",
@@ -25,12 +25,12 @@
       "r61",
       "r83core",
       "r81core",
+      "r79core",
       "r79",
       "r59a",
       "r57a",
       "r59",
       "r57",
-      "r55",
       "r53"
     ],
     "why": "RÉSZLEGES futás (--only): ez NEM a lánc teljes bizonyítéka, csak a megnevezett programé"
@@ -44,105 +44,40 @@
   },
   "programs": [
     {
-      "id": "r79core",
-      "file": "r79_chatgpt-v3.mjs",
-      "by": "chatgpt-v3 — KÜLSŐ, független fél",
-      "origin": "R79 (a MAG-próba: a `r79_chatgpt-v3.core.mjs` az ő szövegük BÁJTAZONOSAN — egyetlen karaktert sem írtunk át benne, és ez a TÖRTÉNETI forrás továbbra is futtatható: `VS_EXT_CORE_VARIANT=historic`). AZ AKTÍV VÁLTOZAT (`*.core.adapted.mjs`) KÉT, KÜLÖN ENGEDÉLYEZETT ponton tér el — a korábbi „TESZTADAPTÁCIÓ NEM TÖRTÉNT\" mondat ezért kikerült (KUKA-050): (1) R35 — a tesztadat mennyiség-literáljai kanonikus decimális szövegen (MNY-01); (2) R51 — a tesztVILÁG kimondott készlet- ÉS ár-olvasási jogot kap a rendszer saját íróján, rögzített alappal (`explicitReadFixture`, karakterre a külső fél alakjában), mert az R49 óta a kiadás igazolt, adatkörre szóló olvasási jogot követel. Eset, elvárás, óra és negatív ág EGYIK adaptációnál sem változott. A futások külön nevezve: a JAVÍTÁS ELŐTTI forráson 14 PASS / 4 FAIL — pontosan az általuk közölt reprodukció —, az R50-es forráson 17 PASS / 1 FAIL (a `P01-flat-quantity` a HIÁNYZÓ adatköri jog miatt — ez VALÓDI piros volt, és nem nevezzük visszamenőleg zöldnek), az R51-es teszt-előfeltétellel 18/0.",
-      "program_digest": "31fd0d5dac5de799f36c8fec947997dd3f4490241ab744fab58c249016c5052b",
+      "id": "r55",
+      "file": "r55_restated.mjs",
+      "by": "Claude-v3 — a SAJÁT sávunk (önvizsgálat)",
+      "origin": "R56",
+      "program_digest": "7b7c7dff153087f0548365be88a873b0f0017c58e13e434346ab2cdc3ff6f67f",
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 416,
+      "ms": 886236,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
         {
-          "id": "P01-flat-quantity",
+          "id": "C11-restated",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "P02-flat-price",
+          "id": "N10-restated",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "F01-nested-price",
+          "id": "F01-restated",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "F01-object-in-qty",
+          "id": "N04-restated",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "P03-unknown-top-field",
-          "kind": "ok",
-          "why": null
-        },
-        {
-          "id": "P04-revoke-before",
-          "kind": "ok",
-          "why": null
-        },
-        {
-          "id": "P04-revoke-after",
-          "kind": "ok",
-          "why": null
-        },
-        {
-          "id": "P04-revoke-cross",
-          "kind": "ok",
-          "why": null
-        },
-        {
-          "id": "P06-adjudicate-before",
-          "kind": "ok",
-          "why": null
-        },
-        {
-          "id": "P06-adjudicate-after",
-          "kind": "ok",
-          "why": null
-        },
-        {
-          "id": "P06-adjudicate-cross",
-          "kind": "ok",
-          "why": null
-        },
-        {
-          "id": "P07-command-before",
-          "kind": "ok",
-          "why": null
-        },
-        {
-          "id": "P07-command-after",
-          "kind": "ok",
-          "why": null
-        },
-        {
-          "id": "P05-nested-effect-rolls-back",
-          "kind": "ok",
-          "why": null
-        },
-        {
-          "id": "F02-command-time-splits-at-finalization",
-          "kind": "ok",
-          "why": null
-        },
-        {
-          "id": "F03-revoke-credential-matching",
-          "kind": "ok",
-          "why": null
-        },
-        {
-          "id": "F03-revoke-credential-other",
-          "kind": "ok",
-          "why": null
-        },
-        {
-          "id": "F03-revoke-credential-absent",
+          "id": "D01-restated",
           "kind": "ok",
           "why": null
         }
@@ -150,123 +85,45 @@
       "failure_witness_limit": null,
       "failure_witness_basis": null,
       "expected_cases": [
-        "P01-flat-quantity",
-        "P02-flat-price",
-        "F01-nested-price",
-        "F01-object-in-qty",
-        "P03-unknown-top-field",
-        "P04-revoke-before",
-        "P04-revoke-after",
-        "P04-revoke-cross",
-        "P06-adjudicate-before",
-        "P06-adjudicate-after",
-        "P06-adjudicate-cross",
-        "P07-command-before",
-        "P07-command-after",
-        "P05-nested-effect-rolls-back",
-        "F02-command-time-splits-at-finalization",
-        "F03-revoke-credential-matching",
-        "F03-revoke-credential-other",
-        "F03-revoke-credential-absent"
+        "C11-restated",
+        "N10-restated",
+        "F01-restated",
+        "N04-restated",
+        "D01-restated"
       ],
-      "expected_from": "a külső fél R79-es lapja (a program `cases` tömbje, ahogy megérkezett)",
-      "evidence_file": "r79-core-challenge.json",
+      "expected_from": "az R56-os körünk jegyzőkönyve (az R55 öt esete)",
+      "evidence_file": "restated.json",
       "evidence_present": true,
-      "evidence_pin": "1f42ae68c031dd730bb054036ce7f123b0740591",
-      "total": 18,
+      "evidence_pin": "a2060778131c0c42a0d5e59bc9ddad9540d072c9",
+      "total": 5,
       "case_rows": [
         {
-          "id": "P01-flat-quantity",
+          "id": "C11-restated",
           "pass": true
         },
         {
-          "id": "P02-flat-price",
+          "id": "N10-restated",
           "pass": true
         },
         {
-          "id": "F01-nested-price",
+          "id": "F01-restated",
           "pass": true
         },
         {
-          "id": "F01-object-in-qty",
+          "id": "N04-restated",
           "pass": true
         },
         {
-          "id": "P03-unknown-top-field",
-          "pass": true
-        },
-        {
-          "id": "P04-revoke-before",
-          "pass": true
-        },
-        {
-          "id": "P04-revoke-after",
-          "pass": true
-        },
-        {
-          "id": "P04-revoke-cross",
-          "pass": true
-        },
-        {
-          "id": "P06-adjudicate-before",
-          "pass": true
-        },
-        {
-          "id": "P06-adjudicate-after",
-          "pass": true
-        },
-        {
-          "id": "P06-adjudicate-cross",
-          "pass": true
-        },
-        {
-          "id": "P07-command-before",
-          "pass": true
-        },
-        {
-          "id": "P07-command-after",
-          "pass": true
-        },
-        {
-          "id": "P05-nested-effect-rolls-back",
-          "pass": true
-        },
-        {
-          "id": "F02-command-time-splits-at-finalization",
-          "pass": true
-        },
-        {
-          "id": "F03-revoke-credential-matching",
-          "pass": true
-        },
-        {
-          "id": "F03-revoke-credential-other",
-          "pass": true
-        },
-        {
-          "id": "F03-revoke-credential-absent",
+          "id": "D01-restated",
           "pass": true
         }
       ],
       "present": [
-        "P01-flat-quantity",
-        "P02-flat-price",
-        "F01-nested-price",
-        "F01-object-in-qty",
-        "P03-unknown-top-field",
-        "P04-revoke-before",
-        "P04-revoke-after",
-        "P04-revoke-cross",
-        "P06-adjudicate-before",
-        "P06-adjudicate-after",
-        "P06-adjudicate-cross",
-        "P07-command-before",
-        "P07-command-after",
-        "P05-nested-effect-rolls-back",
-        "F02-command-time-splits-at-finalization",
-        "F03-revoke-credential-matching",
-        "F03-revoke-credential-other",
-        "F03-revoke-credential-absent"
+        "C11-restated",
+        "N10-restated",
+        "F01-restated",
+        "N04-restated",
+        "D01-restated"
       ],
       "missing": [],
       "unknown": [],
@@ -274,9 +131,9 @@
       "failed": [],
       "problems": [],
       "ok": true,
-      "saved": "/home/user/valach-system/v3ref/external-checks/results/r79core_r79-core-challenge.json",
+      "saved": "/home/user/valach-system/v3ref/external-checks/results/r55_restated.json",
       "stderr": [
-        "(node:11387) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(node:24738) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
         "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null,

@@ -502,7 +502,7 @@ if (MODE_AGGREGATE || MODE_GATE) {
     ? resolve(seriesBaseArg)
     : join(ROOT, 'v3ref/external-checks/results/series');
   // AZ ÉLŐ ÁLLAPOT A MEGOSZTOTT MÉRŐBŐL (L3) — ugyanaz a szabály, amit a futtató is hív.
-  const live = seriesBaseArg ? LIVE : liveBinding({
+  const liveFull = seriesBaseArg ? { binding: LIVE, provenance: PROV } : liveBinding({
     root: ROOT,
     here: HERE,
     configDigest: configDigest({
@@ -512,15 +512,23 @@ if (MODE_AGGREGATE || MODE_GATE) {
       external_cap_ms: EXTERNAL_CAP_MS,
       node: process.version,
     }),
-  }).binding;
+  });
+  const live = liveFull.binding;
+  const liveProv = liveFull.provenance || {};
 
   console.log('');
   console.log(MODE_GATE
     ? 'EXS-01 — ELFOGADÁSI KAPU a lemezen álló mérési sorozatokon'
     : 'EXS-01 — ÁLLAPOTLEKÉRDEZÉS a lemezen álló mérési sorozatokról (NEM elfogadási kapu)');
   console.log('='.repeat(94));
-  console.log(`  ÉLŐ forrás: ${String(live.commit).slice(0, 12)} · tiszta: ${live.clean} · konfiguráció: ${live.config_digest}`);
-  console.log(`              manifeszt ${String(live.programs_digest || 'NINCS').slice(0, 12)}… · futtató ${String(live.runner_digest || 'NINCS').slice(0, 12)}…`);
+  // A KIÍRÁS A MAI KÖTÉS-ALAKOT KÖVETI (KUKA-050): az azonosság a MÉRT FORRÁS, a commit SZÁRMAZÁS.
+  // Az első alakom még a kötésből kérte a commitot — ott már nincs —, és a képernyőre `undefined`
+  // került. Egy felirat, ami nem igaz, nem felirat.
+  // A RÖVIDÍTÉS CSAK LENYOMATOT VÁG, a nevezett hiányt NEM (különben a felirat maga lesz csonka).
+  const sh = (v, hiany = 'NINCS') => (v ? `${String(v).slice(0, 12)}…` : hiany);
+  console.log(`  ÉLŐ forrás (mért tartalom): ${sh(live.bundle_digest)} · tiszta: ${live.clean} · konfiguráció: ${live.config_digest}`);
+  console.log(`              manifeszt ${sh(live.programs_digest)} · futtató ${sh(live.runner_digest)}`);
+  console.log(`              SZÁRMAZÁS (a mai könyvelt állapot): ${sh(liveProv.commit)}`);
 
   const dirs = existsSync(base)
     ? readdirSync(base).filter((d) => statSync(join(base, d)).isDirectory())
@@ -567,8 +575,10 @@ if (MODE_AGGREGATE || MODE_GATE) {
 
     console.log(`\n  SOROZAT ${d}  ·  ${records.length} rekord`);
     if (anchor && anchor.binding) {
-      console.log(`    HORGONY (a futtató rögzítette ${anchor.recorded_at || '?'}): `
-        + `${String(anchor.binding.commit).slice(0, 12)} · tiszta: ${anchor.binding.clean} · konfiguráció: ${anchor.binding.config_digest}`);
+      console.log(`    HORGONY (a futtató rögzítette ${anchor.recorded_at || '?'}): mért forrás `
+        + `${sh(anchor.binding.bundle_digest, 'NINCS — a mai kötés-alak ELŐTTI horgony')}`
+        + ` · tiszta: ${anchor.binding.clean} · konfiguráció: ${anchor.binding.config_digest}`);
+      console.log(`             SZÁRMAZÁS: ${sh((anchor.provenance || {}).commit, '(nincs rögzítve — a mai alak előtti horgony)')}`);
     } else {
       console.log('    HORGONY: NINCS — ez a sorozat a kötés-horgony bevezetése ELŐTT készült (R196 §1).');
       console.log('             TÖRTÉNETI eredmény: a saját forrásáról beszélhet, MAI bizonyítékként nem hivatkozható.');

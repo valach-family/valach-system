@@ -1,0 +1,42 @@
+{
+  "contract": "EXS-01",
+  "series": "s8efde465d71d",
+  "binding": {
+    "bundle_digest": "9e80eefd305960738a2ddbd7c221789b419eaacdf8a9c247336255ecb5a38822",
+    "programs_digest": "e9622db45921f4bedcc0857f44aa86b520beef401ab6a709afb85584c87d3123",
+    "runner_digest": "e859b6cdaca6034936332536476e46ae78e8081d3405987efa5c82fc96243b77",
+    "config_digest": "f0ce4e38338ca820",
+    "clean": true
+  },
+  "provenance": {
+    "commit": "a2060778131c0c42a0d5e59bc9ddad9540d072c9"
+  },
+  "program": "r85core",
+  "program_digest": "e97b206f8808a3a99b2f16ea4f6a7a3f01a1834dfa893555c15299f92994e4ba",
+  "exit": 0,
+  "ok": true,
+  "cases": [
+    {
+      "id": "P01-known-grant",
+      "pass": true
+    },
+    {
+      "id": "F01-grant-not-known-at-query",
+      "pass": true
+    },
+    {
+      "id": "P02-retro-evidence-persists",
+      "pass": true
+    },
+    {
+      "id": "F02-future-evidence-persists",
+      "pass": true
+    }
+  ],
+  "evidence_digest": "7ac5bc487c3bec5e6b224726adf87ff794e96d87ec149f5c9d6963d1c5f8740b",
+  "failure_kind": "unknown",
+  "failure_why": "nincs mért környezeti akadály a nyers eredményben",
+  "ms": 244,
+  "at": "2026-10-11T16:21:30.324Z",
+  "env_skipped": false
+}

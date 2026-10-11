@@ -243,6 +243,29 @@ kockázatáért. **Megmértem és elvetettem.**
 **Ezért a §2 záró szabálya szerint jelentek és megállok: drága teljes láncot ezen az alapon nem
 indítottam.**
 
+### EGY HELYESBÍTÉS A SAJÁT ELEMZÉSEMHEZ: A MUTÁCIÓS FUTÁSOK POOLOZVA MENNEK
+
+A fenti tábla **egy mutációs** egységre igaz, és a `4 × 5 029 ms` szorzás **téves volna**: a
+`runMutationAsync` egy **pool**-ban fut (`POOL = min(16, 4 × vCPU) = 16`), tehát az egy egységbe
+eső mutációk **egyidejűleg** mennek. Ezt az `r55` futása buktatta ki (64 egység, mutációnként
+~4 mutáció), és **mérve**:
+
+| bontás | mutáció / egység | mért egységidő |
+|---|---|---|
+| 253 egység | 1 | **11,1–11,3 s** |
+| 64 egység (`r55`, 792 s / 64) | ~4 | **12,4 s** |
+
+Vagyis a **fix** költség ~**10,9 s**, a **marginális** költség ~**0,43 s/mutáció** — három extra
+mutáció **1,3 s**. Ebből két dolog következik, és mind a kettő fontos:
+
+1. **A fix költség a költségvetés 91%-át elviszi**, mielőtt egyetlen mutációt megmérnénk. Ez a §4
+   (a)–(d) táblájának igazi jelentése.
+2. **A FINOMABB darabolás összességében SOKKAL többet fogyaszt**, mert az alapvonalat egységenként
+   újra kifizetjük: a 253 mutáció **64 egységen 13,2 perc** (mérve: `r55` = 792 s), **253 egységen
+   ~47 perc** — **3,5-szeres**. A legfinomabb bontás tehát az egy egységre eső faliórát csökkenti, a
+   **teljes ráfordítást növeli**; az R195 megállási feltétele helyes volt, de a „legfinomabb" nem
+   egyben a „legkevesebb munka".
+
 ### A MÉRT TELJES EGYSÉGIDŐ — ÉS EGY KIMONDOTT MOZGÓ CÉLPONT
 
 Ugyanazokon a szeleteken, amiket az R195 mért (a legfinomabb bontás, mutációnként egy egység):
@@ -259,10 +282,6 @@ A tartalék **vékony**: 11,1–11,3 s a 12 000 ms-os költségvetés **93–94%
 az R195 gépén ugyanez a szerkezet a költségvetés **fölé** ment. **Más gépre ebből nem következtetek**
 (ugyanaz a korlát, amit az R195 is kimondott), és a fix költség **szerkezete** változatlan: egységenként
 ~6,1 s (a költségvetés **57%-a**) elmegy, mielőtt egyetlen mutációt megmérnénk.
-
-**És egy következmény, amit ki kell mondani:** a FINOMABB darabolás az egy egységre eső falióraidőt
-csökkenti, az **összes ráfordítást viszont NÖVELI** — az alapvonalat egységenként újra kifizetjük.
-253 egységnél ez 253 × ~5,2 s ≈ **22 perc** tiszta fix költség; 64 egységnél ≈ 5,5 perc.
 
 ---
 
@@ -299,9 +318,37 @@ lenyomat kell, a hiány **nevezett** lelet.
 
 ---
 
-## 6. A SOROZAT MAI ÁLLAPOTA
+### `KUKA-486` — a kapu a saját bizonyítéka közzétételét sem élte túl
 
-*(a 7. szakasz tölti ki a programonkénti verdiktet)*
+Ez a **szállítás** lépéséből jött, nem próbából. Kitoltam a 12 programos, horgonyzott, **MAI**
+sorozat bizonyítékát — és az összesítő azonnal `MAI: NEM`-et írt:
+
+```
+git diff --name-only 1f42ae6..661f22f -- 'v3ref/*.mjs' 'v3ref/external-checks/*.mjs'  →  0 fájl
+az összesítő mégis:  fresh=false
+```
+
+A commit **nulla** mért forrás-fájlt érintett (csak `docs/` és `results/`), mert a kötés
+AZONOSSÁGÁBA a **commit-azonosítót** is beletettem. Vagyis **elfogadott sorozat SOHA nem létezhetett
+volna könyvelt állapotban** — a kapu a gyakorlatban használhatatlan volt. A szám, amit mértem, MÁS
+kérdésre felelt („ugyanaz a fa-azonosító?"), mint amire használtam („ugyanaz a MÉRÉS?") — a
+`KUKA-033` alakja a bizonyíték-kapun.
+
+**Javítva:** az azonosság a **mért forrás tartalma** (`bundle_digest` = a `v3ref/*.mjs` köteg BND-01
+lenyomata — pontosan amit a battéria futtat — + manifeszt + futtató + konfiguráció + tisztaság), a
+`commit` pedig **`provenance`**: minden rekordon és a horgonyon ott van a visszakereséshez,
+megtartotta a saját mércéjét (könyvelt 40-hex; a `…+uncommitted` elesik), de **nem azonosság**.
+
+**És az első `EXS16`-alakom sem fogta meg a visszacsúszást:** a fixtúra véletlen alakjára
+illeszkedett, nem a *shape*-re — a `commit` visszatétele a `canonBinding`-ba nem pirosította. Ezért a
+mérce most **közvetlen**: két kötés, ami CSAK egy `commit` mezőben tér el, **ugyanazt** a
+sorozatazonosítót adja (`KUKA-239`).
+
+---
+
+## 6. A SOROZAT MAI ÁLLAPOTA — PROGRAMONKÉNTI VERDIKT
+
+__SERIES_BLOCK__
 
 ---
 

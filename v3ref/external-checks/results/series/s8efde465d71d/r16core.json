@@ -1,0 +1,54 @@
+{
+  "contract": "EXS-01",
+  "series": "s8efde465d71d",
+  "binding": {
+    "bundle_digest": "9e80eefd305960738a2ddbd7c221789b419eaacdf8a9c247336255ecb5a38822",
+    "programs_digest": "e9622db45921f4bedcc0857f44aa86b520beef401ab6a709afb85584c87d3123",
+    "runner_digest": "e859b6cdaca6034936332536476e46ae78e8081d3405987efa5c82fc96243b77",
+    "config_digest": "f0ce4e38338ca820",
+    "clean": true
+  },
+  "provenance": {
+    "commit": "a2060778131c0c42a0d5e59bc9ddad9540d072c9"
+  },
+  "program": "r16core",
+  "program_digest": "58db34b50c85db4ddaf8531cea20176ff8c90a25f91c96493faf743ccdfab0ae",
+  "exit": 0,
+  "ok": true,
+  "cases": [
+    {
+      "id": "repeat-canonical",
+      "pass": true
+    },
+    {
+      "id": "scope-conflict",
+      "pass": true
+    },
+    {
+      "id": "cross-book-write-rejected",
+      "pass": true
+    },
+    {
+      "id": "future-not-in-past",
+      "pass": true
+    },
+    {
+      "id": "calendar-invalid",
+      "pass": true
+    },
+    {
+      "id": "backdate-overflow-atomic",
+      "pass": true
+    },
+    {
+      "id": "unauthorized-object-neutral",
+      "pass": true
+    }
+  ],
+  "evidence_digest": "9f657d3f9123bf915a0d3bade545a6076a29a5d2be3906c62260b84840b4279e",
+  "failure_kind": "unknown",
+  "failure_why": "nincs mért környezeti akadály a nyers eredményben",
+  "ms": 272,
+  "at": "2026-10-11T16:21:28.746Z",
+  "env_skipped": false
+}
