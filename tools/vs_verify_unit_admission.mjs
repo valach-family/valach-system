@@ -108,6 +108,12 @@ const unit = (k, ids) => ({
   // ÚJRA tudja futtatni a `checkNorms`-ot; a fixtúrának ezért hordoznia kell — különben az UAD05
   // helyesen mondja ki, hogy „az őr elavult alakot mérne" (KUKA-051: a mérés nőjön az íróval).
   norm_inputs: { records: [], expectation: { base_digest: 'sha256:x', run_tokens: {}, mutated_digests: {} } },
+  // AZ MBX-01 BATCH-BÉLYEG (R198 §2). Az író kiírja, MELYIK batch megosztott alapvonalát használta
+  // az egység (vagy hogy SAJÁT alapvonallal futott), mert az ÖSSZEFŰZÉS is ellenőrzi a kötést. A
+  // fixtúrának ezért hordoznia kell — az UAD05 helyesen mondta ki, hogy különben „az őr elavult
+  // alakot mérne" (KUKA-051 · KUKA-477: a szerződés-bővítés a fogyasztók TELJES listájára szól).
+  baseline_mode: 'sajat',
+  batch: null,
 });
 const IDS = [['MA1', 'MA2'], ['MB1', 'MB2'], ['MC1', 'MC2']];
 const ALL_IDS = IDS.flat();
