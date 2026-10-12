@@ -1,8 +1,8 @@
 {
   "program": "restated.mjs",
-  "source_commit": "a2060778131c0c42a0d5e59bc9ddad9540d072c9",
+  "source_commit": "579498f630553396882ba01c33813bcd65fadcf2",
   "node": "v22.22.0",
-  "at": "2026-10-11T16:21:34.586Z",
+  "at": "2026-10-12T15:35:41.016Z",
   "cases": [
     {
       "id": "C11-restated",

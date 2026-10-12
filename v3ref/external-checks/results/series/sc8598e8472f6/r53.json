@@ -1,0 +1,34 @@
+{
+  "contract": "EXS-01",
+  "series": "sc8598e8472f6",
+  "binding": {
+    "bundle_digest": "0f9de36606d0298237ba28c76a33a13658330c0b163f1e748140cd2cfe49eefd",
+    "programs_digest": "e9622db45921f4bedcc0857f44aa86b520beef401ab6a709afb85584c87d3123",
+    "runner_digest": "e859b6cdaca6034936332536476e46ae78e8081d3405987efa5c82fc96243b77",
+    "config_digest": "f0ce4e38338ca820",
+    "clean": true
+  },
+  "provenance": {
+    "commit": "a0a4079ba15a2d1a6a4ea2c25af320dbfa7e0c00"
+  },
+  "program": "r53",
+  "program_digest": "cc15e231de13d715f450cab93fc9ffa2adfc53f87b98115c36db62d7dc2ffd64",
+  "exit": 0,
+  "ok": true,
+  "cases": [
+    {
+      "id": "G01",
+      "pass": true
+    },
+    {
+      "id": "G02",
+      "pass": true
+    }
+  ],
+  "evidence_digest": "b249eebcdad01170c574e304022c8801af162263f47e8cb557035da70e56029d",
+  "failure_kind": "unknown",
+  "failure_why": "nincs mért környezeti akadály a nyers eredményben",
+  "ms": 6380,
+  "at": "2026-10-12T15:44:43.088Z",
+  "env_skipped": false
+}

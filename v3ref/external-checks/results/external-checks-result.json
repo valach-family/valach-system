@@ -1,8 +1,8 @@
 {
-  "at": "2026-10-12T15:35:39.386Z",
+  "at": "2026-10-12T15:44:43.087Z",
   "node": "v22.22.0",
   "source": {
-    "commit": "19ba12fcdedf43316895eb32bca5601daf98b5c2",
+    "commit": "a0a4079ba15a2d1a6a4ea2c25af320dbfa7e0c00",
     "clean": true,
     "dirty_files": [],
     "note": "a lemásolt forrás a könyvelt állapoton áll"
@@ -11,7 +11,7 @@
     "complete": false,
     "scope": "partial",
     "ran": [
-      "r57"
+      "r53"
     ],
     "skipped": [
       "r16core",
@@ -30,212 +30,78 @@
       "r59a",
       "r57a",
       "r59",
-      "r55",
-      "r53"
+      "r57",
+      "r55"
     ],
     "why": "RÉSZLEGES futás (--only): ez NEM a lánc teljes bizonyítéka, csak a megnevezett programé"
   },
   "verdict": {
-    "ok": false,
+    "ok": true,
     "complete_evidence": false,
-    "green": 0,
+    "green": 1,
     "env_skipped": 0,
     "of": 1
   },
   "programs": [
     {
-      "id": "r57",
-      "file": "r57_chatgpt-v3.mjs",
-      "by": "chatgpt-v3 — KÜLSŐ, független fél",
-      "origin": "R57 (változatlanul, ahogy a boardon érkezett)",
-      "program_digest": "5ce2ad7bafd1ca0154a580c1673259586b75e086efb53d130ada1336b6b490e5",
+      "id": "r53",
+      "file": "r53_f03_restated.mjs",
+      "by": "Claude-v3 — a SAJÁT sávunk (önvizsgálat)",
+      "origin": "R54",
+      "program_digest": "cc15e231de13d715f450cab93fc9ffa2adfc53f87b98115c36db62d7dc2ffd64",
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 52220,
-      "failure_kind": "wall_clock_timeout",
-      "failure_why": "MÉRT időtúllépés (2 eset: E02 · E03) — minden más eset zöld (kivéve a bejelentett szabályváltás miatt bukó T01 · T02 · T05 — R63, ok: invite_without_basis), és a mért futásidő (52220 ms) elérte a bejelentett belső korlátot (15000 ms)",
+      "ms": 6380,
+      "failure_kind": "unknown",
+      "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
         {
-          "id": "T01",
-          "kind": "rule_superseded",
-          "why": null
-        },
-        {
-          "id": "T02",
-          "kind": "rule_superseded",
-          "why": null
-        },
-        {
-          "id": "T03",
+          "id": "G01",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "T04",
-          "kind": "ok",
-          "why": null
-        },
-        {
-          "id": "T05",
-          "kind": "rule_superseded",
-          "why": null
-        },
-        {
-          "id": "E01",
-          "kind": "ok",
-          "why": null
-        },
-        {
-          "id": "E02",
-          "kind": "wall_clock_timeout",
-          "why": "Error: spawnSync /opt/node22/bin/node ETIMEDOUT"
-        },
-        {
-          "id": "E03",
-          "kind": "wall_clock_timeout",
-          "why": "Error: spawnSync /opt/node22/bin/node ETIMEDOUT"
-        },
-        {
-          "id": "E04",
+          "id": "G02",
           "kind": "ok",
           "why": null
         }
       ],
       "failure_witness_limit": null,
-      "failure_witness_basis": "esetenkénti bizonyíték: minden bukott eset időtúllépést mond, és bármely más kudarc-fajta VALÓDI eset-hibára vitte volna (otherBad · unexplained)",
+      "failure_witness_basis": null,
       "expected_cases": [
-        "T01",
-        "T02",
-        "T03",
-        "T04",
-        "T05",
-        "E01",
-        "E02",
-        "E03",
-        "E04"
+        "G01",
+        "G02"
       ],
-      "expected_from": "a külső fél R57-es kísérő lapja („T01–T05 · E01–E04\")",
-      "evidence_file": "r56-challenge.json",
+      "expected_from": "az R54-es körünk jegyzőkönyve (támadás + ellenpár)",
+      "evidence_file": "f03-restated.json",
       "evidence_present": true,
-      "evidence_pin": "19ba12fcdedf43316895eb32bca5601daf98b5c2",
-      "total": 9,
+      "evidence_pin": "a0a4079ba15a2d1a6a4ea2c25af320dbfa7e0c00",
+      "total": 2,
       "case_rows": [
         {
-          "id": "T01",
-          "pass": false
-        },
-        {
-          "id": "T02",
-          "pass": false
-        },
-        {
-          "id": "T03",
+          "id": "G01",
           "pass": true
         },
         {
-          "id": "T04",
-          "pass": true
-        },
-        {
-          "id": "T05",
-          "pass": false
-        },
-        {
-          "id": "E01",
-          "pass": true
-        },
-        {
-          "id": "E02",
-          "pass": false
-        },
-        {
-          "id": "E03",
-          "pass": false
-        },
-        {
-          "id": "E04",
+          "id": "G02",
           "pass": true
         }
       ],
       "present": [
-        "T01",
-        "T02",
-        "T03",
-        "T04",
-        "T05",
-        "E01",
-        "E04"
+        "G01",
+        "G02"
       ],
-      "missing": [
-        "E02",
-        "E03"
-      ],
+      "missing": [],
       "unknown": [],
       "duplicate": [],
-      "failed": [
-        "T01",
-        "T02",
-        "T05",
-        "E02",
-        "E03"
-      ],
-      "problems": [
-        "[r57] 7. eset (E02): a `pass` nem logikai érték (HIÁNYZIK)",
-        "[r57] 8. eset (E03): a `pass` nem logikai érték (HIÁNYZIK)",
-        "[r57] HIÁNYZÓ eset: E02 · E03 — a program nem futott végig, vagy nem az futott, amit hívtunk",
-        "[r57] ELBUKOTT eset: T01 · T02 · T05 · E02 · E03",
-        "[r57] a környezeti kihagyás NEM áll: a megnevezett helyettes (r57a) ebben a futásban NEM futott"
-      ],
-      "ok": false,
-      "saved": "/home/user/valach-system/v3ref/external-checks/results/r57_r56-challenge.json",
-      "stderr": [
-        "(node:5922) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
-        "(Use `node --trace-warnings ...` to show where the warning was created)"
-      ],
+      "failed": [],
+      "problems": [],
+      "ok": true,
+      "saved": "/home/user/valach-system/v3ref/external-checks/results/r53_f03-restated.json",
+      "stderr": [],
       "error": null,
-      "child_trace": {
-        "status": 0,
-        "signal": null,
-        "spawn_error_code": null,
-        "elapsed_ms": 52220,
-        "stderr_tail": [
-          "(node:5922) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
-          "(Use `node --trace-warnings ...` to show where the warning was created)"
-        ],
-        "stdout_tail": [
-          "    \"id\": \"T05\",",
-          "    \"pass\": false",
-          "  },",
-          "  {",
-          "    \"id\": \"E01\",",
-          "    \"pass\": true",
-          "  },",
-          "  {",
-          "    \"id\": \"E02\",",
-          "    \"test_error\": \"Error: spawnSync /opt/node22/bin/node ETIMEDOUT\\n    at Object.spawnSync (node:internal/child_process:1120:20)\\n    at spawnSync (node:child_process:902:24)\\n    at run (file:///tmp/v3ref-ext-rSOTcg/r57_chatgpt-v3.mjs:17:43)\\n    at file:///tmp/v3ref-ext-rSOTcg/r57_chatgpt-v3.mjs:43:504\\n    at copy (file:///tmp/v3ref-ext-rSOTcg/r57_chatgpt-v3.mjs:15:136)\\n    at file:///tmp/v3ref-ext-rSOTcg/r57_chatgpt-v3.mjs:43:272\\n    at add (file:///tmp/v3ref-ext-rSOTcg/r57_chatgpt-v3.mjs:14:73)\\n    at file:///tmp/v3ref-ext-rSOTcg/r57_chatgpt-v3.mjs:43:252\"",
-          "  },",
-          "  {",
-          "    \"id\": \"E03\",",
-          "    \"test_error\": \"Error: spawnSync /opt/node22/bin/node ETIMEDOUT\\n    at Object.spawnSync (node:internal/child_process:1120:20)\\n    at spawnSync (node:child_process:902:24)\\n    at run (file:///tmp/v3ref-ext-rSOTcg/r57_chatgpt-v3.mjs:17:43)\\n    at file:///tmp/v3ref-ext-rSOTcg/r57_chatgpt-v3.mjs:43:504\\n    at copy (file:///tmp/v3ref-ext-rSOTcg/r57_chatgpt-v3.mjs:15:136)\\n    at file:///tmp/v3ref-ext-rSOTcg/r57_chatgpt-v3.mjs:43:272\\n    at add (file:///tmp/v3ref-ext-rSOTcg/r57_chatgpt-v3.mjs:14:73)\\n    at file:///tmp/v3ref-ext-rSOTcg/r57_chatgpt-v3.mjs:43:252\"",
-          "  },",
-          "  {",
-          "    \"id\": \"E04\",",
-          "    \"pass\": true",
-          "  }",
-          "]"
-        ],
-        "truncated": {
-          "stderr_lines": 2,
-          "stdout_lines": 38
-        }
-      },
-      "env_obstacle": {
-        "excusable": false,
-        "why": "a megnevezett helyettes (r57a) ebben a futásban NEM futott",
-        "declared_kind": "wall_clock_timeout",
-        "measured_kind": "wall_clock_timeout"
-      }
+      "child_trace": null
     }
   ]
 }
