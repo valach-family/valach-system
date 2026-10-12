@@ -18051,6 +18051,82 @@ Object.freeze({
     ],
     forbidden: [],
   }),
+  Object.freeze({
+    id: 'KUKA-487',
+    date: '2026-10-12',
+    title: 'A SAJÁT ELLENPRÓBÁM A MÓDOSÍTOTT BEMENET MELLÉKHATÁSÁRA TÜZELT, NEM A VIZSGÁLT MECHANIZMUSRA',
+    what: 'Az `MBX02` (a piros/hiányos alapvonal ellenpróbája) minden rossz alapvonal-alakhoz a '
+      + 'MÓDOSÍTOTT bizonyíték-bájtokat adta be, a horgonyban viszont az ÉP lenyomat maradt. Az '
+      + 'állítás pedig csak annyi volt, hogy a kapu `ok === false`-ot ad.',
+    why_wrong: 'A módosított bájtok miatt a LENYOMAT-ELTÉRÉS is tüzelt — tehát a próba zöld volt '
+      + 'akkor is, ha az alapvonal-érvényesség ellenőrzése már nem működött. MÉRVE a saját '
+      + 'próbapadomon: a `b.ok !== true` kapu visszacsúsztatásakor az `MBX02` NEM tüzelt, csak az '
+      + 'átfogó, élő `MBX09` — vagyis a SPECIFIKUS őr elhallgatott, és a diagnózis az átfogó '
+      + 'próbára maradt. Ez a `KUKA-483` osztálya: a jel MÁS mechanizmussal is kielégíthető volt, '
+      + 'mint amit vizsgál (`KUKA-207` · `KUKA-239`).',
+    replaced_by: 'A horgony KÖVETI a módosított bájtokat (a lenyomat a bemenetből számolódik), tehát '
+      + 'az EGYETLEN mechanizmus, ami bukhat, a vizsgált alapvonal-érvényesség. Minden eset a SAJÁT '
+      + 'nevezett mondatára illeszkedik, nem a puszta `ok === false`-ra, és egy külön állítás '
+      + 'KIMONDJA, hogy a lenyomat-eltérés NEM lehet az ok.',
+    replacement: 'AZ ELLENPRÓBA ZÁRJA KI A MELLÉKHATÁST: a rontás csak a vizsgált mechanizmust '
+      + 'érintse, és az állítás a SAJÁT nevezett jelére illeszkedjen — különben egy másik őr zöldje '
+      + 'fedi el a sajátja hallgatását.',
+    decision: 'D-VS-3261',
+    found_by: 'SAJÁT lelet (Claude-v3, R198) — a tíz visszacsúsztatásos ellenpróba MÉRÉSE hozta ki: '
+      + 'a „tüzelt" oszlopban a (2) sornál csak az átfogó `MBX09` szerepelt, a specifikus `MBX02` nem.',
+    lesson: 'AMIKOR EGY ELLENPRÓBA A BEMENETET RONTJA, A RONTÁS MELLÉKHATÁSAIT IS KI KELL ZÁRNI. Egy '
+      + 'bemenet-változtatás több kaput is megmozgathat; ha az állítás a leggyengébb („valami bukott"), '
+      + 'akkor a próba a saját tárgyának elhallgatását sem veszi észre.',
+    guard_note: 'gépi jel: `npm run verify:mutation-batch` (`MBX02`) — a horgony a bemenetből számolt '
+      + 'lenyomattal áll, minden eset a saját mondatára illeszkedik, és egy állítás kizárja, hogy a '
+      + 'lenyomat-eltérés legyen az ok. Visszacsúsztatásra MÉRVE tüzel.',
+    home: 'v3',
+    positive: [
+      { paths: ['tools/vs_verify_mutation_batch.mjs'], pattern: 'const anchorFor = \\(bytes\\) =>', why: 'a horgony a MÓDOSÍTOTT bemenetből számolja a lenyomatot — a mellékhatás kizárva' },
+      { paths: ['tools/vs_verify_mutation_batch.mjs'], pattern: 'fedte el a vizsgált mechanizmust', why: 'külön állítás mondja ki, hogy a lenyomat-eltérés nem lehet az ok' },
+    ],
+    forbidden: [],
+  }),
+  Object.freeze({
+    id: 'KUKA-488',
+    date: '2026-10-12',
+    title: 'A MEGSZAKÍTOTT KÍSÉRLET „EL NEM INDULT"-KÉNT KERÜLT A JELENTÉSBE',
+    what: 'Az R197-ben az `r79` külső programot elindítottam, majd a SAJÁT 1500 s-os eszköz-korlátom '
+      + 'megszakította (kilépés 124). Rekord nem keletkezett róla, és a jelentésem a programonkénti '
+      + 'verdiktben „el nem indult" kategóriába tette.',
+    why_wrong: 'A kettő NEM ugyanaz: az „el nem indult" azt állítja, hogy meg sem kíséreltük; a '
+      + '„megszakadt" azt, hogy FUT, és a verdiktjét nem tudjuk. A megszakadás NEM termékhiba és NEM '
+      + 'siker (R198 §4) — és a különbség a következő kör döntését befolyásolja: egy el nem indult '
+      + 'programhoz elég elindítani, egy megszakadt kísérlethez MEGFELELŐ IDŐKERET kell. A hiba a '
+      + 'MÉRÉS könyvelésében volt: a kategória a rekord MEGLÉTÉBŐL következett, nem az INDULÁS '
+      + 'tényéből (a `KUKA-206` rokona: a „nem futott" nem „részben", de a „megszakadt" sem „nem indult").',
+    replaced_by: 'A saját indítási napló a GYERMEK ELŐTT ír (`attempts.jsonl`, append-only): egy sor '
+      + 'az indulásról (`started`), egy a befejezésről (`finished`). A pár nélküli `started` sor a '
+      + 'MEGSZAKADT kísérlet gépi jele, tehát a szülő kényszerű leállása után a nyitott kísérlet '
+      + 'helyreállításkor is FELISMERHETŐ. A `readAttempts` HÁROM állapotot ad: `befejezett` · '
+      + '`megszakadt` · `el_nem_indult`, és a csonka utolsó sor `olvashatatlan`-ként NEVEZETTEN '
+      + 'jelenik meg, nem némán eltűnve.',
+    replacement: 'A KATEGÓRIA AZ INDULÁS TÉNYÉBŐL JÖN, NEM A RÉSZLETES EREDMÉNY MEGLÉTÉBŐL. Aki '
+      + 'kísérletet indít, azt a kísérlet ELŐTT jegyezze fel — különben a megszakadás „meg sem '
+      + 'próbáltuk"-nak látszik.',
+    decision: 'D-VS-3261',
+    found_by: 'chatgpt-v3 (R198 §4) — a külső ellenőrző fél olvasta az R197 jelentését, és kimondta: '
+      + '*„Az R197-ben az r79 elindult, majd időkorláttal megszakadt: ez nem »el nem indult«."*',
+    lesson: 'HÁROM ÁLLAPOT VAN, NEM KETTŐ: befejezett · MEGSZAKADT · el nem indult. A középsőt csak '
+      + 'akkor lehet kimondani, ha az indulást az indítás ELŐTT feljegyezzük; utólag, a hiányzó '
+      + 'eredményből visszafejteni nem lehet — és a hiányzó eredmény a két szélső állapotban is ugyanaz.',
+    guard_note: 'gépi jel: `npm run verify:mutation-batch` (`MBX06`) — a pár nélküli `started` sor '
+      + 'MEGSZAKADT-ként ismerszik fel, az el nem indult külön marad, a csonka sor nevezetten '
+      + 'jelenik meg, és a szülő leállása utáni nyitott kísérlet is felismerhető (`MBX07`: a terven '
+      + 'kívüli naplósor sem vész el).',
+    home: 'v3',
+    positive: [
+      { paths: ['v3ref/mutationBatch.mjs'], pattern: 'export function readAttempts\\(', why: 'a napló HÁROM állapotot ad, nevezett feloldóban' },
+      { paths: ['v3ref/mutationBatch.mjs'], pattern: 'megszakadt', why: 'a MEGSZAKADT kísérletnek SAJÁT neve van — nincs mibe beolvadni' },
+      { paths: ['v3ref/mutate.mjs'], pattern: "state: 'started'", why: 'a napló a GYERMEK ELŐTT ír' },
+    ],
+    forbidden: [],
+  }),
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

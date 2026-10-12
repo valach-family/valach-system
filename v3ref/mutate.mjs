@@ -37,14 +37,22 @@
 //
 // A (b) az egyetlen dolog, ami miatt a többi számnak van értéke. Ezért fut mindig, nem kapcsolóra.
 
-import { cpSync, readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync, readdirSync } from 'node:fs';
+import { cpSync, readFileSync, writeFileSync, appendFileSync, mkdtempSync, mkdirSync, rmSync, readdirSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
-import { join, dirname } from 'node:path';
+import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { spawnSync, spawn } from 'node:child_process';
 import { availableParallelism } from 'node:os';
 import { digestOfBundle } from './bundleDigest.mjs';
+// MBX-01 — AZ EGYSZER MÉRT ALAPVONAL EGY RÖGZÍTETT MÉRÉSI CSOMAGHOZ (R198 §2). A kapu döntése
+// TISZTA FÜGGVÉNY, hogy a próba közvetlenül hívhassa (KUKA-207).
+import {
+  BATCH_CONTRACT, BATCH_ANCHOR_FILE, BATCH_BASELINE_FILE, BATCH_ATTEMPTS_FILE,
+  batchRunnerDigest, batchConfigDigest, batchRuntimeDigest, batchId, makeBatchAnchor,
+  verifyBatchForUnit, evidenceDigest, attemptLine, readAttempts, canonBaseline,
+  batchBindingMismatch,
+} from './mutationBatch.mjs';
 
 const REF = dirname(fileURLToPath(import.meta.url));
 let BASE_DIGEST = null;   // az ALAP (mutálatlan) forrás lenyomata — az alapvonal-kapu tölti fel
@@ -628,6 +636,13 @@ function runMutation(m, knownProbes) {
 const EXTERNAL_WALL_LIMIT_MS = 15000;
 const WALL_BUDGET_MS = Math.round(EXTERNAL_WALL_LIMIT_MS * 0.8);
 const UNIT_ARG = process.argv.find((a) => a.startsWith('--unit='));
+// A MEGOSZTOTT ALAPVONAL CSAK NEVEZETT BATCHBEN HASZNÁLHATÓ (R198 §2/4). `--batch=<könyvtár>`
+// NÉLKÜL a viselkedés VÁLTOZATLAN: az egység maga futtatja az alapvonalát — a régi, önállóan
+// indított hívás (így a külső programok hívásai is) a RÉGI úton marad.
+const BATCH_ARG = (() => {
+  const a = process.argv.find((x) => x.startsWith('--batch='));
+  return a ? a.slice('--batch='.length) : null;
+})();
 const MERGE_ONLY = process.argv.includes('--merge');
 const UNITS_DIR = join(REF, 'units');
 const UNIT = (() => {
@@ -640,6 +655,51 @@ const UNIT = (() => {
 })();
 /** A felosztás DETERMINISZTIKUS és körbeforgó: az egységek költsége így hasonló marad. */
 const sliceFor = (k, n) => MUTATIONS.filter((_, i) => i % n === k - 1);
+
+/** A gyermek SAJÁT mérése a batch-kötésről — ugyanaz a szabály, amit a szülő is hív (KUKA-003). */
+function measuredBatchBinding(units) {
+  return {
+    source_digest: String(digestOfBundle(REF.replace(/\/v3ref$/, ''))).replace(/^sha256:/, ''),
+    runner_digest: batchRunnerDigest(REF),
+    programs_digest: createHash('sha256').update(readFileSync(join(REF, 'manifest.mjs'))).digest('hex'),
+    config_digest: batchConfigDigest({ units, unit_budget_ms: WALL_BUDGET_MS, external_cap_ms: EXTERNAL_WALL_LIMIT_MS }),
+    runtime_digest: batchRuntimeDigest({
+      node_major: process.version.split('.')[0], platform: process.platform, arch: process.arch,
+    }),
+  };
+}
+
+const batchDir = join(REF, 'units', '.batch');
+function prepareBatch(units) {
+  rmSync(batchDir, { recursive: true, force: true });
+  mkdirSync(batchDir, { recursive: true });
+  const slices = {};
+  for (let k = 1; k <= units; k += 1) slices[String(k)] = sliceFor(k, units).map((m) => m.id);
+  const binding = measuredBatchBinding(units);
+  const plan = { units, mutation_count: MUTATIONS.length, slices };
+  const t0 = Date.now();
+  const b = baselineGate();
+  const ms = Date.now() - t0;
+  if (!b.ok) {
+    console.error(`  A BATCH-ALAPVONAL PIROS — ${b.why}`);
+    console.error('  HIBÁS ALAPVONAL UTÁN NINCS MUTÁCIÓS ELFOGADÁS (R198 §2): a batch NEM indul.');
+    process.exit(2);
+  }
+  const evidence = `${JSON.stringify({
+    contract: BATCH_CONTRACT, ok: true, probes: b.probes, records: b.records,
+    digest: b.digest, ms, at: new Date().toISOString(),
+  }, null, 2)}\n`;
+  writeFileSync(join(batchDir, BATCH_BASELINE_FILE), evidence);
+  const anchor = makeBatchAnchor({
+    binding, plan,
+    baseline_evidence_digest: evidenceDigest(Buffer.from(evidence)),
+    recorded_by: 'mutate.mjs --units-auto',
+  });
+  writeFileSync(join(batchDir, BATCH_ANCHOR_FILE), `${JSON.stringify(anchor, null, 2)}\n`);
+  console.log(`  BATCH ${anchor.batch_id} (${BATCH_CONTRACT}) — az ALAPVONAL EGYSZER futott: `
+    + `${b.probes.length} próba, mind PASS, ${ms} ms. A ${units} egység EHHEZ mér.`);
+  return { anchor, ms };
+}
 
 // ── A DARABSZÁM SZÁRMAZTATVA, NEM KÉZZEL (`--units-auto`, R32/§B3) ──────────────────────────────
 //
@@ -658,6 +718,30 @@ const sliceFor = (k, n) => MUTATIONS.filter((_, i) => i % n === k - 1);
 //
 // ÉS A MEGÁLLÁS VÉGES ÉS NEM NÉMA: ha a legfinomabb felosztás sem fér bele, a kilépés NEM 0 — a mérés
 // akkor hiányos, nem zöld (KUKA-093). Próbálkozás-számláló nem kell: a terv maga véges.
+/**
+ * A SZÜLŐ-LÉPÉS ÖNÁLLÓAN (MBX-01 · R198 §2): `--batch-prepare=<egység-szám>`.
+ *
+ * Ez NEM teszt-kapu, hanem a batch-szerződés szülő-lépése kimondva: megméri a kötést, rögzíti a
+ * TELJES tervezett egység-/mutációkészletet, EGYSZER lefuttatja a teljes alapvonalat, és a
+ * bizonyítékot meg a horgonyt lemezre írja. Így a batch előkészítése és az egységek futtatása
+ * KÜLÖN is elvégezhető — ugyanazon a szerződésen, ugyanazzal a kapuval.
+ */
+{
+  const prep = process.argv.find((a) => a.startsWith('--batch-prepare='));
+  if (prep) {
+    const units = Number(prep.slice('--batch-prepare='.length));
+    if (!Number.isInteger(units) || units < 1) {
+      console.error(`--batch-prepare alakja: <egész ≥ 1> (kapott: ${JSON.stringify(prep)})`);
+      process.exit(2);
+    }
+    const r = prepareBatch(units);
+    console.log(`  BATCH-KÖNYVTÁR: ${batchDir}`);
+    console.log(`  AZ EGYSÉGEK ÍGY FUTNAK: node v3ref/mutate.mjs --unit=<k>/${units} --batch=${batchDir}`);
+    console.log(`  ALAPVONAL: 1 tényleges futás · ${r.ms} ms`);
+    process.exit(0);
+  }
+}
+
 if (process.argv.includes('--units-auto')) {
   const self = fileURLToPath(import.meta.url);
   const runNode = (args) => spawnSync(process.execPath, [self, ...args], { stdio: 'inherit' });
@@ -699,7 +783,27 @@ if (process.argv.includes('--units-auto')) {
   let n = plan[0];
   console.log(`  A DARABOLÁS TERVE (VÉGES): ${plan.join(' → ')} egység · a kezdő szám a közös otthonból, `
     + `a cél a legfinomabb megengedett, NEM ÜRES felosztás (${home.finestUnits(MUTATIONS.length)}).`);
+  /**
+   * A BATCH ELŐKÉSZÍTÉSE — A MEGBÍZHATÓ SZÜLŐ EGYSZER MÉR (MBX-01 · R198 §2).
+   *
+   * MIÉRT ITT. A régi szerződésben MINDEN egység-gyermek újra lefuttatta a teljes, mutálatlan
+   * alapvonalat. MÉRVE (üres szelet, `--unit=254/254`): 4 254 és 5 526 ms — ennyit fizet ki minden
+   * egység, mielőtt egyetlen mutációt megmérne. A chatgpt-v3 az R198 §0-ban KIZÁRÓLAG erre a
+   * saját vezérlésű batch módra oldotta fel az R196-os tilalmát.
+   *
+   * A SZÜLŐ EZÉRT: (1) megméri a kötést, (2) rögzíti a TELJES tervezett egység-/mutációkészletet,
+   * (3) TÉNYLEGESEN lefuttatja a teljes alapvonalat, (4) a bizonyítékot LEMEZRE írja, és (5) a
+   * horgonyt a bizonyíték ÚJRASZÁMOLT lenyomatával együtt rögzíti. A gyermek ehhez mér.
+   *
+   * ÉS AZ EGYSZERI ELŐKÉSZÍTÉS NEM TŰNIK EL AZ ELSZÁMOLÁSBÓL (R198 §2): a saját ideje külön
+   * kiíródik, és a batch teljes ideje is.
+   */
+
   let attempt = 0; let lastTooSlow = null;
+  let batch = prepareBatch(n);
+  let baselineMsTotal = batch.ms; let baselineRuns = 1;
+  const batchT0 = Date.now();
+  let unitsMsTotal = 0;
   for (;;) {
     attempt += 1;
     let tooSlow = null;
@@ -707,7 +811,17 @@ if (process.argv.includes('--units-auto')) {
       // A TANÚ FRISSESSÉGE A GYERMEK INDULÁSÁHOZ MÉRVE (UFK-02, R35/F35-01): egy KORÁBBI futás
       // egység-fájlja nem indokolhatja az ÚJ, sikertelen futás újradarabolását.
       const startedAt = Date.now();
-      const r = runNode([`--unit=${k}/${n}`]);
+      // AZ INDÍTÁSI NAPLÓ A GYERMEK ELŐTT ÍR (R198 §4). Az R197-ben az `r79` ELINDULT, majd az én
+      // eszköz-korlátom megszakította — és a jelentésem „el nem indult"-ként sorolta be, mert
+      // rekord nem keletkezett róla. A kettő NEM ugyanaz: a `started` sor PÁR NÉLKÜL marad, ha a
+      // szülőt leállítják, tehát a MEGSZAKADT kísérlet helyreállításkor is FELISMERHETŐ.
+      appendFileSync(join(batchDir, BATCH_ATTEMPTS_FILE),
+        attemptLine({ batch_id: batch.anchor.batch_id, unit: `${k}/${n}`, state: 'started' }));
+      const r = runNode([`--unit=${k}/${n}`, `--batch=${batchDir}`]);
+      const unitMs = Date.now() - startedAt;
+      unitsMsTotal += unitMs;
+      appendFileSync(join(batchDir, BATCH_ATTEMPTS_FILE),
+        attemptLine({ batch_id: batch.anchor.batch_id, unit: `${k}/${n}`, state: 'finished', exit: r.status, ms: unitMs }));
       if (r.status !== 0) {
         // A NEM-NULLA kilépés KÉT dolgot jelenthet: tartalmi bukás vagy idő-túllépés. A kettőt a
         // MÉRT egység-fájl különbözteti meg — nem a kilépési kód (KUKA-049).
@@ -746,12 +860,40 @@ if (process.argv.includes('--units-auto')) {
     n = step.next;
     console.error(`  A ${lastTooSlow.k}/${lastTooSlow.n} szelet nem fért a költségvetésbe `
       + `(${lastTooSlow.ms ?? '?'} ms) — ${step.why}.`);
+    // ÚJRAINDÍTOTT BATCH = ÚJ ALAPVONAL (R198 §2). A finomítás MÁS egység-/mutációkészletet és más
+    // konfigurációt ad, tehát a régi horgony kötése már nem erre a futásra szól — a régi alapvonalat
+    // NEM örökítjük át (ez volna a „feltétel nélkül átvett PASS-cache", amit a §0 tilt).
+    batch = prepareBatch(n);
+    baselineMsTotal += batch.ms; baselineRuns += 1;
   }
   if (n !== plan[0]) {
     console.log(`  MEGJEGYZÉS: a terv ${plan[0]} egységgel indult, de ezen a gépen ${n} kellett `
       + '— a költségvetés változatlan, a darabolás finomabb.');
   }
-  const m = runNode(['--merge']);
+  /**
+   * A BATCH ELSZÁMOLÁSA — AZ EGYSZERI ELŐKÉSZÍTÉS NEM TŰNHET EL (R198 §2).
+   *
+   * Három szám, külön: az ALAPVONAL(ok) teljes ideje · az EGYSÉGEK teljes ideje · a batch elejétől
+   * a végéig mért TELJES idő. A régi szerződésben az alapvonal MINDEN egységbe beszámított; itt
+   * egyszer (vagy a finomítás után újra) fut, és a különbség KI VAN MONDVA.
+   */
+  const batchMs = Date.now() - batchT0;
+  const attempts = readAttempts(
+    (() => { try { return readFileSync(join(batchDir, BATCH_ATTEMPTS_FILE), 'utf8'); } catch { return ''; } })(),
+    Array.from({ length: n }, (_, i) => `${i + 1}/${n}`),
+  );
+  console.log('');
+  console.log(`  BATCH ELSZÁMOLÁS (${BATCH_CONTRACT} · ${batch.anchor.batch_id}):`);
+  console.log(`    ALAPVONAL:  ${baselineRuns} tényleges futás · ${baselineMsTotal} ms (a régi szerződésben ez ${n}× futott volna)`);
+  console.log(`    EGYSÉGEK:   ${n} egység · ${unitsMsTotal} ms`);
+  console.log(`    TELJES:     ${batchMs} ms (a batch elejétől a végéig, az előkészítéssel együtt)`);
+  console.log(`    KÍSÉRLETEK: befejezett ${attempts.befejezett.length} · MEGSZAKADT ${attempts.megszakadt.length} · `
+    + `el nem indult ${attempts.el_nem_indult.length}`
+    + `${attempts.olvashatatlan.length ? ` · olvashatatlan napló-sor ${attempts.olvashatatlan.length}` : ''}`);
+  if (attempts.megszakadt.length) {
+    console.log(`    A MEGSZAKADT kísérlet NEM „el nem indult" és NEM termékhiba: ${attempts.megszakadt.join(' · ')}`);
+  }
+  const m = runNode(['--merge', `--batch=${batchDir}`]);
   process.exit(m.status === null ? 1 : m.status);
 }
 
@@ -769,6 +911,53 @@ if (MERGE_ONLY) {
     try { units.push({ file: f, ...JSON.parse(readFileSync(join(UNITS_DIR, f), 'utf8')) }); }
     catch (e) { problems.push(`olvashatatlan egység-fájl: ${f} — ${e.message}`); }
   }
+  /**
+   * A BATCH-KÖTÉS AZ ÖSSZEFŰZÉSNÉL IS (MBX-01 · R198 §2: *„összefűzéskor is ellenőrizni kell a
+   * kötést"*).
+   *
+   * Amit mér: (1) a MEGOSZTOTT alapvonalú egységek MIND ugyanabból a batchből jönnek; (2) ha a
+   * szülő átadta a horgonyt (`--batch`), akkor a bélyeg ahhoz is illeszkedik, mezőnként; (3) a
+   * megosztott és a SAJÁT alapvonalú egységek nem keverednek egy készletben — az első a batch
+   * egyszeri alapvonalára támaszkodik, a második a sajátjára, és a kettő együtt nem EGY mérés.
+   *
+   * Enélkül két külön batch egységei összeválogathatók volnának, és az összefűzés verdiktje a
+   * sorrendtől függne, nem a bizonyítéktól (`KUKA-121` · `KUKA-206`).
+   */
+  {
+    const shared = units.filter((u) => u.baseline_mode === 'megosztott');
+    const own = units.filter((u) => u.baseline_mode !== 'megosztott');
+    if (shared.length && own.length) {
+      problems.push(`a készlet MEGOSZTOTT és SAJÁT alapvonalú egységeket is tartalmaz `
+        + `(${shared.length} + ${own.length}) — a kettő nem EGY mérés`);
+    }
+    const ids = [...new Set(shared.map((u) => String((u.batch && u.batch.batch_id) || '')))];
+    if (ids.length > 1) {
+      problems.push(`a megosztott alapvonalú egységek ${ids.length} KÜLÖNBÖZŐ batchből jönnek `
+        + `(${ids.join(' · ')}) — külön batchek egységei nem válogathatók össze`);
+    }
+    for (const u of shared) {
+      if (!u.batch || u.batch.contract !== BATCH_CONTRACT) {
+        problems.push(`[${u.file}] megosztott alapvonalat állít, de a batch-bélyege hiányzik vagy idegen szerződés`);
+      }
+    }
+    if (BATCH_ARG) {
+      let anchor = null;
+      try { anchor = JSON.parse(readFileSync(join(resolve(BATCH_ARG), BATCH_ANCHOR_FILE), 'utf8')); } catch { anchor = null; }
+      if (!anchor) problems.push('a szülő batch-horgonya nem olvasható az összefűzésnél');
+      else {
+        for (const u of shared) {
+          if (!u.batch) continue;
+          if (String(u.batch.batch_id) !== String(anchor.batch_id)) {
+            problems.push(`[${u.file}] IDEGEN batch: ${u.batch.batch_id} ≠ a szülő horgonya ${anchor.batch_id}`);
+            continue;
+          }
+          const mm = batchBindingMismatch(u.batch.binding, anchor.binding);
+          if (mm.length) problems.push(`[${u.file}] a batch-kötése nem a horgonyé: ${mm.join(' · ')}`);
+        }
+      }
+    }
+  }
+
   // ── A BEADVÁNY-KAPU (MRG-01, R81/F01–F03) ────────────────────────────────────────────────────
   //
   // MI VÁLTOZOTT ÉS MIÉRT. A régi alak az egység SAJÁT ÖSSZEFOGLALÓIT vette mérésnek: a
@@ -1075,10 +1264,57 @@ console.log('V3 MAGREFERENCIA — MUTÁCIÓS PRÓBA (G6)');
 console.log('='.repeat(78));
 if (UNIT) console.log(`  EGYSÉG: ${UNIT.k}/${UNIT.n} — a mutációk ${Math.ceil(MUTATIONS.length / UNIT.n)} darabos szelete (RUN-02)`);
 
-const base = baselineGate();
+/**
+ * AZ ALAPVONAL: MEGOSZTOTT (MBX-01) VAGY SAJÁT — ÉS A HATÁR GÉPI (R198 §2).
+ *
+ * `--batch=<könyvtár>` NÉLKÜL a viselkedés VÁLTOZATLAN: ez az egység maga futtatja a teljes
+ * alapvonalát. Batchben a gyermek a SZÜLŐ horgonyához és a LEMEZEN álló alapvonal-bizonyítékhoz
+ * mér — és csak akkor használja, ha mind a hét feltétel áll. Ha BÁRMELYIK nem: NEVEZETT hiba és
+ * NEM-NULLA kilépés, mutációs elfogadás nélkül (`KUKA-093`: a kihagyás nem zöld).
+ *
+ * EGYSÉG NEM IGAZOLHATJA ÖNMAGÁT: a várt kötést a horgony hordozza, a gyermek a SAJÁT mérését adja
+ * be, és a bizonyíték lenyomatát a gyermek ÚJRASZÁMOLJA a fájlból (`KUKA-121`).
+ */
+function sharedBaseline() {
+  const dir = resolve(BATCH_ARG);
+  const anchorPath = join(dir, BATCH_ANCHOR_FILE);
+  const basePath = join(dir, BATCH_BASELINE_FILE);
+  const read = (f) => { try { return readFileSync(f); } catch { return null; } };
+  let anchor = null;
+  const anchorBytes = read(anchorPath);
+  if (anchorBytes) { try { anchor = JSON.parse(anchorBytes.toString('utf8')); } catch { anchor = { contract: 'OLVASHATATLAN' }; } }
+  const baselineBytes = read(basePath);
+  let baseline = null;
+  if (baselineBytes) { try { baseline = JSON.parse(baselineBytes.toString('utf8')); } catch { baseline = null; } }
+
+  const v = verifyBatchForUnit({
+    anchor,
+    unit: { k: UNIT.k, n: UNIT.n, mutations: sliceFor(UNIT.k, UNIT.n).map((m) => m.id) },
+    liveBinding: measuredBatchBinding(UNIT.n),
+    baselineBytes,
+    baseline,
+    expectedProbes: EXPECTED_IDS,
+  });
+  if (!v.ok) {
+    console.error(`  A MEGOSZTOTT ALAPVONAL NEM HASZNÁLHATÓ (${BATCH_CONTRACT}) — ${v.problems.length} lelet:`);
+    for (const w of v.problems) console.error(`    · ${w}`);
+    console.error('  EZ NEM TARTALÉK-FUTÁS: a batch-alapvonal hiánya vagy eltérése után NINCS mutációs');
+    console.error('  elfogadás. Az egység saját alapvonallal, batch nélkül futtatható.');
+    process.exit(2);
+  }
+  const b = canonBaseline(baseline);
+  console.log(`  KAPU (a) ALAPVONAL: MEGOSZTOTT (${BATCH_CONTRACT} · batch ${anchor.batch_id}) — `
+    + `${b.probes.length} próba, mind PASS · a szülő mérte ${b.at} (${b.ms} ms) · a bizonyíték lenyomata ÚJRASZÁMOLVA`);
+  return { ok: true, probes: b.probes, records: b.records, digest: b.digest, shared: true };
+}
+
+
+const base = (BATCH_ARG && UNIT) ? sharedBaseline() : baselineGate();
 // AZ ALAP FORRÁS LENYOMATA — ehhez méri a norma-kapu, hogy a mutált csomag TÉNYLEG más (R55/F03).
 BASE_DIGEST = base.digest || digestOfBundle(REF.replace(/\/v3ref$/, '')) || null;
-console.log(`  KAPU (a) ALAPVONAL: ${base.ok ? 'ZÖLD' : 'PIROS'} — ${base.ok ? `${base.probes.length} próba futott, mind PASS` : base.why}`);
+if (!base.shared) {
+  console.log(`  KAPU (a) ALAPVONAL: ${base.ok ? 'ZÖLD' : 'PIROS'} — ${base.ok ? `${base.probes.length} próba futott, mind PASS` : base.why}`);
+}
 console.log('');
 console.log('  KAPUK (b) HAZUGSÁG-ELLENPRÓBÁK — a külső fél támadásai a SAJÁT kódunkon, minden futáskor:');
 const attacks = (await pool(ATTACKS, POOL, attackGateAsync)).map((r, i) => ({ ...ATTACKS[i], ...r }));
@@ -1306,6 +1542,21 @@ if (UNIT) {
       node: process.version,
       base_digest: BASE_DIGEST,
       base_gate_ok: base.ok,
+      /**
+       * A BATCH-BÉLYEG — AZ ÖSSZEFŰZÉS IS ELLENŐRZI A KÖTÉST (R198 §2).
+       *
+       * Az egység kimondja, MELYIK batch megosztott alapvonalát használta (vagy hogy SAJÁT
+       * alapvonallal futott). Az összefűzés ezt a horgonyhoz méri — enélkül két KÜLÖNBÖZŐ batch
+       * egységei összeválogathatók volnának, és az összefűzés a saját sorrendjétől függne
+       * (`KUKA-206` · `KUKA-121`).
+       */
+      baseline_mode: base.shared ? 'megosztott' : 'sajat',
+      batch: base.shared ? (() => {
+        try {
+          const a = JSON.parse(readFileSync(join(resolve(BATCH_ARG), BATCH_ANCHOR_FILE), 'utf8'));
+          return { contract: a.contract, batch_id: a.batch_id, binding: a.binding };
+        } catch { return null; }
+      })() : null,
       attacks_ok: attacksOk,
       run_state: runComplete ? 'complete' : 'incomplete',
       slice_clean: clean,

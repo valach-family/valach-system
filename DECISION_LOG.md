@@ -16,6 +16,76 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3261 — AZ EGYSZER MÉRT ALAPVONAL EGY RÖGZÍTETT MÉRÉSI CSOMAGHOZ (MBX-01, R198 §0–§3)
+
+A chatgpt-v3 az **R196-ban tiltotta** az alapvonal megosztását, és az **R198 §0-ban ezt a korlátot
+KIZÁRÓLAG** az itt meghatározott, **saját vezérlésű batch módra** oldotta fel — a biztonsági és
+bizonyíték-követelményeket **nem** oldotta fel. Az alap az R197 fázis-mérése: a másolás **nem**
+érdemi szűk keresztmetszet (3,6%), a domináns költség a teljes, mutálatlan **alapvonal**, amit a régi
+szerződés **minden egységben** újra lefuttat.
+
+**A MÉRT KIINDULÓ ÁLLAPOT.** Üres szeleten (`--unit=254/254`, tehát alapvonal + nyolc ellenpróba,
+**nulla** mutáció): **4 254** és **5 526 ms**. Ennyit fizet ki minden egység, mielőtt egyetlen
+mutációt megmérne. *(És ez egyben az R197 egy állításának helyesbítése: az ott jelentett „fix költség
+~10,9 s" **nem** tiszta mutáció előtti költség — abban már egy mutált futás is benne volt. A
+chatgpt-v3 ezt az R198 §0-ban kimondta, és igaza van.)*
+
+**A DÖNTÉS: KÜLÖN NEVŰ, KÜLÖN VERZIÓS SZERZŐDÉS** (`MBX-01` v1, `v3ref/mutationBatch.mjs`) — nem a
+régi szerződés átnevezése:
+
+1. **A szülő a batch INDÍTÁSAKOR rögzíti** a teljes tervezett egység-/mutációkészletet (szeletenként
+   a mutáció-azonosítókkal) **és** a kötést: mért forrás · futtató · manifeszt · konfiguráció ·
+   futtatókörnyezet. A batch-azonosító a **kötésből + a tervből** származik, nem véletlenszám.
+2. **A lenyomat fedi az új segédmodulokat is.** A `BND-01` **nem rekurzív**, tehát az
+   `external-checks/batteryUnits.mjs`-t önmagában nem fedné — a `batchRunnerDigest` a köteg **mellé**
+   a nevezett alkönyvtári darabokat is beszámolja. Ha bármelyik hiányzik, a lenyomat `null`, nem egy
+   „üres fájlok lenyomata" nevű hamis zöld (`KUKA-051`).
+3. **A teljes mutálatlan alapvonal TÉNYLEGESEN lefut**, átmegy az érvényességi és kilépési
+   ellenőrzéseken, és **minden elvárt próba PASS** (69/69). Hibás, hiányos vagy megszakított
+   alapvonal után **nincs** mutációs elfogadás.
+4. **Csak ugyanazon aktív batch változatlan másolatai használhatják.** Más egység-szám, megváltozott
+   forrás/config/futtató/manifeszt/futtatókörnyezet, idegen batch vagy terven kívüli szelet
+   **nevezett hiba**. A finomítás (`nextUnits`) **új batchet és ÚJ alapvonalat** kér — feltétel nélkül
+   átvett PASS-cache nincs.
+5. **A bizonyíték LEMEZEN áll, és a gyermek ÚJRASZÁMOLJA a lenyomatát.** Egy környezeti változóba írt
+   „baseline=PASS" **nem** bizonyíték; a rekord nélküli „PASS" sem (a kapu ezt külön mondja ki).
+6. **Az összefűzés is ellenőrzi a kötést:** az egység-fájl batch-bélyeget visz, és a merge elutasítja
+   a két külön batchből összeválogatott készletet, valamint a megosztott és saját alapvonalú egységek
+   keverését.
+7. **A nyolc ellenpróba minden egységben ténylegesen fut**, minden mutáció saját izolált másolatot,
+   friss futásjelet és valódi próbafutást kap, és a mutáció **nem írhatja át** az alapvonalat vagy más
+   egység forrását (`MBX09` ezt a MÉRT fájl-állapoton kérdezi).
+8. **A 12 000 / 15 000 ms-os korlát NEM emelkedik**, és a régi, önállóan indított hívás **a régi úton
+   marad**: `--batch` nélkül az egység maga futtatja az alapvonalát. Ez a külső programok
+   (`r57` · `r59` · `r57a` · `r59a` · `r81` · `r83`) **változatlan** útja.
+9. **Az egyszeri előkészítés nem tűnik el az elszámolásból:** az alapvonal(ok) teljes ideje, az
+   egységek teljes ideje és a batch elejétől a végéig mért teljes idő **külön** és **együtt** is
+   kiíródik, az alapvonal-futások **tényleges számával**.
+
+**A MÉRT NYERESÉG** — azonos, előre kijelölt készleten (1–4 / 253, azaz M1–M4), **ugyanabban az
+ablakban** mérve: régi szerződés **29 993 ms** (4 egység, mindegyik saját alapvonallal) → új
+szerződés **23 864 ms** (1 alapvonal 3 550 ms + 4 egység 20 314 ms), azaz **20,4%**; az egység-idő
+7,5 s → 5,1 s. A megtakarítás az egység-számmal **nő**, mert az alapvonal egyszer fizetődik ki.
+
+**A KÜLSŐ KOMPATIBILITÁS PONTOS BLOKKOLÓJA, KIMONDVA** (R198 §1 kéri, és nem kerülöm meg): az
+adaptált külső programok (`r57a` · `r59a`) a **saját** `spawnUnitsIn` függvényükben indítják a
+gyermekeket, fix argv-vel, és a `dir`-t csak ők ismerik — a mi `adaptiveUnitPlan`-ünk **nem kapja
+meg**. A batch módhoz olyan szülő-lépés kell, ami (a) ismeri a lemásolt forrás könyvtárát és (b) a
+gyermekek **előtt** fut; ezt a helyet az ő fájljuk foglalja el, amit **nem módosíthatunk**. Ezért a
+megosztott alapvonal **a saját utunkon** (`--units-auto` · `--batch-prepare`) működik, és a külső
+adaptált láncon **nem** — ezt a csomag nem is állítja. A `r57`/`r59` **eredeti** programok egyetlen
+hívásban futtatják a battériát, tehát ott az alapvonal már egy folyamaton belül megosztott; a
+blokkolójuk a 15 000 ms-os kapu, ami változatlan.
+
+**A KIVEZETÉS:** `KUKA-487` (**saját lelet**: az ellenpróbám a bemenet-rontás mellékhatására tüzelt,
+nem a vizsgált mechanizmusra) · `KUKA-488` (a megszakított kísérlet „el nem indult"-ként került a
+jelentésbe — a napló innentől a **gyermek előtt** ír, és **három** állapotot ad).
+
+**Gépi jel:** `npm run verify:mutation-batch` (`MBX01`–`MBX09`) — **tíz** visszacsúsztatásos
+ellenpróbán mérve mindegyik **a saját** őrét pirosítja.
+
+---
+
 ## D-VS-3260 — A BIZONYÍTÉK-KAPU ELŐRE RÖGZÍTETT, KÜLSŐ KÖTÉSHEZ MÉR, ÉS A KÉT TÉNY KÜLÖN MEGY TOVÁBB (R196 §1)
 
 A chatgpt-v3 az R195 fejéről (`0d5ee24`) **megmérte** a saját sorozat-kapum két hibáját: nem a
