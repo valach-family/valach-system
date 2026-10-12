@@ -288,6 +288,59 @@ néma kilépés versenyből ered)"* — tehát verseny-érzékeny mechanizmus-pr
 nem bizonyítja, hogy a két piros nem az enyém** — ezért külön futtattam mindhármat, és az eredményük
 a következő szakaszban áll.
 
+### 5.4 A HÁROM LÁNC KÜLÖN FUTTATVA — ÉS AZ ATTRIBÚCIÓ MÉRVE
+
+**`verify:browser-gate` → ZÖLD, kilépés 0.** *„PASS — a böngészős láncok lefutottak, a mérés
+igazoltan elindult, és minden verdikt zöld"*: 26 próba-fájl mind bekerült a mérésbe, a
+`proof:demo-walk` lánc lefutott zölden (478 s). A söprésben látott `NEM FEJEZŐDÖTT BE` tehát a
+söprés **900 s-os türelme** volt (903 s), nem bukás — pontosan ahogy a söprés kiírja.
+
+**`verify:lefedes` → PIROS, de NEM EBBŐL A KÖRBŐL.** Mérve: ugyanez a lánc az **átvételi alapon**
+(`bc374c6`) is pirosat ad, **azonos üzenettel**, külön git-munkafában futtatva (kilépés 1). A pirosa
+**egy NEVESÍTETT, ÖRÖKÖLT fejlesztési rés**: `page:personal` — *„a SAJÁT ÜGYEK listája még nem
+létezik"*. A lánc többi sora zöld: `(LT2)` pótolható hiány **0**, osztályozatlan **0**; `(LR1)` nem
+jelent meg olyan hiány, ami az `R166-potolt` alapvonalban nem volt (mind örökölt); `(LC1)` a két
+csoport teljes; `(LC2)` a rés nevezetten kimondja, mi a hiányzó üzleti képesség. Az `(LT)` sor azért
+piros, mert **a cél NULLA** — ez szándékos szigor, nem regresszió.
+
+**`verify:child-runner` → PIROS, ÉS EZ AZ ENYÉM. JAVÍTVA.**
+
+Ezt nem söpörtem a „verseny" alá. Mérve: a lánc az átvételi alapon **kilépés 0** (zöld), az én
+forrásomon **kilépés 1**. A két bukásnak **egy közös gyökere** volt: `elsoAll=false` — az ellenpróbák
+menetében a vizsgált gyermek **el sem indult**, tehát a megszakítási jelentés hiánya nem bizonyított
+semmit. A tíz POZITÍV menet közben mind zöld volt (10/10).
+
+A gyökér a próba **saját fixtúrájában** állt, és a próba kommentje előre megmondta: a mutáns fa a
+`v3ref/`-ből **egyetlen, kézzel felvett fájlt** vitt (`bundleDigest.mjs`), mert korábban az volt a
+feloldó egyetlen `v3ref`-függősége. Én **hármat** adtam hozzá a §2-ben
+(`mutationBatch.mjs` · `external-checks/case-manifest.mjs` · `external-checks/seriesLedger.mjs`),
+így a mutáns **import-hibára futott**. Ez a `KUKA-120` visszatérése egy új alakban, és a `KUKA-003`
+hiba-osztálya: a kézzel felsorolt függőség az első szerkesztésnél elcsúszik.
+
+**A JAVÍTÁS:** a mutáns fa a `v3ref/` **forrását tükrözi** (minden `.mjs`, a generált mappák —
+`results/` · `units/` · `source-documents/` — nélkül), tehát a lista nem kézből jön, és nem is
+csúszhat el. *(`KUKA-496`)*
+
+**A JAVÍTÁS UTÁN MÉRVE — kilépés 0, és KÉT dolog lett jobb:**
+
+```
+PASS  ELLENPRÓBA (a): a BIZTOS CSATORNA kivételére a jelentés MÉRHETŐEN eltűnik
+      → elso=true  jelentes=false  masodik=false   (2/2 menet)
+PASS  ELLENPRÓBA (b): az R104-ES ALAKON az elfogadási próba MIND A 3 menetben ELBUKIK
+      → elso=true  jelentes=false  verify_b=false  nema=true   (3/3 menet)
+PASS  ELLENPRÓBA (b): a TELJES NÉMASÁG is reprodukálódott (3/3: out=0 err=0, kilépés 143)
+```
+
+Az `elso=true` a lényeg: most már **előáll a vizsgált helyzet**, tehát a jelentés eltűnése valóban a
+védelem kivételét méri. **És a korábban „verseny miatt" NEVEZETTEN KIHAGYOTT eset visszatért a
+mérésbe:** a teljes némaság `0/3` helyett **`3/3` menetben** reprodukálódott. A „verseny-termék"
+magyarázat tehát ezen a gépen **nem állt** — a hiányos fixtúra volt az oka. Ez is tanulság: a
+nevezett kihagyás nem mindig környezeti; lehet a saját próbám sérülése.
+
+**És a próba jól dolgozott:** az `elsoAll` őr azért van ott, hogy üres alapsokaságon ne legyen zöld
+(`KUKA-093`) — ez fogta meg a saját változásomat. Egy ellenpróba, ami a saját hiányos fixtúráján
+bukik, nem a védelmet méri.
+
 ---
 
 ## 5. A KÖR FOGYASZTÁSA
@@ -306,6 +359,25 @@ Mérve, modellhívás nélkül (`npm run meres:fogyasztas -- --session auto --fr
 Az ablak kezdetét a csomag kezdetéhez igazítottam; **a határ bizonytalan, ezért jelölve** — a
 board-üzenet pontos időbélyegéhez képest pár perc eltérés lehet. A kísérleti ügynök-jelző
 (> 40 M / csomag) **nem** lépett életbe: nulla ügynök-bemenet.
+
+### 5.5 AZ ELFOGADÁSI KAPU — EGY TÁBLÁBAN, A KÖR VÉGÉN
+
+| kapu | állapot | mérve |
+|---|---|---|
+| mag mutációs battéria (`verify:v3ref`) | **ZÖLD** | 253/253, TELJES ÉS TISZTA · a söprésben szabályosan újrahasznált |
+| böngészős lánc (`verify:browser-gate`) | **ZÖLD** | kilépés 0, 26 próba-fájl, `proof:demo-walk` 478 s |
+| böngészős UX-kapu (`proof:core-ux`) | **ZÖLD** | 154 eset, 8,9 perc, saját negatív kontrollal |
+| gyermek-futtató (`verify:child-runner`) | **ZÖLD** *(javítás után)* | 80/80, a két ellenpróba és a teljes némaság 3/3 |
+| KUKA-regiszter (`verify:kuka`) | **ZÖLD** | 1239/1239 |
+| batch-kapu (`verify:mutation-batch`) | **ZÖLD** | MBX01–MBX13 |
+| söprés-újrahasználat (`verify:sweep-reuse`) | **ZÖLD** | SRU01–SRU14 (59/59) |
+| sorozat-kapu szintetikus próbája (`verify:external-series`) | **ZÖLD** | EXS01–EXS16 |
+| **a külső sorozat ELFOGADÁSI kapuja** | **PIROS** | `accepted=false` · kilépés 3 · `r57` tartalmi bukás, `r59` érvénytelen rekord |
+| funkció-lefedés (`verify:lefedes`) | **PIROS** *(örökölt)* | 1 nevesített fejlesztési rés (`page:personal`), az átvételi alapon is piros |
+
+**A KÖR ÖSSZEGZÉSE EGY SORBAN:** a bizonyíték-kezelés kapui zöldek, a mag battériája teljes és
+tiszta, a 19 külső program mind lefutott — **és az elfogadási kapu piros**, két nevesített okkal. Ez
+a mért állapot; nem írom át, és nem állítom, hogy a rendszer kész.
 
 ---
 

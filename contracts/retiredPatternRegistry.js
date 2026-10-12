@@ -18362,6 +18362,46 @@ Object.freeze({
     ],
     forbidden: [],
   }),
+  Object.freeze({
+    id: 'KUKA-496',
+    date: '2026-10-12',
+    title: 'AZ ELLENPRÓBA FIXTÚRÁJA KÉZZEL FELSOROLT FÜGGŐSÉGET VITT — ÉS A MÁSODIK BŐVÍTÉSNÉL ELCSÚSZOTT',
+    what: 'A `verify:child-runner` (CHR-01 · F105-01) ellenpróbái egy MUTÁNS fát építenek: a `tools/lib/` '
+      + 'másolatát a védelmi blokkok kivágásával, plusz a söprést. A `v3ref/`-ből EGYETLEN, kézzel '
+      + 'felvett fájl került bele (`bundleDigest.mjs`), mert a feloldónak akkor az volt az egyetlen '
+      + '`v3ref`-függősége. Az R200-ban a feloldó HÁROM továbbit kapott (`mutationBatch.mjs` · '
+      + '`external-checks/case-manifest.mjs` · `external-checks/seriesLedger.mjs`) — a fixtúra viszont '
+      + 'ugyanazt az egy fájlt vitte, így a mutáns IMPORT-HIBÁRA futott, és MIND A KÉT ellenpróba '
+      + 'elbukott `elsoAll=false`-szal.',
+    why_wrong: 'Ez a `KUKA-120` visszatérése egy új alakban: az ellenpróba nem a védelmet mérte, hanem '
+      + 'a SAJÁT hiányos fixtúráját. És a hiba-osztály a `KUKA-003`-é: a kézzel felsorolt függőség az '
+      + 'első szerkesztésnél elcsúszik — az első alakot (csak `lib/` + söprés) már egyszer megjavítottam '
+      + 'EGY fájl felvételével, és a javítás maga lett a következő csúszás forrása. Egy ellenpróba, ami '
+      + 'a saját fixtúráján bukik, se nem zöld, se nem lelet: NEM MÉRÉS.',
+    replaced_by: 'A mutáns fa a `v3ref/` FORRÁSÁT TÜKRÖZI: rekurzívan minden `.mjs`, a generált mappák '
+      + '(`results/` · `units/` · `source-documents/` · `node_modules/`) nélkül — ugyanaz a határ, amit '
+      + 'a söprés `SOURCE_INPUTS`-a is meghúz. A lista nem kézből jön, tehát nem is csúszhat el: aki új '
+      + '`v3ref`-modult húz be a feloldóba, annak a fixtúrával nincs dolga.',
+    replacement: 'A FIXTÚRA A SZERKEZETET TÜKRÖZZE, NE A MAI IMPORT-LISTÁT. Ha a próba tárgyának '
+      + 'függőségeit kézzel soroljuk fel, a felsorolás a következő bővítésnél hazudik.',
+    decision: 'D-VS-3262',
+    found_by: 'a SAJÁT gépi őr (Claude-v3, R200 §4, mérve) — a `verify:child-runner` pirosat adott a '
+      + 'záró söprésben; az attribúciót külön munkafában mértem: az ÁTVÉTELI alapon (bc374c6) ugyanaz a '
+      + 'lánc kilépés 0, az én forrásomon kilépés 1, és mind a két bukás gyökere `elsoAll=false` volt.',
+    lesson: 'AZ `elsoAll`-SZERŰ ŐR AZ, AMI MEGFOGJA A HIÁNYOS FIXTÚRÁT: ha az ellenpróba nem követeli '
+      + 'meg, hogy a vizsgált helyzet TÉNYLEG előálljon, akkor a saját összeomlása „a védelem működik" '
+      + 'alakban jelenik meg (`KUKA-093`: üres alapsokaságon nincs zöld).',
+    guard_note: 'gépi jel: `npm run verify:child-runner` (`CR16`) — az ellenpróbák külön követelik, hogy '
+      + 'az első gyermek elinduljon (`elsoAll`), tehát a hiányos mutáns fa NEVEZETTEN bukik, nem némán '
+      + 'zöldül.',
+    home: 'v3',
+    positive: [
+      { paths: ['tools/vs_verify_child_runner.mjs'], pattern: 'v3refTukroz', why: 'a mutáns fa a v3ref FORRÁSÁT tükrözi, nem kézi listát' },
+      { paths: ['tools/vs_verify_child_runner.mjs'], pattern: 'V3REF_KIHAGY', why: 'a generált mappák NEVEZETTEN maradnak ki, nem véletlenül' },
+      { paths: ['tools/vs_verify_child_runner.mjs'], pattern: 'elsoAll', why: 'az ellenpróba megköveteli, hogy a helyzet TÉNYLEG előálljon' },
+    ],
+    forbidden: [],
+  }),
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

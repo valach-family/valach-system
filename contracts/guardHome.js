@@ -542,6 +542,7 @@ const GUARD_HOME = Object.freeze({
   'KUKA-493': Object.freeze({ home: 'v3', note: 'a lánc bemeneti listája a V3 söprés-feloldójában él, és az MBX saját BATCH_EXTRA_FILES deklarációjából származik — a jel az SRU14' }),
   'KUKA-494': Object.freeze({ home: 'v3', note: 'az élő batch-ellenpróba a V3 verify:mutation-batch MBX09-ében él, és maga futtatja a --batch-prepare szülő-lépést' }),
   'KUKA-495': Object.freeze({ home: 'v3', note: 'a rögzítő szerződés-követése a V3 verify:mutation-batch fixtúrájában él — a frissen előkészített horgony verziója a mai BATCH_CONTRACT_VERSION-hoz mérődik' }),
+  'KUKA-496': Object.freeze({ home: 'v3', note: 'az ellenpróba-fixtúra szerkezet-tükrözése a V3 verify:child-runner-ében él — a jel a CR16 elsoAll követelménye' }),
   'KUKA-486': Object.freeze({ home: 'v3', note: 'a sorozat TARTALMI azonossága (bundle_digest) és a commit mint SZÁRMAZÁS a V3 magreferenciájában él — a jel a verify:external-series EXS16 közvetlen mércéje: a csak commitban eltérő kötés UGYANAZT a sorozatot adja' }),
   'KUKA-484': Object.freeze({ home: 'v3', note: 'a sorozat ÖNHORDÓ bizonyíték-példánya a V3 magreferenciájában és szerszám-könyvtárában él — a jel a verify:external-series EXS15 pozitív kontrollja, VALÓDI gyermek-folyamattal a lemezen álló fixtúra-sorozaton' }),
   'KUKA-485': Object.freeze({ home: 'v3', note: 'a hiányzó újraszámolt lenyomat NEVEZETT lelete a V3 magreferenciájában él — a jel a verify:external-series EXS15 második fele (bizonyíték-példány nélküli teljes sorozat: kilépés 3)' }),

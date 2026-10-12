@@ -883,16 +883,48 @@ writeFileSync(process.env.F105_MASODIK, 'masodik-futott');
      * „nincs alkalmazható eset", NEM zöld (KUKA-093 · KUKA-051).
      */
     const f105Mutans = (nev, { csatornaNelkul = false, regiIgazolas = false }) => {
-      // A MUTÁNS FA A REPÓ SZERKEZETÉT TÜKRÖZI, ÉS ÖNÁLLÓ. Az első alakom csak a `lib/`-et és a
-      // söprést másolta — a `vs_sweep_reuse.mjs` viszont `../../v3ref/bundleDigest.mjs`-t húz be,
-      // tehát a másolat IMPORT-HIBÁRA futott, és az ellenpróba nem a védelmet mérte, hanem a saját
-      // hiányos fixtúráját (KUKA-120). A próba ezt MEGFOGTA, mert a menet külön követeli, hogy az
-      // első gyermek TÉNYLEG elinduljon (`elsoAll`) — üres alapsokaságon nincs zöld (KUKA-093).
+      /**
+       * A MUTÁNS FA A REPÓ SZERKEZETÉT TÜKRÖZI, ÉS ÖNÁLLÓ.
+       *
+       * ELSŐ ALAK: csak a `lib/`-et és a söprést másolta — a `vs_sweep_reuse.mjs` viszont
+       * `../../v3ref/bundleDigest.mjs`-t húz be, tehát a másolat IMPORT-HIBÁRA futott, és az
+       * ellenpróba nem a védelmet mérte, hanem a saját hiányos fixtúráját (`KUKA-120`).
+       *
+       * MÁSODIK ALAK: a hiányzó fájlt KÉZZEL vettem fel, EGY sorban (`bundleDigest.mjs`). Ez az
+       * R200-ban elcsúszott: a feloldó az MBX-01 és az EXS-01 miatt HÁROM további `v3ref`-modult
+       * húz be (`mutationBatch.mjs` · `external-checks/case-manifest.mjs` ·
+       * `external-checks/seriesLedger.mjs`), a fixtúra viszont ugyanazt az egy fájlt vitte — a
+       * mutáns megint import-hibára futott, és MIND A KÉT ellenpróba elbukott, `elsoAll=false`-szal.
+       * A kézzel felsorolt függőség ugyanaz a hiba-osztály, mint amit `KUKA-003` nevez: a másolat az
+       * első szerkesztésnél elcsúszik.
+       *
+       * MAI ALAK: a `v3ref/` FORRÁSÁT TÜKRÖZZÜK (minden `.mjs`, a generált mappák nélkül) — a lista
+       * nem kézből jön, tehát nem is csúszhat el. A próba mindkét csúszást MEGFOGTA, mert a menet
+       * külön követeli, hogy az első gyermek TÉNYLEG elinduljon (`elsoAll`) — üres alapsokaságon
+       * nincs zöld (`KUKA-093`).
+       */
       const d = join(F105, `mutans_${nev}`);
       rmSync(d, { recursive: true, force: true });
       mkdirSync(join(d, 'tools', 'lib'), { recursive: true });
+      // A GENERÁLT MAPPÁK KIMARADNAK: azok a lánc KIMENETEI, nem a forrása (`SOURCE_INPUTS` ugyanezt
+      // a határt húzza meg), és több száz megabájtot vinnének a fixtúrába.
+      const V3REF_KIHAGY = new Set(['results', 'units', 'source-documents', 'node_modules']);
+      const v3refTukroz = (rel) => {
+        const honnan = join(ROOT, 'v3ref', rel);
+        for (const e of readdirSync(honnan, { withFileTypes: true })) {
+          if (e.isDirectory()) {
+            if (V3REF_KIHAGY.has(e.name)) continue;
+            v3refTukroz(join(rel, e.name));
+            continue;
+          }
+          if (!e.name.endsWith('.mjs')) continue;
+          const cel = join(d, 'v3ref', rel);
+          mkdirSync(cel, { recursive: true });
+          writeFileSync(join(cel, e.name), readFileSync(join(honnan, e.name)));
+        }
+      };
       mkdirSync(join(d, 'v3ref'), { recursive: true });
-      writeFileSync(join(d, 'v3ref', 'bundleDigest.mjs'), readFileSync(join(ROOT, 'v3ref', 'bundleDigest.mjs'), 'utf8'));
+      v3refTukroz('.');
       let vagott = 0; let cserelt = 0;
       for (const f of LIB_FAJLOK) {
         let src = readFileSync(join(LIBDIR, f), 'utf8');
