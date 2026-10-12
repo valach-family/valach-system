@@ -26,6 +26,10 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { assessReuse, reuseLine, resolveCommit, CHAINS, SRU_CONTRACT } from './lib/vs_sweep_reuse.mjs';
 import { digestOfBundle } from '../v3ref/bundleDigest.mjs';
+// A FÜGGETLENÜL ELVÁRT program-/esetkészlet: a rögzítő NEM a saját számát nevezi teljesnek (R200 §2).
+import { PROGRAMS } from '../v3ref/external-checks/case-manifest.mjs';
+import { BATCH_EXTRA_FILES } from '../v3ref/mutationBatch.mjs';
+import { seriesId, makeAnchor, makeRecord, configDigest, evidenceDigest, SERIES_CONTRACT, BINDING_ANCHOR_FILE } from '../v3ref/external-checks/seriesLedger.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SWEEP = join(ROOT, 'tools', 'vs_verify_sweep.mjs');
@@ -56,7 +60,25 @@ W('.gitignore', 'CHAIN-RAN\nCHEAP-RAN\n');
 git('init', '-q'); git('add', '-A'); git('commit', '-q', '-m', 'C0 forrás');
 const C0 = git('rev-parse', 'HEAD');
 const NODE = process.version;
-const extEvidence = (o = {}) => JSON.stringify({ at: '2026-09-20T00:00:00.000Z', node: NODE, source: { commit: C0, clean: true }, verdict: { ok: true, complete_evidence: true, green: 3, env_skipped: 0, of: 3 }, ...o });
+/**
+ * A TELJES, KÖTÖTT KÉSZLET — A FÜGGETLEN MANIFESZTBŐL (R200 §2).
+ *
+ * A RÉGI RÖGZÍTŐM `3/3`-at állított, `complete_evidence: true`-val, `scope` és `programs` nélkül — és
+ * ÁTMENT. Pontosan ez volt a lelet: a bizonyíték a SAJÁT hatókörét nevezte teljesnek. A pozitív
+ * kontroll innentől a kívülről elvárt 19 programot és MINDEN esetüket hordozza; ha a manifeszt bővül,
+ * a rögzítő VELE bővül, nem marad el tőle (KUKA-003).
+ */
+const fullPrograms = () => PROGRAMS.map((p) => ({
+  id: p.id, file: p.file, ok: true, exit: 0,
+  case_rows: (p.cases || []).map((id) => ({ id, pass: true })),
+}));
+const extEvidence = (o = {}) => JSON.stringify({
+  at: '2026-09-20T00:00:00.000Z', node: NODE, source: { commit: C0, clean: true },
+  scope: { complete: true, scope: 'full', ran: PROGRAMS.map((p) => String(p.id)), skipped: [] },
+  verdict: { ok: true, complete_evidence: true, green: PROGRAMS.length, env_skipped: 0, of: PROGRAMS.length },
+  programs: fullPrograms(),
+  ...o,
+});
 const mutEvidence = (o = {}) => JSON.stringify({ at: '2026-09-20T00:00:00.000Z', node: NODE, base_digest: digestOfBundle(tmp), clean: true, run_state: 'complete', coverage: { expected: 2, seen: 2, missing: [] }, mutation_results: [{ mutation_id: 'M1', verdict: 'CAUGHT' }, { mutation_id: 'M2', verdict: 'CAUGHT' }], ...o });
 W(CHAINS['verify:external-checks'].evidence_path, extEvidence());
 W(CHAINS['verify:v3ref'].evidence_path, mutEvidence());
@@ -200,6 +222,150 @@ say('SRU07', both(C4).every((a) => a.status === 'reused'), 'a zöld bizonyíték
   say('SRU10', /if \([^)]*\bunverified\.length\b[^)]*\) process\.exit\(1\)/.test(src),
     'a NEM IGAZOLT kihagyás nem viszi 1-re a söprés kilépési kódját');
   say('SRU10', SRU_CONTRACT.statuses.length === 2 && SRU_CONTRACT.chains.length === 2, 'a szerződés nem két állapot / két lánc');
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// A TELJESSÉG — A LÁNC ÚJRAHASZNÁLATA A FÜGGETLENÜL ELVÁRT KÉSZLETHEZ KÖTVE (R200 §2, SRU11–SRU14)
+//
+// A LELET, a chatgpt-v3-tól: a feloldó `verify:external-checks` ága csak a zöld verdiktet és a tiszta
+// forrást kérte, a TELJESSÉGET nem — így egy EGYETLEN RÉSZPROGRAM eredménye (`1/1`,
+// `complete_evidence: false`) a TELJES lánc újrahasznált bizonyítékaként ment át. Itt a négy eset,
+// amit a SPEC nevez: (11) a mai 1/1 alak ELUTASÍTVA · (12) hiányos SOROZAT elutasítva akkor is, ha a
+// saját számai egyöntetűen zöldek · (13) valódi TELJES, KÖTÖTT készlet elfogadva · (14) érintett
+// segédmodul változása érvénytelenít. Mindegyiknél mérjük azt is, hogy az ELUTASÍTÁS NEM INDÍT
+// hosszú láncot (R69).
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+
+// A SZINTETIKUS SOROZAT — valódi lenyomatokkal, hogy a MEGLÉVŐ EXS szabály dönthessen róla.
+const SERIES_BASE_REL = 'v3ref/external-checks/results/series';
+const synthHex = (n, seed) => {
+  let out = '';
+  let h = 0;
+  for (const ch of String(seed)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  while (out.length < n) { h = (h * 1103515245 + 12345) >>> 0; out += h.toString(16).padStart(8, '0'); }
+  return out.slice(0, n);
+};
+const SYN_CFG = configDigest({ battery_units: 64, unit_plan: [64, 253], unit_budget_ms: 12_000, external_cap_ms: 15_000, node: NODE });
+const SYN_BINDING = Object.freeze({
+  bundle_digest: synthHex(64, 'sru-bundle'),
+  programs_digest: synthHex(64, 'sru-manifest'),
+  runner_digest: synthHex(64, 'sru-runner'),
+  config_digest: SYN_CFG,
+  clean: true,
+});
+const SYN_SID = seriesId(SYN_BINDING);
+/**
+ * EGY SOROZAT KIÍRÁSA A SZINTETIKUS REPÓBA.
+ *
+ * A BIZONYÍTÉK-FÁJLT ELŐBB ÍRJUK, ÉS A LENYOMATOT RÓLA MÉRJÜK — nem kitalált értéket írunk a
+ * rekordba. Így a sorozat ugyanazon az úton bírálható, amin a kapu bírálja (KUKA-207: amit próba nem
+ * tud MEGHÍVNI, azt bizalomból hisszük).
+ */
+const writeSeries = (ids, { sid = SYN_SID, binding = SYN_BINDING, provenance = { commit: C0 } } = {}) => {
+  const dir = `${SERIES_BASE_REL}/${sid}`;
+  W(`${dir}/${BINDING_ANCHOR_FILE}`, JSON.stringify(makeAnchor({
+    binding, provenance, programs: PROGRAMS.map((x) => String(x.id)), recorded_by: 'sru-fixture',
+  }), null, 2));
+  for (const id of ids) {
+    const prog = PROGRAMS.find((x) => String(x.id) === String(id));
+    const evBytes = Buffer.from(JSON.stringify({ id, ok: true, cases: (prog.cases || []).map((c) => ({ id: c, pass: true })) }));
+    W(`${dir}/evidence/${id}.json`, evBytes);
+    W(`${dir}/${id}_sru.json`, JSON.stringify(makeRecord({
+      binding,
+      provenance,
+      program: { id, digest: synthHex(64, `dg-${id}`) },
+      exit: 0,
+      ok: true,
+      cases: (prog.cases || []).map((c) => ({ id: c, pass: true })),
+      evidence_digest: evidenceDigest(evBytes),
+      ms: 1234,
+    }), null, 2));
+  }
+  return dir;
+};
+const dropSeries = () => { rmSync(join(tmp, SERIES_BASE_REL), { recursive: true, force: true }); };
+
+// ── SRU11 — A MAI ALAK: EGYETLEN RÉSZPROGRAM, `complete_evidence: false` → ELUTASÍTVA ─────────────
+{
+  const only = String(PROGRAMS[0].id);
+  W(CHAINS['verify:external-checks'].evidence_path, extEvidence({
+    scope: { complete: false, scope: 'partial', ran: [only], skipped: PROGRAMS.slice(1).map((x) => String(x.id)) },
+    verdict: { ok: true, complete_evidence: false, green: 1, env_skipped: 0, of: 1 },
+    programs: fullPrograms().filter((r) => r.id === only),
+  }));
+  git('add', '-A'); git('commit', '-q', '-m', 'SRU11 reszprogram-bizonyitek');
+  const C = git('rev-parse', 'HEAD');
+  const e = assess('verify:external-checks', C);
+  say('SRU11', e.status === 'unverified',
+    `az EGYETLEN RÉSZPROGRAM (1/1, complete_evidence:false) bizonyítéka a TELJES lánc kihagyásaként ÁTMENT: ${e.why}`);
+  say('SRU11', /complete_evidence=false/.test(e.why) && /HIÁNYZIK 18\/19/.test(e.why),
+    `az elutasítás nem nevezi meg sem a nem-teljes jelet, sem a FÜGGETLEN készlet hiányát: ${e.why}`);
+  say('SRU11', /EGYETLEN SOROZAT SINCS/.test(e.why),
+    `az elutasítás nem mondja ki, hogy a sorozat-út sem adja a teljes bizonyítékot: ${e.why}`);
+  // AZ ELUTASÍTÁS NEM INDÍT HOSSZÚ LÁNCOT (R69).
+  const sw = sweep([...SKIP, '--reuse', C]);
+  say('SRU11', sw.code === 1 && /NEM FUTOTT — NEM IGAZOLT/.test(sw.out), `a söprés a részprogram-bizonyítékot elfogadta (${sw.code})`);
+  say('SRU11', !sw.chainRan, 'a söprés az elutasított kihagyás után ELINDÍTOTTA a hosszú láncot');
+}
+
+// ── SRU12 — HIÁNYOS SOROZAT, EGYÖNTETŰEN ZÖLD SAJÁT SZÁMOKKAL → ELUTASÍTVA ────────────────────────
+{
+  // A sorozat 18 programot visz a 19-ből, MINDET zölden: a saját könyvelése hibátlan.
+  const ids = PROGRAMS.slice(0, PROGRAMS.length - 1).map((x) => String(x.id));
+  const missing = String(PROGRAMS[PROGRAMS.length - 1].id);
+  writeSeries(ids);
+  git('add', '-A'); git('commit', '-q', '-m', 'SRU12 hianyos sorozat, sajat szamai zoldek');
+  const C = git('rev-parse', 'HEAD');
+  const e = assess('verify:external-checks', C);
+  say('SRU12', e.status === 'unverified',
+    `a HIÁNYOS sorozat (${ids.length}/${PROGRAMS.length}) a TELJES lánc kihagyásaként ÁTMENT, mert a saját számai zöldek: ${e.why}`);
+  say('SRU12', new RegExp(`RÉSZLEGES sorozat: 1 program még nem futott \\(${missing}`).test(e.why),
+    `az elutasítás nem nevezi meg a hiányzó programot (${missing}): ${e.why}`);
+  const sw = sweep([...SKIP, '--reuse', C]);
+  say('SRU12', sw.code === 1 && !sw.chainRan, `a hiányos sorozat elfogadva vagy a lánc elindult (${sw.code}, lánc futott: ${sw.chainRan})`);
+}
+
+// ── SRU13 — VALÓDI TELJES, KÖTÖTT KÉSZLET → ELFOGADVA (pozitív kontroll, SOROZAT-alapon) ──────────
+{
+  dropSeries();
+  writeSeries(PROGRAMS.map((x) => String(x.id)));
+  // Az EGYFUTÁS-fájl RÉSZLEGES marad: a teljességet KIZÁRÓLAG a sorozat adja — így az is mérve van,
+  // hogy a sorozat-út önmagában elég, és nem a `results/` alatti, felülírt fájl hitelesít.
+  git('add', '-A'); git('commit', '-q', '-m', 'SRU13 teljes kotott sorozat');
+  const C = git('rev-parse', 'HEAD');
+  const e = assess('verify:external-checks', C);
+  say('SRU13', e.status === 'reused', `a VALÓDI teljes, kötött sorozat kihagyása NEM ment át: ${e.why}`);
+  say('SRU13', /SOROZAT/.test(e.evidence.summary) && new RegExp(`${PROGRAMS.length}/${PROGRAMS.length}`).test(e.evidence.summary),
+    `az elfogadás nem a SOROZATOT és a teljes készletet nevezi meg: ${e.evidence.summary}`);
+  const sw = sweep([...SKIP, '--reuse', C]);
+  say('SRU13', sw.code === 0, `a söprés a valódi teljes készlettel nem 0-val zárt (${sw.code}): ${sw.out.slice(-300)}`);
+  say('SRU13', !sw.chainRan, 'a söprés érvényes újrahasználat mellett ELINDÍTOTTA a hosszú láncot');
+}
+
+// ── SRU14 — ÉRINTETT SEGÉDMODUL VÁLTOZÁSA ÉRVÉNYTELENÍT ───────────────────────────────────────────
+{
+  const C = git('rev-parse', 'HEAD');
+  // (a) A KÜLSŐ LÁNC segédmodulja: a `v3ref/` alatti forrás, amit a lánc olvas.
+  W('v3ref/a.mjs', 'export const a = 3; // érintett segédmodul\n');
+  const e = assess('verify:external-checks', C);
+  say('SRU14', e.status === 'unverified' && /munkafa eltér/.test(e.why),
+    `az érintett segédmodul változása után a TELJES sorozat kihagyása ÁTMENT: ${e.why}`);
+  git('checkout', '--', 'v3ref/a.mjs');
+  say('SRU14', assess('verify:external-checks', C).status === 'reused', 'a visszaállítás után az érvényes pár nem áll vissza (a próba saját feltevése)');
+  /**
+   * (b) ÉS A MAG-BATTÉRIA MBX-FÜGGŐSÉGE (R200 §2): a `batteryUnits.mjs` a BATCH futtatójának része
+   * (`BATCH_EXTRA_FILES`), tehát a változása a mutációs mérést is érvényteleníti. A régi bemeneti
+   * lista csak a felső szintű `v3ref/*.mjs`-t fedte — ez a sor azt méri, hogy nem csúszott vissza.
+   */
+  for (const f of BATCH_EXTRA_FILES) {
+    say('SRU14', CHAINS['verify:v3ref'].inputs.includes(`v3ref/${f}`),
+      `a mag-battéria bemeneti listája NEM fedi az MBX saját függőségét: v3ref/${f}`);
+    W(`v3ref/${f}`, 'export const UNITS = [];\n');
+    const v = assess('verify:v3ref', C);
+    say('SRU14', v.status === 'unverified' && /munkafa eltér|lenyomata|követetlen bemeneti fájl/.test(v.why),
+      `a(z) v3ref/${f} változása után a mag-battéria kihagyása ÁTMENT: ${v.why}`);
+    rmSync(join(tmp, 'v3ref', f), { force: true });
+  }
 }
 
 rmSync(tmp, { recursive: true, force: true });

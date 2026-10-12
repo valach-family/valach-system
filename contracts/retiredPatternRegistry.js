@@ -18127,6 +18127,241 @@ Object.freeze({
     ],
     forbidden: [],
   }),
+  // ── R200 — A BIZONYÍTÉK TELJESSÉGE, A FUTÁSPÉLDÁNY ÉS A SAJÁT PRÓBÁK TÁRGYA ────────────────────
+  Object.freeze({
+    id: 'KUKA-489',
+    date: '2026-10-12',
+    title: 'A RÉSZPROGRAM EREDMÉNYE A TELJES LÁNC ÚJRAHASZNÁLT BIZONYÍTÉKAKÉNT MENT ÁT',
+    what: 'A söprés újrahasználat-feloldójában (`tools/lib/vs_sweep_reuse.mjs`) a '
+      + '`verify:external-checks` ág KIZÁRÓLAG a zöld verdiktet (`verdict.ok === true`) és a tiszta '
+      + 'forrást kérte. A hivatkozott commit bizonyíték-fájlja viszont EGYETLEN program `--only` '
+      + 'futása volt: `{ ok: true, complete_evidence: false, green: 1, of: 1 }` — és a söprés ezt a '
+      + '19 programos TELJES lánc újrahasznált bizonyítékaként fogadta el, nulla kilépési kóddal.',
+    why_wrong: 'A várt darabszám (`of`) MAGÁBÓL A BIZONYÍTÉKBÓL jött, tehát a bizonyíték a SAJÁT '
+      + 'hatókörét nevezte teljesnek: 1/1 „minden zöld". Egy részleges futás így elfedte, hogy 18 '
+      + 'program nem futott (`KUKA-121`: a befogadott bizonyíték mércéje nem lehet a bizonyíték maga; '
+      + '`KUKA-206`: a részleges futás nem írhatja felül a teljes mérés lapját). Az R199-ben a '
+      + 'jelentés SZÖVEGÉT pontosítottam („csak 1/1"), a GÉPI döntés viszont változatlanul elfogadta '
+      + '— egy felirat nem kapu.',
+    replaced_by: 'A teljesség mércéje KÍVÜLRŐL jön: a `case-manifest.mjs` FÜGGETLENÜL elvárt 19 '
+      + 'programja és 168 esete (`externalCompleteness`). Két elfogadott alak van, és mindkettő ehhez '
+      + 'a készlethez szól: (a) egy EGYETLEN futás, aminek a hatóköre teljes és minden elvárt esete '
+      + 'zöld; (b) a SOROZAT, a MEGLÉVŐ EXS elfogadási szabállyal (`verifySeries` → '
+      + '`verdict.accepted`) — a szabály nincs újraírva, és a sorozat a hivatkozott COMMITBÓL olvasódik.',
+    replacement: 'A BEMENET NEM ÁLLÍTHATJA A VÁRT DARABSZÁMOT. Egy sikeres részprogram megmaradhat '
+      + 'részprogram-eredménynek; a láncot nem helyettesíti.',
+    decision: 'D-VS-3262',
+    found_by: 'chatgpt-v3 (R200 §2) — a külső ellenőrző fél a bizonyíték-fájlból mondta ki, hogy a '
+      + '`complete_evidence: false` és az 1/1 mellett is „ÚJRAHASZNÁLT BIZONYÍTÉK" ment ki.',
+    lesson: 'A TELJESSÉG KÜLÖN KÉRDÉS A ZÖLDTŐL. Amíg a várt készletet a vizsgált bizonyíték adja, '
+      + 'addig minden részleges futás teljesnek látszik — a mércét a független forrásból kell venni.',
+    guard_note: 'gépi jel: `npm run verify:sweep-reuse` (`SRU11`: a mai 1/1 + '
+      + '`complete_evidence:false` elutasítva, nevezetten · `SRU12`: hiányos sorozat elutasítva akkor '
+      + 'is, ha a saját számai egyöntetűen zöldek · `SRU13`: valódi teljes, kötött sorozat elfogadva · '
+      + '`SRU14`: érintett segédmodul változása érvénytelenít). Az elutasítás NEM indít hosszú láncot.',
+    home: 'v3',
+    positive: [
+      { paths: ['tools/lib/vs_sweep_reuse.mjs'], pattern: 'export function externalCompleteness\\(', why: 'a teljesség NEVEZETT feloldóban dől el, nem az ág belsejében' },
+      { paths: ['tools/lib/vs_sweep_reuse.mjs'], pattern: "from '\\.\\./\\.\\./v3ref/external-checks/case-manifest\\.mjs'", why: 'az elvárt készlet a FÜGGETLEN manifesztből jön' },
+      { paths: ['tools/lib/vs_sweep_reuse.mjs'], pattern: 'verifySeries', why: 'a sorozatot a MEGLÉVŐ EXS elfogadási szabály bírálja' },
+      { paths: ['tools/vs_verify_sweep_reuse.mjs'], pattern: 'SRU11', why: 'a mai részprogram-alak nevezett ellenpróbát kapott' },
+    ],
+    forbidden: [],
+  }),
+  Object.freeze({
+    id: 'KUKA-490',
+    date: '2026-10-12',
+    title: 'AZ ÖSSZEFŰZÉS BATCH-KAPUJA A KAPCSOLÓRA VOLT KÖTVE, NEM A MEGOSZTOTT EGYSÉGEK LÉTÉRE',
+    what: 'A `--merge` ágban a batch-horgonyhoz mérés `if (BATCH_ARG)` alatt futott. A `--batch` '
+      + 'kapcsoló NÉLKÜL indított összefűzés tehát a megosztott alapvonalú egységek bélyegeit csak '
+      + 'EGYMÁSHOZ mérte — és a kapcsoló megadásakor sem olvasta újra az alapvonal bizonyítékát.',
+    why_wrong: 'A megosztott alapvonal épp azt jelenti, hogy az egységek NEM a saját mérésükre '
+      + 'támaszkodnak, hanem a szülő egyszeri alapvonalára. Ha a szülő elvárása (a horgony) és a '
+      + 'VALÓDI bizonyíték nincs ott, akkor két külön futás egységei összeválogathatók, és a verdikt a '
+      + 'beadott bélyegektől függ, nem a bizonyítéktól (`KUKA-121`). A kapu ráadásul a HÍVÁS ALAKJÁRA '
+      + 'volt kötve, nem a kár keletkezési helyére (`KUKA-202`).',
+    replaced_by: 'A kapu a MEGOSZTOTT EGYSÉGEK LÉTÉRE szól (`if (shared.length)`): a horgony '
+      + 'KÖTELEZŐ — a `--batch` útról vagy a kanonikus helyről —, az alapvonal-bizonyíték ÚJRAOLVASVA '
+      + 'és a lenyomata ÚJRASZÁMOLVA ellenőrződik, és minden egység bélyege a horgony `batch_id`-jához, '
+      + '`run_id`-jához és kötéséhez mérődik, mezőnként. A hiányuk NEVEZETT elutasítás.',
+    replacement: 'A KAPU OTT ÁLLJON, AHOL A KÁR KELETKEZIK — a megosztott bizonyíték LÉTE hívja, nem '
+      + 'a parancssor alakja.',
+    decision: 'D-VS-3262',
+    found_by: 'chatgpt-v3 (R200 §1) — a külső ellenőrző fél a FORRÁSBÓL mondta ki, hogy a horgonyhoz '
+      + 'mérés a `BATCH_ARG` alatt fut.',
+    lesson: 'AMIT A HÍVÁS ALAKJÁHOZ KÖTÜNK, AZT A HÍVÁS ALAKJÁVAL KI IS LEHET KERÜLNI.',
+    guard_note: 'gépi jel: `npm run verify:mutation-batch` (`MBX12`) — ÉLŐ `--merge` futás: a MÁS '
+      + 'FUTÁSBÓL való egység, a horgony nélküli és a bizonyíték nélküli eset mind nevezett '
+      + 'elutasítást ad, és a `--batch` KAPCSOLÓ NÉLKÜL is (ez volt a rés); `MBX13` a pozitív kontroll.',
+    home: 'v3',
+    positive: [
+      { paths: ['v3ref/mutate.mjs'], pattern: 'if \\(shared\\.length\\) \\{', why: 'a kapu a megosztott egységek LÉTÉRE szól' },
+      { paths: ['v3ref/mutate.mjs'], pattern: 'megosztott egység összefűzéséhez a szülő', why: 'a horgony hiánya NEVEZETT elutasítás' },
+      { paths: ['tools/vs_verify_mutation_batch.mjs'], pattern: 'MBX12', why: 'az összefűzés útja ÉLŐBEN mérve' },
+    ],
+    forbidden: [],
+  }),
+  Object.freeze({
+    id: 'KUKA-491',
+    date: '2026-10-12',
+    title: 'A TARTALMI AZONOSSÁG ÖNMAGÁBAN KÖTÖTTE AZ ALAPVONALAT — A LEZÁRT CSOMAG ÚJ FUTÁST SZOLGÁLT',
+    what: 'Az MBX-01 első alakjában a batch azonossága KIZÁRÓLAG tartalmi volt (`batch_id` = forrás + '
+      + 'terv lenyomata). Ugyanaz a forrás és ugyanaz a bontás tehát ugyanazt az azonosítót adta — így '
+      + 'egy KORÁBBI, lezárt vagy MEGSZAKADT csomag alapvonal-bizonyítéka egy ÚJ indítás friss '
+      + 'alapvonalaként elfogadható volt.',
+    why_wrong: 'A tartalmi azonosság arra jó, hogy ugyanarról a forrásról beszélünk-e — arra NEM, '
+      + 'hogy ugyanabban a MÉRÉSBEN. Egy megszakadt futás félig kész alapvonala tartalmilag azonos, de '
+      + 'a mérése nem a maié; a „friss, egyszer mért alapvonal" állítás ettől hamis lesz '
+      + '(`KUKA-121`). A hiba azonos osztályú a sorozat-főkönyv `KUKA-486`-osával: ott a SZÁRMAZÁST '
+      + 'kevertem az AZONOSSÁGGAL, itt az azonosságot a FUTÁSPÉLDÁNNYAL.',
+    replaced_by: 'A kettő SZÉTVÁLT: `batch_id` = TARTALMI azonosság (forrás + terv), `run_id` = '
+      + 'EGYSZERI futáspéldány, minden indításnál friss (`newRunId`, `r_<uuid>`). A horgony, az '
+      + 'alapvonal-bizonyíték, minden egység bélyege és az összefűzés is a `run_id`-hoz kötődik; a '
+      + 'horgony emellett az ELVÁRT alapvonal-FORRÁST is kimondja (`baseline_source_digest`), és azt a '
+      + 'batch KÖTÉSÉBŐL veszi, nem a bizonyíték állításából.',
+    replacement: 'AZ „UGYANARRÓL A FORRÁSRÓL" NEM „UGYANABBAN A MÉRÉSBEN". Két külön indítás két '
+      + 'külön futáspéldány, akkor is, ha tartalmilag azonos.',
+    decision: 'D-VS-3262',
+    found_by: 'chatgpt-v3 (R200 §1) — a külső ellenőrző fél mondta ki, hogy a tartalmi azonosság '
+      + 'mellett egy korábbi eredmény beadható egy új indításba.',
+    lesson: 'AMI EGYSZERI, ANNAK SAJÁT AZONOSÍTÓ KELL. A tartalmi lenyomat sosem mondja meg, hogy a '
+      + 'mérés MIKOR és MELYIK futásban készült.',
+    guard_note: 'gépi jel: `npm run verify:mutation-batch` (`MBX10`: két külön indítás azonos '
+      + '`batch_id`-t és KÜLÖN `run_id`-t kap, és a két futás egységei nem keverhetők · `MBX11`: a '
+      + 'korábbi futás alapvonala és a futáspéldány NÉLKÜLI alapvonal is nevezetten elutasítva).',
+    home: 'v3',
+    positive: [
+      { paths: ['v3ref/mutationBatch.mjs'], pattern: 'export function newRunId\\(', why: 'az egyszeri futáspéldánynak SAJÁT otthona van' },
+      { paths: ['v3ref/mutationBatch.mjs'], pattern: 'MÁS FUTÁSBÓL való', why: 'a korábbi csomag NEVEZETTEN esik ki' },
+      { paths: ['v3ref/mutationBatch.mjs'], pattern: 'baseline_source_digest', why: 'az ELVÁRT alapvonal-forrás a kötésből jön' },
+      { paths: ['v3ref/mutate.mjs'], pattern: 'const runId = newRunId\\(\\)', why: 'minden INDÍTÁS friss futáspéldányt mér' },
+    ],
+    forbidden: [],
+  }),
+  Object.freeze({
+    id: 'KUKA-492',
+    date: '2026-10-12',
+    title: 'A FÁZIS-ELSZÁMOLÁS ÓRÁJA AZ ELSŐ ELŐKÉSZÍTÉS UTÁN INDULT',
+    what: 'A `--units-auto` ágban az összesített óra (`batchT0`) a `prepareBatch(n)` UTÁN indult. Az '
+      + 'R199-ben jelentett „TELJES, az előkészítéssel együtt" 375 707 ms ezért NEM tartalmazta az '
+      + 'ELSŐ alapvonal 3 422 ms-át — és az elszámolás KISEBBET mondott a részfázisok összegénél.',
+    why_wrong: 'A kör épp az előkészítés költségéről szólt, tehát a kihagyott tétel nem akármelyik: a '
+      + 'mérés azt a sort hagyta ki, amiről a jelentés szólt. Egy „teljes idő", ami kisebb a saját '
+      + 'részösszegeinél, önmagában mondja ki, hogy nem teljes (`KUKA-033` · `KUKA-131`).',
+    replaced_by: 'A `phaseAccounting` TISZTA függvény, SZABÁLYOZHATÓ időforrással: bemenete a PARANCS '
+      + 'indulása (`command_t0`), az ELSŐ előkészítés indulása, a fázis-idők és a vég. Kimondja, ha az '
+      + 'óra az első előkészítés UTÁN indult, és ha a teljes idő kisebb a részfázisok összegénél — '
+      + 'nem drága lánccal, hanem itt. A `mutate.mjs` a `commandT0`-t az első `prepareBatch` ELŐTT veszi.',
+    replacement: 'AZ ÓRA A PARANCSNÁL INDUL, NEM AZ ELSŐ FÁZIS UTÁN. És az elszámolás MÉRJE MEG MAGÁT: '
+      + 'a részösszegnél kisebb teljes idő nevezett lelet.',
+    decision: 'D-VS-3262',
+    found_by: 'chatgpt-v3 (R200 §2) — a külső ellenőrző fél a FORRÁSBÓL mondta ki, hogy a `batchT0` a '
+      + '`prepareBatch` után indul, és megnevezte a kihagyott 3 422 ms-ot.',
+    lesson: 'AMIT NEM MÉRÜNK AZ ELSŐ PILLANATTÓL, AZ A JELENTÉSBŐL IS KIMARAD — és épp a legdrágább '
+      + 'fix tétel az, ami az első fázisban áll.',
+    guard_note: 'gépi jel: `npm run verify:mutation-batch` (a `phaseAccounting` ellenpróbái: az első '
+      + 'előkészítés utáni óraindítás és a részösszegnél kisebb teljes idő is NEVEZETT leletet ad).',
+    home: 'v3',
+    positive: [
+      { paths: ['v3ref/mutationBatch.mjs'], pattern: 'export function phaseAccounting\\(', why: 'az elszámolás tiszta függvény, szabályozható időforrással' },
+      { paths: ['v3ref/mutate.mjs'], pattern: 'commandT0', why: 'az óra a PARANCSNÁL indul' },
+    ],
+    forbidden: [],
+  }),
+  Object.freeze({
+    id: 'KUKA-493',
+    date: '2026-10-12',
+    title: 'A LÁNC BEMENETI LISTÁJA NEM FEDTE A BATCH-FUTTATÓ SAJÁT FÜGGŐSÉGÉT',
+    what: 'A söprés `verify:v3ref` lánca a felső szintű `v3ref/*.mjs`-t mérte bemenetnek, azzal az '
+      + 'indoklással, hogy az `external-checks/` alkönyvtár a MÁSIK lánc bemenete. Az MBX-01 óta ez '
+      + 'nem igaz: a batch futtatójának része az `external-checks/batteryUnits.mjs` is. A BND-01 '
+      + 'köteg-lenyomat (`digestOfBundle`) pedig NEM rekurzív, tehát azt sem fedte.',
+    why_wrong: 'Egy mutációs bizonyíték így újrahasználhatónak látszott olyan forráson is, aminek a '
+      + 'battéria-bontása közben megváltozott — a mérés nem arról a futtatóról szólt, ami ma itt áll '
+      + '(`KUKA-003`: a több helyen igaz szabály másolata elcsúszik).',
+    replaced_by: 'A lista az MBX SAJÁT deklarációjából jön (`BATCH_EXTRA_FILES`), nem másolatból: '
+      + '`inputs: [\':(glob)v3ref/*.mjs\', ...BATCH_EXTRA_FILES.map((f) => `v3ref/${f}`)]`. Aki új '
+      + 'fájlt tesz a batch futtatójához, EGY helyen nevezi meg, és a lánc bemenete vele mozdul.',
+    replacement: 'A FÜGGŐSÉGET AZ MONDJA MEG, AKIÉ — nem a lánc listája emlékezetből.',
+    decision: 'D-VS-3262',
+    found_by: 'chatgpt-v3 (R200 §2) — a külső ellenőrző fél mondta ki, hogy a `digestOfBundle` nem '
+      + 'rekurzív, és a `batteryUnits.mjs` kiesik a kötésből.',
+    lesson: 'A NEM REKURZÍV LENYOMAT CSENDBEN HAGY KI ALKÖNYVTÁRAT. Amit a köteg nem fed, azt a '
+      + 'bemeneti listának NÉVVEL kell fednie.',
+    guard_note: 'gépi jel: `npm run verify:sweep-reuse` (`SRU14`): a `BATCH_EXTRA_FILES` minden '
+      + 'elemére megnézi, hogy benne van-e a lánc bemenetében, ÉS hogy a fájl változása tényleg '
+      + 'érvénytelenít-e.',
+    home: 'v3',
+    positive: [
+      { paths: ['tools/lib/vs_sweep_reuse.mjs'], pattern: 'BATCH_EXTRA_FILES', why: 'a lánc bemenete az MBX saját deklarációjából jön' },
+      { paths: ['v3ref/mutationBatch.mjs'], pattern: 'export const BATCH_EXTRA_FILES', why: 'EGY otthon nevezi meg a futtató extra fájljait' },
+    ],
+    forbidden: [],
+  }),
+  Object.freeze({
+    id: 'KUKA-494',
+    date: '2026-10-12',
+    title: 'AZ ÉLŐ PRÓBA A LEMEZEN HAGYOTT KÖNYVTÁRAT MÉRTE — ÉS A HIÁNYÁBAN NÉMÁN ZÖLD MARADT',
+    what: 'Az `MBX09` (a batch-szennyezés élő ellenpróbája) a `v3ref/units/.batch` könyvtárat '
+      + 'olvasta, AHOGY AZT EGY KORÁBBI KÖR OTT HAGYTA (`.gitignore` alatt). Ha a könyvtár nem volt '
+      + 'ott, a próba KIÍRTA a hiányt — de a verdikt ettől ZÖLD maradt.',
+    why_wrong: 'Két hiba egyszerre. (1) A próba tárgya az volt, ami épp ott maradt: amikor a '
+      + 'szerződés v2-re bővült, ez az ág a HELYES kódra adott pirosat, mert a lemezen álló horgony '
+      + 'még v1 volt. (2) A hiány KIÍRÁSA nem mérés: a nevezett felirat mellett a kapu átengedte a '
+      + 'kört (`KUKA-485`: a néma kihagyás; `KUKA-207`: amit a próba nem tud MEGHÍVNI, azt bizalomból '
+      + 'hisszük).',
+    replaced_by: 'A próba MAGA ÁLLÍTJA ELŐ A TÁRGYÁT: lefuttatja a VALÓDI szülő-lépést '
+      + '(`--batch-prepare`), a legfinomabb bontással, és ha az nem sikerül, az PIROS — nem felirat. '
+      + 'Utána kimondva megméri, hogy a frissen írt horgony a MAI szerződést hordozza (verzió + '
+      + '`run_id`), és hogy az élő egység tényleg MEGOSZTOTT alapvonalú fájlt hagyott.',
+    replacement: 'AZ ÉLŐ PRÓBA ÁLLÍTSA ELŐ A TÁRGYÁT, ÉS A HIÁNY LEGYEN PIROS. Ami a lemezen marad egy '
+      + 'korábbi körből, az nem bizonyíték, hanem maradvány.',
+    decision: 'D-VS-3262',
+    found_by: 'Claude-v3 (R200 §2, mérve) — a szerződés v2-re bővítése után az MBX mind a 25 próbája '
+      + 'pirosat adott a HELYES kódra; a gyökér a rögzítő v1 alakú horgonya és az élő ág lemez-maradványa volt.',
+    lesson: 'A PRÓBA TÁRGYÁT A PRÓBA TEREMTSE MEG. Egy előző kör maradványán mért zöld arról szól, '
+      + 'ami ott maradt — nem arról, ami ma itt áll.',
+    guard_note: 'gépi jel: `npm run verify:mutation-batch` (`MBX09`): az előkészítés hibája NEVEZETT '
+      + 'piros (mérve: `--batch-prepare=0` → „a batch ELŐKÉSZÍTÉSE nem sikerült"), és a frissen írt '
+      + 'horgony szerződés-verziója meg a `run_id` alakja is mérve van.',
+    home: 'v3',
+    positive: [
+      { paths: ['tools/vs_verify_mutation_batch.mjs'], pattern: '--batch-prepare=\\$\\{MUTATION_COUNT\\}', why: 'a próba a VALÓDI szülő-lépést futtatja' },
+      { paths: ['tools/vs_verify_mutation_batch.mjs'], pattern: 'a batch ELŐKÉSZÍTÉSE nem sikerült', why: 'az előkészítés hibája PIROS, nem felirat' },
+    ],
+    forbidden: [],
+  }),
+  Object.freeze({
+    id: 'KUKA-495',
+    date: '2026-10-12',
+    title: 'A SZERZŐDÉS-BŐVÍTÉS KINŐTTE A SAJÁT RÖGZÍTŐJÉT — A HELYES KÓD LETT PIROS',
+    what: 'Amikor az MBX-01 a futáspéldánnyal (`run_id`) és az ELVÁRT alapvonal-forrással '
+      + '(`baseline_source_digest`) bővült, a `verify:mutation-batch` fixtúrája változatlanul a v1 '
+      + 'alakú horgonyt építette. Mind a 25 próbája pirosat adott — EGY gyökérrel: a horgony a saját '
+      + 'kapuján bukott el, tehát egyetlen vizsgált mechanizmus sem jutott szóhoz.',
+    why_wrong: 'A próba ilyenkor nem a tárgyát méri, hanem a saját elavult rögzítőjét — és a 25 piros '
+      + 'elfedi, melyik mechanizmus működik valójában (`KUKA-009`: a pin a szabályt mérje, ne a sor '
+      + 'alakját). Ugyanaz az osztály, amit az R198-ban az `UAD05` fogott meg a beadvány-kapunál.',
+    replaced_by: 'A fixtúra a szerződés SAJÁT otthonából építi a horgonyt és az alapvonalat: '
+      + '`run_id: newRunId()` és `baseline_source_digest` a FIXTÚRA KÖTÉSÉBŐL (`sha256:` + '
+      + '`source_digest`), beírt érték nélkül. Ha a szerződés bővül, a rögzítő vele bővül.',
+    replacement: 'A RÖGZÍTŐ A SZERZŐDÉS OTTHONÁBÓL ÉPÍTSE A MÉRCÉT, NE BEÍRT ALAKBÓL — különben a '
+      + 'bővítés a saját próbáját dönti el, nem a kódot.',
+    decision: 'D-VS-3262',
+    found_by: 'Claude-v3 (R200 §2, mérve) — a §1b szerződés-bővítés után a `verify:mutation-batch` '
+      + '25 pirosat adott, mind ugyanarra a horgony-leletre.',
+    lesson: 'AKI SZERZŐDÉST BŐVÍT, A PRÓBÁJÁT IS BŐVÍTI — vagy a próba a bővítést fogja hibának hinni.',
+    guard_note: 'gépi jel: `npm run verify:mutation-batch` (`MBX09`): a frissen ELŐKÉSZÍTETT horgony '
+      + 'szerződés-verziója a mai `BATCH_CONTRACT_VERSION`-hoz mérődik, tehát egy elavult rögzítő '
+      + 'NEVEZETTEN látszik, nem 25 ismétlődő leletként.',
+    home: 'v3',
+    positive: [
+      { paths: ['tools/vs_verify_mutation_batch.mjs'], pattern: 'const RUN_ID = newRunId\\(\\)', why: 'a rögzítő FRISS futáspéldányt mér, nem beírt alakot' },
+      { paths: ['tools/vs_verify_mutation_batch.mjs'], pattern: 'const BASELINE_SOURCE = `sha256:\\$\\{BINDING\\.source_digest\\}`', why: 'az elvárt alapvonal-forrás a fixtúra KÖTÉSÉBŐL jön' },
+      { paths: ['tools/vs_verify_mutation_batch.mjs'], pattern: 'a\\.version === BATCH_CONTRACT_VERSION', why: 'az elavult rögzítő NEVEZETTEN látszik' },
+    ],
+    forbidden: [],
+  }),
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

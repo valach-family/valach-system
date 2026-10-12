@@ -16,6 +16,65 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3262 — A BIZONYÍTÉK TELJESSÉGE KÍVÜLRŐL DŐL EL, ÉS AZ EGYSZERI FUTÁS SAJÁT AZONOSÍTÓT KAP (R200)
+
+Az R200 négy mért rést zárt be. Mind a négyet a **chatgpt-v3** nevezte meg, és mind a négy ugyanarról
+szól: **a mérce nem származhat a mért dologból**.
+
+**(1) A TELJESSÉG.** A söprés `verify:external-checks` lánc-újrahasználata csak a zöld verdiktet és a
+tiszta forrást kérte. A hivatkozott commit bizonyítéka viszont **EGYETLEN program** `--only` futása
+volt — `{ ok: true, complete_evidence: false, green: 1, of: 1 }` —, és a söprés ezt a **19 programos**
+teljes lánc újrahasznált bizonyítékaként fogadta el, nulla kilépési kóddal. A várt darabszám (`of`)
+magából a bizonyítékból jött. Az R199-ben a jelentés **szövegét** pontosítottam („csak 1/1"); a **gépi
+döntés** változatlanul elfogadta — egy felirat nem kapu.
+
+**A DÖNTÉS:** a teljesség mércéje a `case-manifest.mjs` **függetlenül elvárt** 19 programja és 168
+esete (`externalCompleteness`). Két elfogadott alak van, és mindkettő ehhez a készlethez szól:
+**(a)** egy futás, aminek a hatóköre teljes és minden elvárt esete zöld; **(b)** a **SOROZAT**, a
+**meglévő** EXS elfogadási szabállyal (`verifySeries` → `verdict.accepted`) — a szabály nincs
+újraírva, és a sorozat a hivatkozott **commitból** olvasódik, nem a munkafáról. Egy sikeres
+részprogram megmaradhat részprogram-eredménynek; a láncot nem helyettesíti. *(KUKA-489)*
+
+**(2) AZ EGYSZERI FUTÁS.** Az MBX-01 azonossága tisztán tartalmi volt (`batch_id` = forrás + terv),
+így egy **lezárt vagy megszakadt** korábbi csomag alapvonala egy ÚJ indítás friss alapvonalaként
+elfogadható volt. **A DÖNTÉS:** a kettő szétvált — `batch_id` a **tartalmi** azonosság, `run_id` az
+**egyszeri futáspéldány** (minden indításnál friss). A horgony, az alapvonal, minden egység bélyege és
+az összefűzés is ehhez kötődik; a horgony emellett az elvárt alapvonal-**forrást** is kimondja, és azt
+a batch **kötéséből** veszi, nem a bizonyíték állításából. Az „ugyanarról a forrásról" nem „ugyanabban
+a mérésben". *(KUKA-491)*
+
+**(3) AZ ÖSSZEFŰZÉS KAPUJA.** A `--merge` ágban a horgonyhoz mérés `if (BATCH_ARG)` alatt futott,
+tehát a **kapcsoló nélkül** a megosztott egységek bélyegei csak egymáshoz mérődtek. **A DÖNTÉS:** a
+kapu a **megosztott egységek létére** szól (`if (shared.length)`) — a horgony kötelező, az
+alapvonal-bizonyíték újraolvasva és a lenyomata újraszámolva ellenőrződik, és minden bélyeg a horgony
+`batch_id`-jához, `run_id`-jához és kötéséhez mérődik, mezőnként. A kapu ott álljon, ahol a kár
+keletkezik, nem a parancssor alakján. *(KUKA-490)*
+
+**(4) AZ IDŐ.** A `--units-auto` ágban az összesített óra az **első előkészítés után** indult, ezért
+az R199-ben jelentett „teljes, az előkészítéssel együtt" **375 707 ms** az első alapvonal **3 422
+ms**-át nem tartalmazta — és a teljes idő kisebb volt a részfázisok összegénél. **A DÖNTÉS:** a
+`phaseAccounting` tiszta függvény, szabályozható időforrással: az óra a **parancsnál** indul, és az
+elszámolás **megméri magát** — a részösszegnél kisebb teljes idő nevezett lelet. Nem drága lánccal
+mérjük. *(KUKA-492)*
+
+**ÉS KÉT SAJÁT HIBA, UGYANEBBEN A KÖRBEN.** A `verify:v3ref` bemeneti listája nem fedte a batch
+futtatójának saját függőségét (`external-checks/batteryUnits.mjs`; a `digestOfBundle` nem rekurzív) —
+a lista innentől az MBX **saját** deklarációjából jön *(KUKA-493)*. Az élő `MBX09` pedig a lemezen
+**hagyott** batch-könyvtárat mérte, és a hiányában némán zöld maradt — innentől maga futtatja a
+`--batch-prepare` szülő-lépést, és az előkészítés hibája **piros** *(KUKA-494)*. Ehhez jött a
+rögzítő-elavulás: a szerződés v2-re bővítése után a fixtúra v1 alakú horgonya **25 pirosat** adott a
+helyes kódra *(KUKA-495)*.
+
+**AMIT EZ A DÖNTÉS NEM ÁLLÍT.** Nem állítja, hogy a külső lánc 19 programja lefutott — ezt a kör
+mérési sorozata mondja meg, programonként. Nem kriptográfiai védelem egy minden fájlhoz hozzáférő író
+ellen: a batch- és sorozat-kapuk a bizonyíték **kezelését** mérik (konzisztencia), és ezt a kimenetük
+ki is mondja. És nem rendszer-készültség: egy zöld kapu a saját tárgyáról beszél.
+
+**GÉPI JEL:** `npm run verify:sweep-reuse` (SRU11–SRU14) · `npm run verify:mutation-batch`
+(MBX09–MBX13) · `npm run verify:external-series` (EXS01–EXS16) · `npm run verify:kuka`.
+
+---
+
 ## D-VS-3261 — AZ EGYSZER MÉRT ALAPVONAL EGY RÖGZÍTETT MÉRÉSI CSOMAGHOZ (MBX-01, R198 §0–§3)
 
 A chatgpt-v3 az **R196-ban tiltotta** az alapvonal megosztását, és az **R198 §0-ban ezt a korlátot

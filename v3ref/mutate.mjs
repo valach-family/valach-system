@@ -51,7 +51,7 @@ import {
   BATCH_CONTRACT, BATCH_ANCHOR_FILE, BATCH_BASELINE_FILE, BATCH_ATTEMPTS_FILE,
   batchRunnerDigest, batchConfigDigest, batchRuntimeDigest, batchId, makeBatchAnchor,
   verifyBatchForUnit, evidenceDigest, attemptLine, readAttempts, canonBaseline,
-  batchBindingMismatch,
+  batchBindingMismatch, newRunId, baselineProblems, batchAnchorProblems, phaseAccounting,
 } from './mutationBatch.mjs';
 
 const REF = dirname(fileURLToPath(import.meta.url));
@@ -677,6 +677,11 @@ function prepareBatch(units) {
   for (let k = 1; k <= units; k += 1) slices[String(k)] = sliceFor(k, units).map((m) => m.id);
   const binding = measuredBatchBinding(units);
   const plan = { units, mutation_count: MUTATIONS.length, slices };
+  // FRISS FUTÁSPÉLDÁNY MINDEN INDÍTÁSNÁL (R200 §1). A tartalmi azonosság (`batch_id`) azonos
+  // forrás+terv mellett ugyanaz marad — EZ köti az alapvonalat, az egységeket és az összefűzést
+  // UGYANAHHOZ a futáshoz, tehát korábbi, lezárt vagy megszakadt csomag nem szolgálhat új futás
+  // friss alapvonalaként.
+  const runId = newRunId();
   const t0 = Date.now();
   const b = baselineGate();
   const ms = Date.now() - t0;
@@ -686,19 +691,34 @@ function prepareBatch(units) {
     process.exit(2);
   }
   const evidence = `${JSON.stringify({
-    contract: BATCH_CONTRACT, ok: true, probes: b.probes, records: b.records,
+    contract: BATCH_CONTRACT, run_id: runId, ok: true, probes: b.probes, records: b.records,
     digest: b.digest, ms, at: new Date().toISOString(),
   }, null, 2)}\n`;
   writeFileSync(join(batchDir, BATCH_BASELINE_FILE), evidence);
   const anchor = makeBatchAnchor({
-    binding, plan,
+    binding, plan, run_id: runId,
+    // AZ ELVÁRT ALAPVONAL-FORRÁS a batch KÖTÉSÉBŐL jön, nem a bizonyíték állításából (R200 §1/c).
+    baseline_source_digest: `sha256:${binding.source_digest}`,
     baseline_evidence_digest: evidenceDigest(Buffer.from(evidence)),
     recorded_by: 'mutate.mjs --units-auto',
   });
+  // A SZÜLŐ NEM ÍR OLYAN HORGONYT VAGY ALAPVONALAT, AMIT A SAJÁT KAPUJA ELUTASÍT (KUKA-129).
+  for (const [mit, lelet] of [
+    ['HORGONY', batchAnchorProblems(anchor)],
+    ['ALAPVONAL', baselineProblems(JSON.parse(evidence), EXPECTED_IDS, {
+      run_id: runId, source_digest: anchor.baseline_source_digest,
+    })],
+  ]) {
+    if (lelet.length) {
+      console.error(`  A BATCH-${mit} a SAJÁT kapuján elesik:`);
+      for (const w of lelet) console.error(`    · ${w}`);
+      process.exit(2);
+    }
+  }
   writeFileSync(join(batchDir, BATCH_ANCHOR_FILE), `${JSON.stringify(anchor, null, 2)}\n`);
-  console.log(`  BATCH ${anchor.batch_id} (${BATCH_CONTRACT}) — az ALAPVONAL EGYSZER futott: `
-    + `${b.probes.length} próba, mind PASS, ${ms} ms. A ${units} egység EHHEZ mér.`);
-  return { anchor, ms };
+  console.log(`  BATCH ${anchor.batch_id} · FUTÁS ${runId.slice(0, 14)}… (${BATCH_CONTRACT} v${anchor.version}) — `
+    + `az ALAPVONAL EGYSZER futott: ${b.probes.length} próba, mind PASS, ${ms} ms. A ${units} egység EHHEZ mér.`);
+  return { anchor, ms, runId };
 }
 
 // ── A DARABSZÁM SZÁRMAZTATVA, NEM KÉZZEL (`--units-auto`, R32/§B3) ──────────────────────────────
@@ -799,11 +819,25 @@ if (process.argv.includes('--units-auto')) {
    * kiíródik, és a batch teljes ideje is.
    */
 
+  /**
+   * AZ ÖSSZESÍTETT ÓRA AZ ELSŐ ELŐKÉSZÍTÉS **ELŐTT** INDUL (R200 §2 · mért elszámolási hiba).
+   *
+   * A LELET, forrásból, a chatgpt-v3-tól: a `batchT0` a `prepareBatch(n)` **UTÁN** indult, ezért az
+   * R199-ben jelentett „TELJES, az előkészítéssel együtt" **375 707 ms** az ELSŐ alapvonal
+   * **3 422 ms**-át NEM tartalmazta. Az elszámolás így kisebbet mondott a valóságnál, és épp azt a
+   * tételt hagyta ki, amiről a kör szólt — az egyszeri előkészítést (`KUKA-033`: a szám ne MÁS
+   * kérdésre feleljen, mint amire használjuk).
+   *
+   * Innentől EGY óra fut a parancs elejétől (`commandT0`), és MINDEN fázis elszámolva: minden
+   * előkészítés (az elsőt is beleértve), minden finomítás, minden egység és az összefűzés. A
+   * részfázisok és a teljes parancs-idő KÜLÖN NEVŰ, következetes adat — nem egymás helyett.
+   */
+  const commandT0 = Date.now();
   let attempt = 0; let lastTooSlow = null;
+  const firstPrepareT0 = Date.now();
   let batch = prepareBatch(n);
   let baselineMsTotal = batch.ms; let baselineRuns = 1;
-  const batchT0 = Date.now();
-  let unitsMsTotal = 0;
+  let unitsMsTotal = 0; let mergeMs = 0;
   for (;;) {
     attempt += 1;
     let tooSlow = null;
@@ -877,23 +911,44 @@ if (process.argv.includes('--units-auto')) {
    * a végéig mért TELJES idő. A régi szerződésben az alapvonal MINDEN egységbe beszámított; itt
    * egyszer (vagy a finomítás után újra) fut, és a különbség KI VAN MONDVA.
    */
-  const batchMs = Date.now() - batchT0;
   const attempts = readAttempts(
     (() => { try { return readFileSync(join(batchDir, BATCH_ATTEMPTS_FILE), 'utf8'); } catch { return ''; } })(),
     Array.from({ length: n }, (_, i) => `${i + 1}/${n}`),
   );
   console.log('');
-  console.log(`  BATCH ELSZÁMOLÁS (${BATCH_CONTRACT} · ${batch.anchor.batch_id}):`);
-  console.log(`    ALAPVONAL:  ${baselineRuns} tényleges futás · ${baselineMsTotal} ms (a régi szerződésben ez ${n}× futott volna)`);
-  console.log(`    EGYSÉGEK:   ${n} egység · ${unitsMsTotal} ms`);
-  console.log(`    TELJES:     ${batchMs} ms (a batch elejétől a végéig, az előkészítéssel együtt)`);
+  console.log(`  BATCH ELSZÁMOLÁS (${BATCH_CONTRACT} · ${batch.anchor.batch_id} · futás ${String(batch.runId).slice(0, 14)}…):`);
+  console.log(`    ALAPVONAL:     ${baselineRuns} tényleges futás · ${baselineMsTotal} ms (a régi szerződésben ez ${n}× futott volna)`);
+  console.log(`    EGYSÉGEK:      ${n} egység · ${unitsMsTotal} ms`);
   console.log(`    KÍSÉRLETEK: befejezett ${attempts.befejezett.length} · MEGSZAKADT ${attempts.megszakadt.length} · `
     + `el nem indult ${attempts.el_nem_indult.length}`
     + `${attempts.olvashatatlan.length ? ` · olvashatatlan napló-sor ${attempts.olvashatatlan.length}` : ''}`);
   if (attempts.megszakadt.length) {
     console.log(`    A MEGSZAKADT kísérlet NEM „el nem indult" és NEM termékhiba: ${attempts.megszakadt.join(' · ')}`);
   }
+  const mergeT0 = Date.now();
   const m = runNode(['--merge', `--batch=${batchDir}`]);
+  mergeMs = Date.now() - mergeT0;
+  /**
+   * A TELJES PARANCS-IDŐ A VÉGÉN, AZ ÖSSZEFŰZÉSSEL EGYÜTT — és a részfázisok összege mellé írva,
+   * hogy a kihagyás LÁTSZÓDJON, ne a szerző emlékezetén múljon (R200 §2).
+   */
+  // AZ ELSZÁMOLÁST A KAPU ELLENŐRZI (R200 §2): a fázissorrend és az összegek egyezése GÉPI jel,
+  // nem a szerző figyelme. A kapu tiszta függvény, ezért a próba is közvetlenül hívja (KUKA-207).
+  const acc = phaseAccounting({
+    command_t0: commandT0, first_prepare_t0: firstPrepareT0, end_t: Date.now(),
+    baseline_ms: baselineMsTotal, units_ms: unitsMsTotal, merge_ms: mergeMs, baseline_runs: baselineRuns,
+  });
+  console.log('');
+  console.log(`  TELJES ELSZÁMOLÁS (${BATCH_CONTRACT}):`);
+  console.log(`    ÖSSZEFŰZÉS:     ${mergeMs} ms`);
+  console.log(`    RÉSZFÁZISOK:    ${acc.phases_ms} ms  (alapvonal ${baselineMsTotal} + egységek ${unitsMsTotal} + összefűzés ${mergeMs})`);
+  console.log(`    TELJES PARANCS: ${acc.total_ms} ms — a parancs elejétől a végéig, az ELSŐ előkészítést is beleértve`);
+  console.log(`    EL NEM SZÁMOLT: ${acc.unaccounted_ms} ms (a fázisokon kívüli szülő-munka: tervezés, naplózás, kiírás)`);
+  if (acc.problems.length) {
+    console.error('  AZ ELSZÁMOLÁS LELETEI (R200 §2):');
+    for (const w of acc.problems) console.error(`    · ${w}`);
+    process.exit(2);
+  }
   process.exit(m.status === null ? 1 : m.status);
 }
 
@@ -940,15 +995,59 @@ if (MERGE_ONLY) {
         problems.push(`[${u.file}] megosztott alapvonalat állít, de a batch-bélyege hiányzik vagy idegen szerződés`);
       }
     }
-    if (BATCH_ARG) {
+    /**
+     * MEGOSZTOTT EGYSÉGEKNÉL A SZÜLŐ ELVÁRÁSA ÉS A VALÓDI ALAPVONAL-BIZONYÍTÉK KÖTELEZŐ (R200 §1).
+     *
+     * A LELET (forrásból, chatgpt-v3): a horgonyhoz mérés `if (BATCH_ARG)` alatt futott, tehát a
+     * kapcsoló NÉLKÜL a megosztott egységek bélyegei csak EGYMÁSHOZ mérődtek — és a horgony
+     * megadásakor sem olvasta újra az alapvonal bizonyítékát. Így két külön futás egységei
+     * összeválogathatók lettek volna, és a verdikt a beadott bélyegektől függött, nem a
+     * bizonyítéktól (`KUKA-121`).
+     *
+     * Innentől: ha BÁRMELY egység megosztott alapvonalat állít, a horgony KÖTELEZŐ — a `--batch`
+     * útról, vagy a kanonikus helyről —, és az alapvonal-bizonyíték itt is ÚJRAOLVASVA, a lenyomatát
+     * ÚJRASZÁMOLVA, a futáspéldányához kötve ellenőrződik. A hiányuk NEVEZETT elutasítás, nem néma
+     * kihagyás (`KUKA-051`).
+     */
+    if (shared.length) {
+      const batchHome = BATCH_ARG ? resolve(BATCH_ARG) : batchDir;
       let anchor = null;
-      try { anchor = JSON.parse(readFileSync(join(resolve(BATCH_ARG), BATCH_ANCHOR_FILE), 'utf8')); } catch { anchor = null; }
-      if (!anchor) problems.push('a szülő batch-horgonya nem olvasható az összefűzésnél');
-      else {
+      try { anchor = JSON.parse(readFileSync(join(batchHome, BATCH_ANCHOR_FILE), 'utf8')); } catch { anchor = null; }
+      if (!anchor) {
+        problems.push(`MEGOSZTOTT alapvonalú egység (${shared.length}) van a készletben, de a szülő `
+          + `batch-horgonya NEM OLVASHATÓ (${batchHome}) — megosztott egység összefűzéséhez a szülő `
+          + 'elvárása KÖTELEZŐ');
+      } else {
+        for (const w of batchAnchorProblems(anchor)) problems.push(`[horgony] ${w}`);
+        // A VALÓDI ALAPVONAL-BIZONYÍTÉK: újraolvasva, újraszámolt lenyomattal, a futáshoz kötve.
+        let bytes = null;
+        try { bytes = readFileSync(join(batchHome, BATCH_BASELINE_FILE)); } catch { bytes = null; }
+        if (!bytes) {
+          problems.push('a batch ALAPVONAL-BIZONYÍTÉKA nem olvasható az összefűzésnél — megosztott '
+            + 'egység összefűzéséhez a valódi bizonyíték KÖTELEZŐ');
+        } else {
+          const actual = evidenceDigest(bytes);
+          if (actual !== String(anchor.baseline_evidence_digest)) {
+            problems.push(`a batch ALAPVONAL-BIZONYÍTÉKA MÁS: a horgony `
+              + `${String(anchor.baseline_evidence_digest).slice(0, 12)}…-t állít, a lemezen álló fájl `
+              + `ÚJRASZÁMOLVA ${actual.slice(0, 12)}…`);
+          }
+          let bl = null;
+          try { bl = JSON.parse(bytes.toString('utf8')); } catch { bl = null; }
+          for (const w of baselineProblems(bl, EXPECTED_IDS, {
+            run_id: anchor.run_id, source_digest: anchor.baseline_source_digest,
+          })) problems.push(`[alapvonal] ${w}`);
+        }
         for (const u of shared) {
           if (!u.batch) continue;
           if (String(u.batch.batch_id) !== String(anchor.batch_id)) {
             problems.push(`[${u.file}] IDEGEN batch: ${u.batch.batch_id} ≠ a szülő horgonya ${anchor.batch_id}`);
+            continue;
+          }
+          // A FUTÁSPÉLDÁNY: a tartalmi azonosság önmagában nem elég (R200 §1).
+          if (String(u.batch.run_id || '') !== String(anchor.run_id)) {
+            problems.push(`[${u.file}] MÁS FUTÁSBÓL való: ${String(u.batch.run_id || '(nincs)').slice(0, 16)}… ≠ `
+              + `a szülő futása ${String(anchor.run_id).slice(0, 16)}… — lezárt vagy megszakadt csomag nem új futás`);
             continue;
           }
           const mm = batchBindingMismatch(u.batch.binding, anchor.binding);
@@ -1554,7 +1653,9 @@ if (UNIT) {
       batch: base.shared ? (() => {
         try {
           const a = JSON.parse(readFileSync(join(resolve(BATCH_ARG), BATCH_ANCHOR_FILE), 'utf8'));
-          return { contract: a.contract, batch_id: a.batch_id, binding: a.binding };
+          // A FUTÁSPÉLDÁNY IS A BÉLYEGBEN (R200 §1): az összefűzés ebből tudja, hogy az egységek
+          // UGYANAHHOZ a futáshoz tartoznak — a tartalmi azonosság önmagában nem elég.
+          return { contract: a.contract, batch_id: a.batch_id, run_id: a.run_id, binding: a.binding };
         } catch { return null; }
       })() : null,
       attacks_ok: attacksOk,

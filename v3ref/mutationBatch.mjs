@@ -38,13 +38,33 @@
 //
 // ÉS AMI MIATT TISZTA FÜGGVÉNY: a kapu döntését próbából KÖZVETLENÜL hívjuk, valódi futás nélkül
 // (`KUKA-207`), és a próba a VISELKEDÉST méri, nem a forrás szövegét (`KUKA-239`).
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { digestOfBundle } from './bundleDigest.mjs';
 
 export const BATCH_CONTRACT = 'MBX-01';
-export const BATCH_CONTRACT_VERSION = 1;
+export const BATCH_CONTRACT_VERSION = 2;
+
+/**
+ * A TARTALMI AZONOSSÁG ÉS AZ EGYSZERI FUTÁSPÉLDÁNY KÜLÖN FOGALOM (R200 §1).
+ *
+ * A LELET, MÉRVE a chatgpt-v3 által a `bc374c6` fejen: a `batchId` KIZÁRÓLAG a tartalmi kötésből és
+ * a tervből származott, ezért **két külön indítás** — eltérő `started_at` és eltérő
+ * alapvonal-bizonyíték mellett — UGYANAZT az azonosítót kapta. Reprodukálva:
+ *   b484366ddbac1 vs b484366ddbac1 → AZONOS.
+ * Ettől a `verifyBatchForUnit` nem kapott külön elvárt futáspéldányt: az AKTÍV futást tartalmi
+ * egyezéssel helyettesítette, tehát egy KORÁBBI, már lezárt vagy megszakadt csomag alapvonala egy
+ * ÚJ futás friss alapvonalaként szolgálhatott volna.
+ *
+ * A KETTŐ EZÉRT KÜLÖNVÁLIK, és mind a kettő kell:
+ *   · `batch_id`  — a TARTALMI azonosság (kötés + terv). Ugyanaz a forrás és ugyanaz a terv
+ *     ugyanabba a tartalmi osztályba esik; ez teszi összehasonlíthatóvá a futásokat.
+ *   · `run_id`    — az EGYSZERI FUTÁSPÉLDÁNY. A szülő MINDEN indításnál FRISSET ad, és ez köti
+ *     össze az alapvonalat, az egységeket és az összefűzést UGYANAHHOZ a futáshoz.
+ * A történeti bizonyíték ettől olvasható marad a SAJÁT futásáról — de nem válik új futássá.
+ */
+export function newRunId() { return `r_${randomUUID()}`; }
 
 /** A batch-horgony és a bizonyíték fájlneve — EGY otthon, hogy a szülő és a gyermek ne gépelje kétszer. */
 export const BATCH_ANCHOR_FILE = 'batch.json';
@@ -168,6 +188,7 @@ export function canonPlan(plan = {}) {
 export function canonBaseline(b = {}) {
   return {
     ok: b && b.ok === true,
+    run_id: str(b && b.run_id),
     probes: (Array.isArray(b && b.probes) ? b.probes : []).map(String),
     records: Array.isArray(b && b.records) ? b.records : [],
     digest: str(b && b.digest),
@@ -183,7 +204,7 @@ export function canonBaseline(b = {}) {
  * próbának le kell futnia és PASS-nak kell lennie. A hiányos alapvonal után nincs mutációs
  * elfogadás (`KUKA-206`: a „nem futott" nem „részben").
  */
-export function baselineProblems(baseline, expectedProbes) {
+export function baselineProblems(baseline, expectedProbes, expected = {}) {
   if (!baseline || typeof baseline !== 'object') return ['az ALAPVONAL-BIZONYÍTÉK hiányzik vagy nem objektum'];
   const b = canonBaseline(baseline);
   const p = [];
@@ -191,30 +212,104 @@ export function baselineProblems(baseline, expectedProbes) {
   if (!b.probes.length) p.push('az ALAPVONAL egyetlen lefutott próbát sem nevez meg');
   if (!b.records.length) p.push('az ALAPVONAL nem hordoz próba-rekordokat (a puszta „PASS" nem bizonyíték)');
   if (!/^sha256:[0-9a-f]{64}$/.test(b.digest)) p.push(`az ALAPVONAL forrás-lenyomata nem valódi: ${JSON.stringify(b.digest.slice(0, 24))}`);
+
+  /**
+   * A FORRÁSLENYOMAT A HORGONYHOZ **ÉS** AZ ÉLŐ ELVÁRÁSHOZ KÖTVE (R200 §1/c).
+   *
+   * A LELET, MÉRVE: a teljes rekordkészlet mellett a `baseline.digest`-et `'sha256:'+'f'*64`-re
+   * cserélve a kapu `ok: true`-t adott — vagyis a bizonyíték forrása NEM a horgony forrása volt, és
+   * ez nem látszott. A `digest` „valódi alakú" volt, csak MÁS forrásról szólt; az alak önmagában
+   * sosem mérce (`KUKA-121`: a bizonyíték nem igazolhatja önmagát).
+   */
+  if (expected.source_digest) {
+    if (b.digest !== expected.source_digest) {
+      p.push(`az ALAPVONAL MÁS FORRÁSRÓL szól: a bizonyíték ${b.digest.slice(0, 20)}…, az ELVÁRT `
+        + `${String(expected.source_digest).slice(0, 20)}… — a bizonyíték forrása nem a batch forrása`);
+    }
+  }
+
+  /**
+   * AZ EGYSZERI FUTÁSPÉLDÁNY (R200 §1): a bizonyítéknak UGYANAHHOZ a futáshoz kell tartoznia, amit a
+   * szülő most indított. Enélkül egy korábbi, lezárt vagy megszakadt csomag alapvonala egy ÚJ futás
+   * friss alapvonalaként szolgálhatna.
+   */
+  if (expected.run_id) {
+    if (!str(b.run_id)) p.push('az ALAPVONAL nem nevez meg FUTÁSPÉLDÁNYT — korábbi csomag nem szolgálhat új futás alapvonalaként');
+    else if (str(b.run_id) !== String(expected.run_id)) {
+      p.push(`az ALAPVONAL MÁS FUTÁSBÓL való: ${str(b.run_id).slice(0, 16)}… ≠ az ELVÁRT `
+        + `${String(expected.run_id).slice(0, 16)}… — lezárt vagy megszakadt csomag nem új futás`);
+    }
+  }
+
+  /**
+   * MINDEN ELVÁRT REKORD PONTOSAN EGYSZER, PASS ÁLLAPOTTAL (R200 §1/b).
+   *
+   * A LELET, MÉRVE: a `records`-ból a `p2`-t törölve — de a `probes` listában meghagyva, és a
+   * horgony lenyomatát a CSÖKKENTETT bizonyítékhoz illesztve — a kapu `ok: true`-t adott. Az ok
+   * HÁRMAS volt: (1) a hiányt a `probes` LISTÁN kérdeztem, ami ÁLLÍTÁS, nem bizonyíték;
+   * (2) a „nem PASS" ellenőrzés csak azokra az azonosítókra futott, amelyek a `Map`-ben BENNE
+   * VOLTAK — a hiányzó rekord így láthatatlan maradt; (3) a `Map`-be alakítás a DUPLIKÁTUMOT
+   * némán összevonta (az utolsó győzött).
+   *
+   * Innentől a REKORDOKAT számoljuk, nem a listát hisszük el: minden elvárt próbának PONTOSAN EGY
+   * rekordja van, `PASS` állapottal; a hiány, a duplikáció, a nem várt és az érvénytelen bejegyzés
+   * mind NEVEZETT lelet — és a `probes` lista is a rekordokhoz méretik, mert az ÁLLÍTÁS nem lehet
+   * erősebb a saját adatánál (`KUKA-129`).
+   */
   if (Array.isArray(expectedProbes) && expectedProbes.length) {
     const want = expectedProbes.map(String);
-    const missing = want.filter((id) => !b.probes.includes(id));
+    const rows = b.records;
+    const invalid = rows.filter((r) => !r || typeof r !== 'object' || Array.isArray(r) || !str(r.probe_id));
+    if (invalid.length) p.push(`az ALAPVONALBAN ${invalid.length} ÉRVÉNYTELEN rekord-bejegyzés (nincs probe_id vagy nem objektum)`);
+    const ids = rows.filter((r) => r && str(r.probe_id)).map((r) => str(r.probe_id));
+    const count = new Map();
+    for (const id of ids) count.set(id, (count.get(id) || 0) + 1);
+
+    const missing = want.filter((id) => !count.has(id));
     if (missing.length) {
-      p.push(`az ALAPVONALBÓL HIÁNYZÓ elvárt próba (${missing.length}): ${missing.slice(0, 6).join(' · ')}${missing.length > 6 ? ' …' : ''}`);
+      p.push(`az ALAPVONALBÓL HIÁNYZÓ elvárt próba-REKORD (${missing.length}): `
+        + `${missing.slice(0, 6).join(' · ')}${missing.length > 6 ? ' …' : ''}`);
     }
-    // ÉS A REKORDOKBAN IS PASS-nak kell lennie — a `probes` lista puszta megléte nem verdikt.
-    const byId = new Map(b.records.filter((r) => r && r.probe_id).map((r) => [String(r.probe_id), r]));
+    const dupes = want.filter((id) => (count.get(id) || 0) > 1);
+    if (dupes.length) {
+      p.push(`az ALAPVONALBAN DUPLIKÁLT elvárt próba-rekord (${dupes.length}): ${dupes.slice(0, 6).join(' · ')} `
+        + '— nem dönthető el, melyik az érvényes');
+    }
+    const extra = [...count.keys()].filter((id) => !want.includes(id));
+    if (extra.length) {
+      p.push(`az ALAPVONALBAN NEM VÁRT próba-rekord (${extra.length}): ${extra.slice(0, 6).join(' · ')} `
+        + '— a manifeszten kívüli rekord nem bizonyíték');
+    }
+    const byId = new Map();
+    for (const r of rows) { const id = str(r && r.probe_id); if (id && !byId.has(id)) byId.set(id, r); }
     const notPass = want.filter((id) => byId.has(id) && String(byId.get(id).status || '') !== 'PASS');
     if (notPass.length) p.push(`az ALAPVONALBAN NEM PASS elvárt próba: ${notPass.slice(0, 6).join(' · ')}`);
+
+    // A `probes` LISTA A REKORDOKHOZ MÉRETIK: az állítás ne legyen erősebb a bizonyítékánál.
+    const claimedOnly = b.probes.filter((id) => !count.has(id));
+    if (claimedOnly.length) {
+      p.push(`az ALAPVONAL ${claimedOnly.length} próbát ÁLLÍT, amihez nincs rekordja: `
+        + `${claimedOnly.slice(0, 6).join(' · ')} — a lista nem bizonyíték`);
+    }
   }
   return p;
 }
 
 /** A BATCH-HORGONY — amit a megbízható SZÜLŐ a batch INDÍTÁSAKOR rögzít. */
-export function makeBatchAnchor({ binding, plan, baseline_evidence_digest, recorded_by, started_at } = {}) {
+export function makeBatchAnchor({ binding, plan, run_id, baseline_source_digest, baseline_evidence_digest, recorded_by, started_at } = {}) {
   const b = canonBatchBinding(binding);
   const p = canonPlan(plan);
   return {
     contract: BATCH_CONTRACT,
     version: BATCH_CONTRACT_VERSION,
+    // A TARTALMI azonosság: ugyanaz a forrás + ugyanaz a terv ugyanide esik.
     batch_id: batchId({ binding: b, plan: p }),
+    // AZ EGYSZERI FUTÁSPÉLDÁNY: minden indításnál FRISS (R200 §1).
+    run_id: str(run_id),
     binding: b,
     plan: p,
+    // AZ ELVÁRT ALAPVONAL-FORRÁS: a bizonyíték forrásának a batch forrásával kell egyeznie.
+    baseline_source_digest: str(baseline_source_digest),
     baseline_evidence_digest: str(baseline_evidence_digest),
     recorded_by: str(recorded_by) || 'mutate.mjs --units-auto',
     started_at: str(started_at) || new Date().toISOString(),
@@ -236,6 +331,19 @@ export function batchAnchorProblems(anchor) {
   if (!Object.keys(plan.slices).length) p.push('a horgony nem nevezi meg a tervezett egység-/mutációkészletet (szeletek)');
   if (!isHex(anchor.baseline_evidence_digest, 64)) {
     p.push(`a horgony ALAPVONAL-lenyomata nem valódi (64-hex): ${JSON.stringify(str(anchor.baseline_evidence_digest).slice(0, 24))}`);
+  }
+  // AZ EGYSZERI FUTÁSPÉLDÁNY KÖTELEZŐ (R200 §1): nélküle az aktív futást tartalmi egyezés helyettesítené.
+  if (!/^r_[0-9a-f-]{36}$/.test(str(anchor.run_id))) {
+    p.push(`a horgony nem nevez meg érvényes FUTÁSPÉLDÁNYT (run_id): ${JSON.stringify(str(anchor.run_id).slice(0, 24))}`);
+  }
+  /**
+   * AZ ELVÁRT ALAPVONAL-FORRÁS A KÖTÉSHEZ LÁNCOLVA (R200 §1/c). A horgony nem mondhat MÁS forrást az
+   * alapvonalra, mint amit a saját kötése hordoz — különben a „bizonyíték forrása" szabadon lebegne.
+   */
+  const wantBase = `sha256:${canonBatchBinding(anchor.binding).source_digest}`;
+  if (str(anchor.baseline_source_digest) !== wantBase) {
+    p.push(`a horgony ELVÁRT alapvonal-forrása ${str(anchor.baseline_source_digest).slice(0, 20)}…, `
+      + `a saját kötése szerint ${wantBase.slice(0, 20)}… — a kettőnek egyeznie kell`);
   }
   const recomputed = batchId({ binding: anchor.binding, plan: anchor.plan });
   if (str(anchor.batch_id) !== recomputed) {
@@ -290,10 +398,67 @@ export function verifyBatchForUnit({ anchor, unit, liveBinding, baselineBytes, b
         + `a lemezen álló fájl ÚJRASZÁMOLVA ${actual.slice(0, 12)}…`);
     }
   }
-  // (3) ÉS AZ ALAPVONAL MAGA: zöld, teljes, minden elvárt próba PASS.
-  problems.push(...baselineProblems(baseline, expectedProbes));
+  // (3) ÉS AZ ALAPVONAL MAGA: zöld, teljes, minden elvárt próba PONTOSAN EGYSZER PASS — és
+  // ugyanARRÓL a forrásról, ugyanABBÓL a futásból, mint amit a horgony elvár (R200 §1/b–c).
+  problems.push(...baselineProblems(baseline, expectedProbes, {
+    run_id: anchor.run_id,
+    source_digest: anchor.baseline_source_digest,
+  }));
+  // (6) ÉS AZ EGYSÉG IS UGYANAHHOZ A FUTÁSHOZ TARTOZIK, ha megnevezi (az összefűzés ezt kéri).
+  if (unit && unit.run_id !== undefined && str(unit.run_id) !== str(anchor.run_id)) {
+    problems.push(`az egység MÁS futáspéldányt nevez meg: ${str(unit.run_id).slice(0, 16)}… ≠ `
+      + `${str(anchor.run_id).slice(0, 16)}…`);
+  }
 
   return { ok: problems.length === 0, problems };
+}
+
+/**
+ * A FÁZIS-ELSZÁMOLÁS KAPUJA (R200 §2) — TISZTA FÜGGVÉNY, SZABÁLYOZHATÓ IDŐFORRÁSSAL.
+ *
+ * A LELET, amit a chatgpt-v3 a forrásból kimondott: a `--units-auto` ágban az összesített óra a
+ * `prepareBatch(n)` **UTÁN** indult, ezért az R199-ben jelentett „TELJES, az előkészítéssel együtt"
+ * **375 707 ms** az ELSŐ alapvonal **3 422 ms**-át NEM tartalmazta. Az elszámolás kisebbet mondott a
+ * valóságnál, és épp azt a tételt hagyta ki, amiről a kör szólt.
+ *
+ * EZT NEM DRÁGA LÁNCCAL MÉRJÜK (a §2 ezt kifejezetten tiltja), hanem itt: a függvény bemenete a
+ * parancs indulása, az ELSŐ előkészítés indulása, a fázis-idők és a vég — minden időpont KÍVÜLRŐL
+ * adott, tehát a próba szabályozható időforráson fut, és a FÁZISSORRENDET figyeli.
+ *
+ * Amit elutasít: ha az összesített óra az első előkészítés UTÁN indult (a mért hiba alakja) · ha a
+ * teljes idő KISEBB a részfázisok összegénél (akkor valami kimaradt) · ha az alapvonal-fázis
+ * hiányzik, miközben történt előkészítés.
+ */
+export function phaseAccounting({ command_t0, first_prepare_t0, end_t, baseline_ms, units_ms, merge_ms, baseline_runs } = {}) {
+  const problems = [];
+  const num = (v) => (Number.isFinite(v) ? v : null);
+  const c0 = num(command_t0);
+  const p0 = num(first_prepare_t0);
+  const e = num(end_t);
+  const bl = num(baseline_ms) || 0;
+  const un = num(units_ms) || 0;
+  const mg = num(merge_ms) || 0;
+  if (c0 === null) problems.push('nincs PARANCS-INDULÁS időpont — a teljes idő nem mérhető');
+  if (e === null) problems.push('nincs PARANCS-VÉG időpont — a teljes idő nem mérhető');
+  if (c0 !== null && p0 !== null && p0 < c0) {
+    problems.push(`az összesített óra az ELSŐ ELŐKÉSZÍTÉS UTÁN indult (${c0 - p0} ms-mal) — `
+      + 'az első alapvonal kimaradna a teljes időből');
+  }
+  const phases = bl + un + mg;
+  const total = (c0 !== null && e !== null) ? e - c0 : null;
+  if (total !== null && total < phases) {
+    problems.push(`a TELJES idő (${total} ms) KISEBB a részfázisok összegénél (${phases} ms) — `
+      + `${phases - total} ms kimaradt az elszámolásból`);
+  }
+  if ((num(baseline_runs) || 0) > 0 && bl <= 0) {
+    problems.push('történt előkészítés, de az ALAPVONAL-fázis ideje nulla — az egyszeri előkészítés eltűnt');
+  }
+  return {
+    total_ms: total,
+    phases_ms: phases,
+    unaccounted_ms: total === null ? null : total - phases,
+    problems,
+  };
 }
 
 // ── §4 — AZ INDÍTÁSI NAPLÓ: A MEGSZAKADT KÍSÉRLET NEM „EL NEM INDULT" ──────────────────────────
