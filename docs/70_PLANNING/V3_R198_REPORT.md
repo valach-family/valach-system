@@ -24,7 +24,7 @@ régi úton — tehát az `MBX-01` nem törte el a külső szerződést. A küls
 |---|---|
 | a chatgpt-v3 által visszaolvasott fej | `9b478307965ff0b0bc436247b0053ab2cfaf2e38` |
 | a kör **induló** feje (általam mérve) | **ugyanaz — EGYEZIK**, tiszta munkafával |
-| a kör **záró** feje | `33a8efa` *(a jelentés commitja után a lap alján álló SHA)* |
+| a kör **záró** feje | **`7929b40`** (a jelentés commitja; a lap a repóban és a boardon ugyanez) |
 | **TERMÉK-KÓD** | **`5cf442b` — VÁLTOZATLAN** (`v3app/` alatt 0 fájl változott) |
 | külső **eredeti / core / adaptált** program | **0 változás** `5cf442b`…`HEAD` (a két érintett fájl a **mi** burkolónk: `r81_chatgpt-v3.mjs` · `r83_chatgpt-v3.mjs`) |
 | `12 000` / `15 000` ms | **VÁLTOZATLAN** |
@@ -224,7 +224,70 @@ osztálya (`KUKA-207` · `KUKA-239`).
 
 ---
 
-## 8. AMIT EZ A JELENTÉS NEM ÁLLÍT
+## 8. A ZÁRÓ SÖPRÉS — ÉS AMIT A GÉPI JEL ELKAPOTT TŐLEM
+
+```
+SÖPRÉS (41 verifier + 2 újrahasznált bizonyíték + 1 NEM IGAZOLT kihagyás, 133s):
+  40 zöld · 0 env-kihagyás · 1 piros
+ÚJRAHASZNÁLT BIZONYÍTÉK — verify:v3ref: 253/253 mutáció elkapva · azonosság MÉRVE
+ÚJRAHASZNÁLT BIZONYÍTÉK — verify:external-checks: a bizonyíték ZÖLD (1/1) · azonosság MÉRVE
+NEM FUTOTT — NEM IGAZOLT — verify:browser-gate
+ÖSSZVERDIKT: NEM ZÖLD — 1 lánc nem futott és nem igazolt (verify:browser-gate)
+PIROS: verify:lefedes
+```
+
+A két újrahasznált lánc **mérve** teljesítette mind a négy feltételt (nevezett lánc · feloldott
+commit · zöld bizonyíték **tiszta** forráson · a lánc bemenete azonos a bizonyíték commitjának
+alakjával — plusz lánc-szkriptek, függőségek, `package-lock` és a futtató fő verziója). A
+`verify:v3ref`-nél az **olcsó fele** (`node v3ref/run.mjs`) ezen a fejen is lefutott.
+
+**Egy pontosítás, hogy a söprés sora ne legyen félreolvasható:** a `verify:external-checks`
+újrahasznált bizonyítéka **1/1**, mert ebben a körben **egy** programot futtattam (`r59a`). Ez
+**nem** a lánc teljessége — a lánc összegző verdiktje a mai futtatóra **nem létezik** (6. szakasz,
+`ELFOGADVA: NEM`).
+
+| tétel | állapot |
+|---|---|
+| `verify:lefedes` **PIROS** | az `LT` sor **szándékosan** piros (a nevesített `personal.ownMatters` rés) — **előző körökből nyitott**, nem e kör romlása |
+| `verify:browser-gate` **NEM IGAZOLT** | ebben a konténerben **nem futtatható**: `node_modules` nincs, a `@playwright/test` hiányzik — és a kapu helyesen **nem** nevezi ezt sem env-kihagyásnak, sem PASS-nak. A bemenete (`v3app/` + `tests/` + `playwright.config.mjs`) **0 fájlban** változott ebben a körben **és** a `26f65da`…`HEAD` szakaszon, tehát az R195 újrahasználási érve áll — de a kapu verdiktjét **nem** írom zöldre |
+
+### ÉS A GÉPI JEL ELKAPTA, AMIT KIHAGYTAM
+
+Az első söprés **pirosat** adott a saját munkámra:
+
+```
+PIROS verify:unit-admission — UAD05: a fixtúra nem hordozza az író MINDEN mezőjét:
+  baseline_mode, batch — az őr elavult alakot mérne
+```
+
+**Igaza volt.** Az `MBX-01`-hez **két új mezőt** tettem az egység-fájlba (`baseline_mode` · `batch`),
+mert az **összefűzés** is ellenőrzi a kötést — a beadvány-kapu fixtúrája viszont a **régi** alakot
+hordozta. Ez a `KUKA-477` osztálya: *a szerződés-bővítés a fogyasztók TELJES listájára szól.*
+Javítva; az őr most **24 író-mezőn** zöld. Ez egyben a saját jelentésem próbája is: az `MBX-01`-et
+„gépi jelen áll"-nak írtam, és a gépi jel azonnal megtalálta, amit kihagytam belőle.
+
+---
+
+## 9. FOGYASZTÁS
+
+| ablak | hívás | fő-szál kontextus medián / max | ügynök | sáv |
+|---|---|---|---|---|
+| **a KÖR** (az R198 SPEC `19:32:16Z` → a jelentés) | **66** | **613 241** / 689 436 | **0** (0 ügynök) | **CHATVÁLTÁSI JELZŐ ELÉRVE** (≥ 400 000) |
+
+Lefedettség **teljes**. Al-ügynököt **nem** indítottam (a SPEC tiltja).
+
+**A SÁVOT A MÉRŐ MONDJA KI, ÉS KÖVETEM:** a jelző elérve, tehát ez a jelentés a **kész checkpoint**,
+és a **következő önálló nagy blokk friss beszélgetésben** induljon. A futó munkablokkot célzott
+ellenőrzéssel zártam le — új feltárást, új funkciót és opcionális teljes söprést a lezárás címén
+**nem** indítottam.
+
+**Hosszú mérések:** `verify:v3ref` 6,4 perc · `r59a` 18,7 perc · a rövid összehasonlítás ~1 perc ·
+a két söprés 133 + 131 s ≈ **~31 perc** a megengedett **4 órából**. Egy mérés sem lépte túl a 120
+percet, és **nem** vágtam el önkényesen 25 percnél.
+
+---
+
+## 10. AMIT EZ A JELENTÉS NEM ÁLLÍT
 
 - **Nem** merge-kész. Merge, deploy, force-push, titok-/üzleti adatváltoztatás, V2-/production-módosítás,
   fizetős infrastruktúra, al-ügynök, Codex vagy más AI-review, gépvásárlás, CMD-/PR-lezárás és új
