@@ -135,3 +135,149 @@ fájl nem keletkezik).
 szomszéd sort mérte (`KUKA-239`). A minta most a batch-kötés **nevezett** elutasító mondataira szűkít.
 
 ---
+
+## 4. A VÉGES MÉRÉSI SOROZAT (§3) — MIND A 19 PROGRAM LEFUTOTT
+
+A javított forrás rögzítve (`b5799c5`), a futtatót a mérés közben **nem** változtattam.
+
+### 4.1 A mag mutációs battériája — TELJES ÉS TISZTA
+
+| mit | mérve |
+|---|---|
+| lefedettség | **253/253** mutáció pontosan egyszer · hiány 0 · duplikátum 0 |
+| verdikt | **253 elkapva** · 0 túlélte · 0 rossz próba · 0 mérőhiba · 0 elavult horgony |
+| legrosszabb egység | **6 424 ms** (külső korlát 15 000 ms — nem emeltem) · minden egység belefér |
+| beadvány-kapu | **BEFOGADVA** (MRG-01, RUN-02) · norma-lánc 78/169 sor FEDETT, hiányzó 0, idegen 0 |
+| alapvonal | **1 tényleges futás · 3 334 ms** (a régi szerződésben ez 64× futott volna) |
+| **teljes parancs** | **366 834 ms** — a parancs elejétől a végéig, az ELSŐ előkészítést is beleértve |
+| részfázisok | 366 792 ms (alapvonal 3 334 + egységek 363 075 + összefűzés 383) |
+| el nem számolt | 42 ms szülő-munka — **nevezve**, nem elhallgatva |
+
+A teljes idő most **nagyobb** a részösszegnél, és a különbség meg van nevezve. Az R199-es alak ennek
+az ellenkezőjét adta (375 707 < 379 115), mert az első 3 334 ms-ot kihagyta.
+
+### 4.2 A 19 külső program — EGY sorozatban, EGY kötésről
+
+Új sorozat: **`sc8598e8472f6`**, saját horgonnyal (19 elvárt program · tiszta kötés · származás
+`84cadab`). Az R199-es `r59a` rekord a **saját** sorozatában maradt — nem neveztem át ebbe.
+
+| program | állapot | kilépés | idő |
+|---|---|---|---|
+| `r83core` | befejezett | 0 | 569 133 ms |
+| `r16core` | befejezett | 0 | 465 ms |
+| `r92authz` | befejezett | 0 | 441 ms |
+| `r88core` | befejezett | 0 | 420 ms |
+| `r85core` | befejezett | 0 | 505 ms |
+| `r77` | befejezett | 0 | 895 ms |
+| `r75` | befejezett | 0 | 407 ms |
+| `r69` | befejezett | 0 | 425 ms |
+| `r67` | befejezett | 0 | 494 ms |
+| `r61` | befejezett | 0 | 1 522 ms |
+| `r81core` | befejezett | 0 | 567 806 ms |
+| `r79core` | befejezett | 0 | 596 ms |
+| `r79` | befejezett | 0 | **1 146 747 ms** |
+| `r59a` | befejezett | 0 | 1 083 405 ms |
+| `r57a` | befejezett | 0 | 1 088 488 ms |
+| **`r59`** | befejezett | **1** | 19 077 ms |
+| **`r57`** | befejezett | **1** | 53 477 ms |
+| `r55` | befejezett | 0 | 536 924 ms |
+| `r53` | befejezett | 0 | 6 646 ms |
+
+**Egy program sem maradt „el nem indult", és egy sem szakadt meg.** A sorozat ideje **4 508 760 ms**
+(75,1 perc) + az `r83core` külön mért 569 133 ms-a — a 6 órás keretnek a ~24%-a. Programonkénti
+korlát: a futtató sajátja, **7 200 000 ms = 120 perc**; nem szűkítettem és nem emeltem.
+
+**Az `r79` az, amit az R197-ben a saját 1500 s-os eszköz-korlátom megszakított** (ezt az R198-ban
+helyesbítettem: MEGSZAKADT, nem „el nem indult"). Most **végigment**, 1 146 747 ms alatt.
+
+### 4.3 AZ ELFOGADÁSI KAPU: TELJES, HORGONYZOTT, MAI — DE NEM ELFOGADVA
+
+```
+series=sc8598e8472f6  complete=true  anchored=true  fresh=true  accepted=false
+green=17  failed=2  invalid=1  measured=19  of=19
+```
+
+A kapu kilépési kódja **3** (`verify:external-series -- --gate`), ahogy a szerződés mondja.
+
+**A két nem zöld program a külső fél VÁLTOZATLAN, eredeti programja** (`r57_chatgpt-v3.mjs`,
+`r59_chatgpt-v3.mjs` — „változatlanul, ahogy a boardon érkezett"). Mindkettő a SAJÁT bejelentett
+**15 000 ms-os belső korlátjába** futott, ami a nevesített `ENV_LIMIT_KINDS` egyetlen fajtája
+(`wall_clock_timeout`). **Ezt a korlátot a SPEC tiltja emelni, a programokat pedig nem módosítom.**
+
+- **`r59`** — érvénytelen rekord: a program **eredmény nélkül** állt meg, tehát részletes bizonyíték
+  sem keletkezett. A futtató a saját szavával: *„két jel, KÖZÖS OKBÓL (nem független tanúk)"*. A
+  lefedettségi hiány mind a 7 esetre áll (P01 · E05 · E06 · E07 · E08 · P02 · E09), tartalmi bukás
+  **nincs** — a kettő ortogonálisan utazik, ahogy a §1b-ben megterveztem.
+- **`r57`** — tartalmi bukás: `T01✗ T02✗ T03✓ T04✓ T05✗ E01✓ E02✗ E03✗ E04✓`. A futtató ezt is
+  szétszedi: **mért időtúllépés 2 esetben** (E02 · E03), és a `T01 · T02 · T05` a **bejelentett
+  szabályváltás** miatt bukik (R63, `invite_without_basis`) — tehát nem új regresszió.
+- **Az ADAPTÁLT párjuk átment:** `r57a` 1 088 488 ms, `r59a` 1 083 405 ms. Pontosan ezért létezik az
+  adaptáció.
+
+**AMIT EBBŐL NEM KÖVETKEZTETEK.** Nem állítom, hogy a mag hibás: a két bukás a külső programok saját
+korlátján és egy bejelentett szabályváltáson áll. De azt sem állítom, hogy „zöld": az elfogadási kapu
+**PIROS**, és ez a kör mért állapota. Nevesített függő, nem elintézett tétel.
+
+### 4.4 A BÖNGÉSZŐS KAPU: LEFUTOTT
+
+**154 eset zöld, 8,9 perc, kilépés 0** (`proof:core-ux` · Playwright · Chromium). A suite a saját
+negatív kontrolljával együtt fut (R127-N1: a kapu kikapcsolásával a mérés állítása elbukik), tehát
+nem díszpipa.
+
+Az indításhoz egy **helyi, lockfile-alapú** telepítés kellett, és a buktatót érdemes kimondani: a
+konténerben **`NODE_ENV=production`** áll, ezért az `npm ci` `omit=dev`-vel futott, és az első
+telepítés csak 14 csomagot tett fel — a `@playwright/test` **nem** került fel, a
+`node_modules/@playwright/` üres könyvtár maradt. A hibát a kapu maga mondta ki
+(`ERR_MODULE_NOT_FOUND`). A javítás helyi: `NODE_ENV=development npm ci --include=dev`, az **előre
+telepített** Chromiummal (`PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers`), letöltés nélkül. **Mérve: a
+`package.json` és a `package-lock.json` bájtazonos maradt** mindkét telepítés után — forrás-,
+lockfile-, Railway- és fizetett infra-változás nem történt.
+
+---
+
+## 5. A KÖR FOGYASZTÁSA
+
+Mérve, modellhívás nélkül (`npm run meres:fogyasztas -- --session auto --from … --quick`):
+
+| mit | mérve |
+|---|---|
+| hívás | 324 |
+| fő-szál kontextusmedián | **326 148** · max 783 937 |
+| **ügynök-bemenet** | **0 (0 ügynök)** — ebben a körben al-ügynököt nem indítottam |
+| cache-olvasás | 123 391 989 [teljes összeg] |
+| lefedettség | **teljes** (a mérés a futó folyamat saját azonosítójára kötött) |
+| sáv (a mérő mondja ki) | **FIGYELMEZTETÉS** — a 300 000–400 000 sávban: rövid állapotmérés a munkablokk határán, **megállni nem kell, új beszélgetés nem kell** |
+
+Az ablak kezdetét a csomag kezdetéhez igazítottam; **a határ bizonytalan, ezért jelölve** — a
+board-üzenet pontos időbélyegéhez képest pár perc eltérés lehet. A kísérleti ügynök-jelző
+(> 40 M / csomag) **nem** lépett életbe: nulla ügynök-bemenet.
+
+---
+
+## 6. AMI NYITOTT MARADT — NEVESÍTVE
+
+1. **Az elfogadási kapu PIROS** (`accepted=false`): a külső fél két **eredeti** programja (`r57`,
+   `r59`) a saját bejelentett 15 000 ms-os belső korlátjába fut ezen a gépen. A korlát nem emelhető,
+   a programok nem módosíthatók. Ami ebből **eldönthető** volna, de nem az én döntésem: a külső fél
+   nyilatkozata arról, hogy az eredeti programok korlátja a mai gép-osztályon mérésre alkalmas-e,
+   vagy az adaptált változat az egyetlen mérhető alak. **Ez chatgpt-v3/operátori döntés.**
+2. **Az `r57` három esete bejelentett szabályváltás miatt bukik** (R63, `invite_without_basis`). Ez
+   historikusan ismert, de a programonkénti verdiktben **minden körben** újra megjelenik. Nevesített
+   függő: vagy az eset-manifeszt mondja ki, hogy ez a három eset a mai szerződés szerint elvárt
+   módon bukik, vagy a külső fél frissíti a programot. Kivezetési feltétel nélkül nem írom át.
+3. **A `digestOfBundle` nem rekurzív** (BND-01). Az MBX-függőséget most **névvel** fedtem le
+   (`BATCH_EXTRA_FILES`), de a gyökér-ok megmaradt: aki új alkönyvtárat visz be a mag forrásába,
+   annak kézzel kell a listát bővítenie. Nevesített függő: rekurzív köteg-lenyomat, külön körben,
+   mert a `base_digest` megváltozása MINDEN korábbi mutációs bizonyítékot érvénytelenít.
+4. **Az egység-fájl nincs kriptográfiailag a futásához kötve** — ezt a futtató maga írja ki minden
+   összefűzésnél („kézzel írt egység-fájl is beolvadna; a forrás-lenyomat egyezése szűkít, de nem
+   bizonyít"). Nevesített függő: aláírt egység-tanú. A mai kapuk a bizonyíték **kezelését** mérik.
+
+---
+
+## 7. AMIT EZ A KÖR NEM TETT MEG
+
+Nem volt merge, deploy, force-push, titok- vagy üzleti-adat-változás, V2- vagy production-érintés,
+fizetett infra, al-ügynök, Codex vagy helyettesítő AI-szemle, CMD/PR-zárás. A termékkódot
+(`v3app/`), a külső eredeti/mag/adaptált programokat, a külső pint és a külső elvárást **nem**
+módosítottam. A 12 000 ms-os egység- és a 15 000 ms-os külső korlát **nem emelkedett**.
