@@ -1,8 +1,8 @@
 {
-  "at": "2026-10-12T12:46:46.240Z",
+  "at": "2026-10-12T14:29:39.910Z",
   "node": "v22.22.0",
   "source": {
-    "commit": "9dfe40bab95cd5b0d34d2a10c2d4b587f9046c3a",
+    "commit": "430cb9e5fe42df0f20f6d1d522d89004a7dc977d",
     "clean": true,
     "dirty_files": [],
     "note": "a lemásolt forrás a könyvelt állapoton áll"
@@ -11,7 +11,7 @@
     "complete": false,
     "scope": "partial",
     "ran": [
-      "r59a"
+      "r61"
     ],
     "skipped": [
       "r16core",
@@ -22,11 +22,11 @@
       "r75",
       "r69",
       "r67",
-      "r61",
       "r83core",
       "r81core",
       "r79core",
       "r79",
+      "r59a",
       "r57a",
       "r59",
       "r57",
@@ -44,60 +44,55 @@
   },
   "programs": [
     {
-      "id": "r59a",
-      "file": "r59_chatgpt-v3.adapted.mjs",
-      "by": "chatgpt-v3 — KÜLSŐ, független fél (ADAPTÁLT változat, az ő szerzőségükkel)",
-      "origin": "R81 §5 — az R59-es programjuk ADAPTÁLT alakja. NEM bájtazonos az R59-essel, és AZ R8 ÓTA MI IS ÍRTUNK BELE (lásd `adapted`) — a korábbi „egyetlen karaktert sem írtunk át benne\" mondat innentől NEM állítható.",
-      "program_digest": "925be49aebcd61f2fbd7207660c019c65fd87a3db200efb3cbeb2f8b02b8cb0c",
-      "adapted": true,
-      "adapted_from": {
-        "id": "r59",
-        "file": "r59_chatgpt-v3.mjs",
-        "digest": "80adb50a698624e4dfbc037807c2ef3376e26b342ddf78d3955280cf251e78e6",
-        "by": [
-          "chatgpt-v3 (R81 §5) — a battéria darabolt hívása",
-          "Claude-v3 (R8 §3, az ő kimondott hozzájárulásukkal) — a darabszám konfigurálható paraméter, alapértéke 6"
-        ],
-        "changed": "KIZÁRÓLAG a battéria HÍVÁSÁNAK ALAKJA: egy hívás helyett N egység + `--merge`, N alapértéke 6 (felülírható: VS_BATTERY_UNITS). MIÉRT: a battéria 134 mutációra nőtt, és a rögzített HÁRMAS darabolásnál minden egység ~12,0–12,4 s — a `v3ref/mutate.mjs` SAJÁT költségvetése (12 000 ms = a külső 15 000 ms-os korlát 80%-a) fölött —, ezért a battéria 1-gyel lépett ki, miközben a MÉRT TARTALOM tiszta volt (134/134 elkapva).",
-        "unchanged": "egyetlen eset · mutáció · elvárás · forráskötés és az időkeret-ÉRVÉNYESÍTÉS sem (a 15 000 ms-os külső és a 12 000 ms-os belső korlát áll) — a merge továbbra is a pontosan egyszeres, azonos forrású egység-készletet fogadja el."
-      },
+      "id": "r61",
+      "file": "r61_chatgpt-v3.mjs",
+      "by": "chatgpt-v3 — KÜLSŐ, független fél",
+      "origin": "R63 (a bővített, 8 esetes alak — változatlanul, ahogy a boardon érkezett)",
+      "program_digest": "94b768131418e36523bf80ab3ade8f422340f1a803474fdd410b25a8af2fa2d2",
+      "adapted": false,
+      "adapted_from": null,
       "exit": 0,
-      "ms": 1119780,
+      "ms": 1291,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
         {
-          "id": "P01",
+          "id": "P03",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "E05",
+          "id": "R01",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "E06",
+          "id": "R02",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "E07",
+          "id": "R03",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "E08",
+          "id": "U01",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "P02",
+          "id": "U02",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "E09",
+          "id": "U03",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "U04",
           "kind": "ok",
           "why": null
         }
@@ -105,57 +100,63 @@
       "failure_witness_limit": null,
       "failure_witness_basis": null,
       "expected_cases": [
-        "P01",
-        "E05",
-        "E06",
-        "E07",
-        "E08",
-        "P02",
-        "E09"
+        "P03",
+        "R01",
+        "R02",
+        "R03",
+        "U01",
+        "U02",
+        "U03",
+        "U04"
       ],
-      "expected_from": "a külső fél R59-es kísérő lapja (§2 esetlista) — az adaptálás az eseteket nem érinti",
-      "evidence_file": "r58-challenge.json",
+      "expected_from": "a külső fél R63-as kísérő lapja (§8 esetkészlet) — az eredeti NÉGY változatlan, az U01–U04 kiegészítés",
+      "evidence_file": "r60-challenge.json",
       "evidence_present": true,
-      "evidence_pin": "9dfe40bab95cd5b0d34d2a10c2d4b587f9046c3a",
-      "total": 7,
+      "evidence_pin": "430cb9e5fe42df0f20f6d1d522d89004a7dc977d",
+      "total": 8,
       "case_rows": [
         {
-          "id": "P01",
+          "id": "P03",
           "pass": true
         },
         {
-          "id": "E05",
+          "id": "R01",
           "pass": true
         },
         {
-          "id": "E06",
+          "id": "R02",
           "pass": true
         },
         {
-          "id": "E07",
+          "id": "R03",
           "pass": true
         },
         {
-          "id": "E08",
+          "id": "U01",
           "pass": true
         },
         {
-          "id": "P02",
+          "id": "U02",
           "pass": true
         },
         {
-          "id": "E09",
+          "id": "U03",
+          "pass": true
+        },
+        {
+          "id": "U04",
           "pass": true
         }
       ],
       "present": [
-        "P01",
-        "E05",
-        "E06",
-        "E07",
-        "E08",
-        "P02",
-        "E09"
+        "P03",
+        "R01",
+        "R02",
+        "R03",
+        "U01",
+        "U02",
+        "U03",
+        "U04"
       ],
       "missing": [],
       "unknown": [],
@@ -163,11 +164,8 @@
       "failed": [],
       "problems": [],
       "ok": true,
-      "saved": "/home/user/valach-system/v3ref/external-checks/results/r59a_r58-challenge.json",
-      "stderr": [
-        "[battéria-darabolás] 1. 64 egység — belefért a 15000 ms-os korlátba",
-        "  [battéria-darabolás] 1. 64 egység — belefért a 15000 ms-os korlátba"
-      ],
+      "saved": "/home/user/valach-system/v3ref/external-checks/results/r61_r60-challenge.json",
+      "stderr": [],
       "error": null,
       "child_trace": null
     }
