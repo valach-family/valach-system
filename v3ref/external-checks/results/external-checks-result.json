@@ -1,8 +1,8 @@
 {
-  "at": "2026-10-12T15:16:18.378Z",
+  "at": "2026-10-12T15:34:45.907Z",
   "node": "v22.22.0",
   "source": {
-    "commit": "8fb819253287ecc6d5152f41a68138025f3320b3",
+    "commit": "19ba12fcdedf43316895eb32bca5601daf98b5c2",
     "clean": true,
     "dirty_files": [],
     "note": "a lemásolt forrás a könyvelt állapoton áll"
@@ -11,7 +11,7 @@
     "complete": false,
     "scope": "partial",
     "ran": [
-      "r59a"
+      "r59"
     ],
     "skipped": [
       "r16core",
@@ -27,8 +27,8 @@
       "r81core",
       "r79core",
       "r79",
+      "r59a",
       "r57a",
-      "r59",
       "r57",
       "r55",
       "r53"
@@ -36,73 +36,27 @@
     "why": "RÉSZLEGES futás (--only): ez NEM a lánc teljes bizonyítéka, csak a megnevezett programé"
   },
   "verdict": {
-    "ok": true,
+    "ok": false,
     "complete_evidence": false,
-    "green": 1,
+    "green": 0,
     "env_skipped": 0,
     "of": 1
   },
   "programs": [
     {
-      "id": "r59a",
-      "file": "r59_chatgpt-v3.adapted.mjs",
-      "by": "chatgpt-v3 — KÜLSŐ, független fél (ADAPTÁLT változat, az ő szerzőségükkel)",
-      "origin": "R81 §5 — az R59-es programjuk ADAPTÁLT alakja. NEM bájtazonos az R59-essel, és AZ R8 ÓTA MI IS ÍRTUNK BELE (lásd `adapted`) — a korábbi „egyetlen karaktert sem írtunk át benne\" mondat innentől NEM állítható.",
-      "program_digest": "925be49aebcd61f2fbd7207660c019c65fd87a3db200efb3cbeb2f8b02b8cb0c",
-      "adapted": true,
-      "adapted_from": {
-        "id": "r59",
-        "file": "r59_chatgpt-v3.mjs",
-        "digest": "80adb50a698624e4dfbc037807c2ef3376e26b342ddf78d3955280cf251e78e6",
-        "by": [
-          "chatgpt-v3 (R81 §5) — a battéria darabolt hívása",
-          "Claude-v3 (R8 §3, az ő kimondott hozzájárulásukkal) — a darabszám konfigurálható paraméter, alapértéke 6"
-        ],
-        "changed": "KIZÁRÓLAG a battéria HÍVÁSÁNAK ALAKJA: egy hívás helyett N egység + `--merge`, N alapértéke 6 (felülírható: VS_BATTERY_UNITS). MIÉRT: a battéria 134 mutációra nőtt, és a rögzített HÁRMAS darabolásnál minden egység ~12,0–12,4 s — a `v3ref/mutate.mjs` SAJÁT költségvetése (12 000 ms = a külső 15 000 ms-os korlát 80%-a) fölött —, ezért a battéria 1-gyel lépett ki, miközben a MÉRT TARTALOM tiszta volt (134/134 elkapva).",
-        "unchanged": "egyetlen eset · mutáció · elvárás · forráskötés és az időkeret-ÉRVÉNYESÍTÉS sem (a 15 000 ms-os külső és a 12 000 ms-os belső korlát áll) — a merge továbbra is a pontosan egyszeres, azonos forrású egység-készletet fogadja el."
-      },
-      "exit": 0,
-      "ms": 1083040,
-      "failure_kind": "unknown",
-      "failure_why": "nincs mért környezeti akadály a nyers eredményben",
-      "failure_rows": [
-        {
-          "id": "P01",
-          "kind": "ok",
-          "why": null
-        },
-        {
-          "id": "E05",
-          "kind": "ok",
-          "why": null
-        },
-        {
-          "id": "E06",
-          "kind": "ok",
-          "why": null
-        },
-        {
-          "id": "E07",
-          "kind": "ok",
-          "why": null
-        },
-        {
-          "id": "E08",
-          "kind": "ok",
-          "why": null
-        },
-        {
-          "id": "P02",
-          "kind": "ok",
-          "why": null
-        },
-        {
-          "id": "E09",
-          "kind": "ok",
-          "why": null
-        }
-      ],
-      "failure_witness_limit": null,
+      "id": "r59",
+      "file": "r59_chatgpt-v3.mjs",
+      "by": "chatgpt-v3 — KÜLSŐ, független fél",
+      "origin": "R59 (változatlanul, ahogy a boardon érkezett)",
+      "program_digest": "80adb50a698624e4dfbc037807c2ef3376e26b342ddf78d3955280cf251e78e6",
+      "adapted": false,
+      "adapted_from": null,
+      "exit": 1,
+      "ms": 18641,
+      "failure_kind": "wall_clock_timeout",
+      "failure_why": "a program EREDMÉNY NÉLKÜL állt meg, időtúllépésre utaló hibával, és a mért futásidő (18641 ms) elérte a bejelentett belső korlátot (15000 ms) — két jel, KÖZÖS OKBÓL (nem független tanúk; lásd a kimondott korlátot)",
+      "failure_rows": [],
+      "failure_witness_limit": "a két jel (a program hibaszövege és a mért futásidő) UGYANANNAK az eseménynek a következménye, tehát NEM független tanú; és ezen az ágon nincs esetenkénti bizonyíték, mert a program eredmény-fájl nélkül állt meg — a kihagyást a ZÖLD HELYETTES tartja, nem ez a két jel",
       "failure_witness_basis": null,
       "expected_cases": [
         "P01",
@@ -113,42 +67,14 @@
         "P02",
         "E09"
       ],
-      "expected_from": "a külső fél R59-es kísérő lapja (§2 esetlista) — az adaptálás az eseteket nem érinti",
+      "expected_from": "a külső fél R59-es kísérő lapja (§2 esetlista)",
       "evidence_file": "r58-challenge.json",
-      "evidence_present": true,
-      "evidence_pin": "8fb819253287ecc6d5152f41a68138025f3320b3",
-      "total": 7,
-      "case_rows": [
-        {
-          "id": "P01",
-          "pass": true
-        },
-        {
-          "id": "E05",
-          "pass": true
-        },
-        {
-          "id": "E06",
-          "pass": true
-        },
-        {
-          "id": "E07",
-          "pass": true
-        },
-        {
-          "id": "E08",
-          "pass": true
-        },
-        {
-          "id": "P02",
-          "pass": true
-        },
-        {
-          "id": "E09",
-          "pass": true
-        }
-      ],
-      "present": [
+      "evidence_present": false,
+      "evidence_pin": null,
+      "total": null,
+      "case_rows": [],
+      "present": [],
+      "missing": [
         "P01",
         "E05",
         "E06",
@@ -157,19 +83,61 @@
         "P02",
         "E09"
       ],
-      "missing": [],
       "unknown": [],
       "duplicate": [],
       "failed": [],
-      "problems": [],
-      "ok": true,
-      "saved": "/home/user/valach-system/v3ref/external-checks/results/r59a_r58-challenge.json",
+      "problems": [
+        "[r59] HIÁNYZIK a részletes eredmény-artefaktum (evidence/r58-challenge.json) — a szabvány kimenet DIAGNOSZTIKA, nem bizonyíték: részletes eredmény nélkül a futás nem igazolható",
+        "[r59] a program kimenete nem értelmezhető eset-listaként",
+        "[r59] a program NEM NULLÁVAL zárt (kilépés 1)",
+        "[r59] a környezeti kihagyás NEM áll: a megnevezett helyettes (r59a) ebben a futásban NEM futott"
+      ],
+      "ok": false,
+      "saved": null,
       "stderr": [
-        "[battéria-darabolás] 1. 64 egység — belefért a 15000 ms-os korlátba",
-        "  [battéria-darabolás] 1. 64 egység — belefért a 15000 ms-os korlátba"
+        "node:internal/child_process:1120",
+        "    result.error = new ErrnoException(result.error, 'spawnSync ' + options.file);",
+        "                   ^",
+        "Error: spawnSync /opt/node22/bin/node ETIMEDOUT"
       ],
       "error": null,
-      "child_trace": null
+      "child_trace": {
+        "status": 1,
+        "signal": null,
+        "spawn_error_code": null,
+        "elapsed_ms": 18641,
+        "stderr_tail": [
+          "node:internal/child_process:1120",
+          "    result.error = new ErrnoException(result.error, 'spawnSync ' + options.file);",
+          "                   ^",
+          "Error: spawnSync /opt/node22/bin/node ETIMEDOUT",
+          "    at Object.spawnSync (node:internal/child_process:1120:20)",
+          "    at spawnSync (node:child_process:902:24)",
+          "    at run (file:///tmp/v3ref-ext-3KDYyb/r59_chatgpt-v3.mjs:11:41)",
+          "    at file:///tmp/v3ref-ext-3KDYyb/r59_chatgpt-v3.mjs:17:12",
+          "    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)",
+          "    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)",
+          "    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5) {",
+          "  errno: -110,",
+          "  code: 'ETIMEDOUT',",
+          "  syscall: 'spawnSync /opt/node22/bin/node',",
+          "  path: '/opt/node22/bin/node',",
+          "  spawnargs: [ '/tmp/v3ref-ext-3KDYyb/source/v3ref/mutate.mjs' ]",
+          "}",
+          "Node.js v22.22.0"
+        ],
+        "stdout_tail": [],
+        "truncated": {
+          "stderr_lines": 18,
+          "stdout_lines": 0
+        }
+      },
+      "env_obstacle": {
+        "excusable": false,
+        "why": "a megnevezett helyettes (r59a) ebben a futásban NEM futott",
+        "declared_kind": "wall_clock_timeout",
+        "measured_kind": "wall_clock_timeout"
+      }
     }
   ]
 }
