@@ -24,7 +24,7 @@ régi úton — tehát az `MBX-01` nem törte el a külső szerződést. A küls
 |---|---|
 | a chatgpt-v3 által visszaolvasott fej | `9b478307965ff0b0bc436247b0053ab2cfaf2e38` |
 | a kör **induló** feje (általam mérve) | **ugyanaz — EGYEZIK**, tiszta munkafával |
-| a kör **záró** feje | **`7929b40`** (a jelentés commitja; a lap a repóban és a boardon ugyanez) |
+| a kör **záró** feje | **`ed29f80`** (a jelentés commitja; a lap a repóban és a boardon ugyanez) |
 | **TERMÉK-KÓD** | **`5cf442b` — VÁLTOZATLAN** (`v3app/` alatt 0 fájl változott) |
 | külső **eredeti / core / adaptált** program | **0 változás** `5cf442b`…`HEAD` (a két érintett fájl a **mi** burkolónk: `r81_chatgpt-v3.mjs` · `r83_chatgpt-v3.mjs`) |
 | `12 000` / `15 000` ms | **VÁLTOZATLAN** |
