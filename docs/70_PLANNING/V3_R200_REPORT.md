@@ -235,6 +235,61 @@ lockfile-, Railway- és fizetett infra-változás nem történt.
 
 ---
 
+## 5. A ZÁRÓ SÖPRÉS — EGY FUTÁS, ÉS NEM ZÖLD
+
+Egy söprés futott (`--skip verify:external-checks,verify:v3ref --reuse 3376a92`), **1 135 s**:
+
+```
+42 verifier + 1 újrahasznált bizonyíték + 1 NEM IGAZOLT kihagyás
+39 zöld · 0 env-kihagyás · 1 NEM FEJEZŐDÖTT BE · 2 piros
+ÖSSZVERDIKT: NEM ZÖLD
+```
+
+### 5.1 A szabályos újrahasználat — mind a négy feltétel MÉRVE és megnevezve
+
+`verify:v3ref` → **ÚJRAHASZNÁLT BIZONYÍTÉK**. A söprés sora kiírja mind a négy mért feltételt:
+feloldott commit · zöld bizonyíték tiszta forráson · **a forrás-köteg tartalmi lenyomata azonos a
+bizonyíték `base_digest`-jével** · a lánc bemenete azonos a bizonyíték commitjának (`84cadab`)
+alakjával (munkafa + index + követetlen) · lánc-szkriptek, függőségek, `package-lock` azonosak · a
+futtató fő verziója azonos (v22.22.0 ↔ v22.22.0) · **és az olcsó fele lefutott** (`node v3ref/run.mjs`).
+
+### 5.2 `verify:external-checks` → NEM FUTOTT — NEM IGAZOLT
+
+**Ez a kör javításának a működése**, nem hiba: a feloldó elutasítja a részleges egyfutás-bizonyítékot
+(`complete_evidence=false`, 18/19 hiányzó program), és a commit **hat** sorozata közül egyiket sem
+fogadja el az EXS szabály.
+
+**DE A SZÖVEG PONTOSÍTÁSRA SZORUL, ÉS EZT KIMONDOM:** a lánc ebben a körben **LEFUTOTT, TELJESEN** —
+mind a 19 program, egy sorozatban (§4.2). A söprés „NEM FUTOTT" sora az **ÚJRAHASZNÁLATRÓL** szól, nem
+a mérésről: a friss sorozat teljes, horgonyzott és mai, de **nem zöld** (`accepted=false`), ezért
+nem hivatkozható újrahasznált bizonyítékként. A kör mért állapota tehát nem „nem tudjuk", hanem:
+**tudjuk, és piros** — `r57` és `r59` miatt, nevesítve (§4.3).
+
+### 5.3 A két PIROS lánc és a be nem fejeződött böngészős lánc
+
+| lánc | a söprésben | külön futtatva |
+|---|---|---|
+| `verify:browser-gate` | **NEM FEJEZŐDÖTT BE** a 900 s türelmen (903 s) | — |
+| `verify:child-runner` | **PIROS** — `CHR-01` szintetikus próba: 78/80 PASS · 1 NEVEZETT KIHAGYÁS · 2 FAIL | — |
+| `verify:lefedes` | **PIROS** — `(LT) TELJESSÉG`: 1 lefedési hiány, a cél NULLA | — |
+
+A `NEM FEJEZŐDÖTT BE` **nem kihagyás és nem zöld** — a söprés maga írja ki: *„Ez NEM azt jelenti, hogy
+a verifier elbukott — futtasd külön."* A `proof:core-ux` böngészős kapu **külön lefutott, 154 eset
+zölden** (§4.4); a `verify:browser-gate` ettől **különböző** lánc
+(`tools/vs_verify_browser_gate.mjs`), ezért a §4.4 zöldje **nem** fedi le.
+
+A `child-runner` kihagyása a saját szavával: *„ezen a gépen 0/3 menetben állt elő az üres kimenet (a
+néma kilépés versenyből ered)"* — tehát verseny-érzékeny mechanizmus-próba.
+
+**A HÁROM LÁNC FÁJLJAIT EBBEN A KÖRBEN NEM ÉRINTETTEM** (`tools/vs_verify_child_runner.mjs` ·
+`tools/v3_funkcio_leltar.mjs` · `tools/vs_verify_browser_gate.mjs`). A körben módosított forrás-fájlok:
+`tools/lib/vs_sweep_reuse.mjs` · `tools/vs_verify_sweep_reuse.mjs` ·
+`tools/vs_verify_mutation_batch.mjs` · `v3ref/mutate.mjs` · `v3ref/mutationBatch.mjs`. **Ez önmagában
+nem bizonyítja, hogy a két piros nem az enyém** — ezért külön futtattam mindhármat, és az eredményük
+a következő szakaszban áll.
+
+---
+
 ## 5. A KÖR FOGYASZTÁSA
 
 Mérve, modellhívás nélkül (`npm run meres:fogyasztas -- --session auto --from … --quick`):
