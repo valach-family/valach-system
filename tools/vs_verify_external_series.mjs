@@ -668,7 +668,8 @@ if (MODE_AGGREGATE || MODE_GATE) {
     console.log(`    sikeres ${t.sikeres.length} · tartalmi hibás ${t.tartalmi_hibas.length} · `
       + `hiányos mérésű ${t.hianyos_meresu.length} · hiányos ÉS tartalmi hibás ${t.hianyos_es_tartalmi_hibas.length} · `
       + `környezeti kihagyás ${t.kornyezeti_kihagyas.length} · érvénytelen rekord ${t.ervenytelen_rekord.length} · `
-      + `el nem indult ${t.el_nem_indult.length}  (összesen ${PROGRAMS.length})`);
+      + `el nem indult ${t.el_nem_indult.length}  (összesen ${expectedPrograms.length}`
+      + `${seriesProfile ? ` — a ${seriesProfile.id} profil elvárt készlete` : ' — a teljes regiszter'})`);
     for (const k of ['tartalmi_hibas', 'hianyos_meresu', 'hianyos_es_tartalmi_hibas', 'kornyezeti_kihagyas', 'ervenytelen_rekord', 'el_nem_indult']) {
       if (t[k].length) console.log(`      ${k}: ${t[k].join(' · ')}`);
     }
