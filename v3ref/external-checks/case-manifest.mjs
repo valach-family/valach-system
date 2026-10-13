@@ -442,11 +442,20 @@ export const PROGRAMS = Object.freeze([
       from_file: 'r59_chatgpt-v3.mjs',
       by: Object.freeze(['chatgpt-v3 (R81 §5) — a battéria darabolt hívása',
         'Claude-v3 (R8 §3, az ő kimondott hozzájárulásukkal) — a darabszám konfigurálható paraméter, alapértéke 6']),
-      changed: 'KIZÁRÓLAG a battéria HÍVÁSÁNAK ALAKJA: egy hívás helyett N egység + `--merge`, '
+      /**
+       * HELYESBÍTVE (R202 §1, MÉRVE): a korábbi „KIZÁRÓLAG a battéria hívásának alakja" szöveg
+       * PONTATLAN volt. A chatgpt-v3 a forrásból kimondta, és a diff visszaigazolta: a hívásalak
+       * mellett EGY DIAGNOSZTIKAI mező is változott. A pass-predikátum NEM.
+       */
+      changed: '(1) A BATTÉRIA HÍVÁSÁNAK ALAKJA: egy hívás helyett N egység + `--merge`, '
         + 'N alapértéke 6 (felülírható: VS_BATTERY_UNITS). MIÉRT: a battéria 134 mutációra nőtt, és '
         + 'a rögzített HÁRMAS darabolásnál minden egység ~12,0–12,4 s — a `v3ref/mutate.mjs` SAJÁT '
         + 'költségvetése (12 000 ms = a külső 15 000 ms-os korlát 80%-a) fölött —, ezért a battéria '
-        + '1-gyel lépett ki, miközben a MÉRT TARTALOM tiszta volt (134/134 elkapva).',
+        + '1-gyel lépett ki, miközben a MÉRT TARTALOM tiszta volt (134/134 elkapva). '
+        + '(2) ÉS EGY DIAGNOSZTIKAI MEZŐ az E07 esetben: `result.norm_evidence.required` → '
+        + '`result.norm_evidence?.required ?? null`. Ez a visszaadott `required` DIAGNOSZTIKA; a '
+        + 'pass-predikátum (`pass: process.exit !== 0`) VÁLTOZATLAN, tehát az ítéletet nem érinti — '
+        + 'de „kizárólag hívásalak" ettől már nem állítható (R202 §1, mérve a két fájl diffjével).',
       unchanged: 'egyetlen eset · mutáció · elvárás · forráskötés és az időkeret-ÉRVÉNYESÍTÉS sem '
         + '(a 15 000 ms-os külső és a 12 000 ms-os belső korlát áll) — a merge továbbra is a '
         + 'pontosan egyszeres, azonos forrású egység-készletet fogadja el.',
@@ -472,10 +481,34 @@ export const PROGRAMS = Object.freeze([
       by: Object.freeze(['chatgpt-v3 (R81 §5) — a battéria darabolt hívása',
         'Claude-v3 (R8 §3, az ő kimondott hozzájárulásukkal) — a darabszám konfigurálható paraméter, alapértéke 6',
         'Claude-v3 (R8 §3) — a darabszám a mutáció-számból származik, padló 6']),
-      changed: 'KIZÁRÓLAG a battéria HÍVÁSÁNAK ALAKJA: egy hívás helyett N egység + `--merge`, '
-        + 'N a mutáció-számból származik (felülírható: VS_BATTERY_UNITS) — ugyanaz a bővítés, mint '
-        + 'az `r59a`-n.',
-      unchanged: 'egyetlen eset · mutáció · elvárás · forráskötés és az időkeret-ÉRVÉNYESÍTÉS sem.',
+      /**
+       * HELYESBÍTVE (R202 §1, MÉRVE): a korábbi „KIZÁRÓLAG a battéria hívásának alakja" szöveg
+       * ITT VOLT A LEGPONTATLANABB — és ezt a chatgpt-v3 mondta ki az R202 §0-ban, a GitHubról
+       * olvasott forrásból. A diff visszaigazolta: az adaptált program a SZINTETIKUS TESZTELŐKÉPET
+       * is átvezette, az R63 §4 előírása szerint. A szöveg mostantól ezt is kimondja (`KUKA-050`:
+       * a szöveg a valóságot követi).
+       */
+      changed: '(1) A SZABÁLYOS FELHATALMAZÁSI TESZTELŐKÉP (R63 §4): a `world()` fixtúra meghívója '
+        + 'NEVEZETT, RÖGZÍTETT felhatalmazási alap alatt, a rendszer SAJÁT kiadóján születik — a nyers '
+        + '`INSERT INTO invite VALUES (…)` helyett `recordAuthorityBasis(…)` (`authorityBasis.mjs`, '
+        + 'BAS-01: `allowedOperations: [invite_issue]` · `allowedRoles: [a kínált szerep]` · '
+        + '`allowedScopes: [keszlet]` · `evidenceRef: synthetic:R63-adaptation`) + '
+        + '`issueInviteUnderBasis(…)` (`basisLimit.mjs`, BLI-01), UGYANAZOKKAL a meghívó-mezőkkel és '
+        + 'UGYANAZON az órán. MIÉRT: az R63 §4 a TERMÉK szabályát szigorította (az alap nélküli nyers '
+        + 'meghívó a beváltásnál ELUTASÍTVA: `invite_without_basis` / `no_declared_basis`), és '
+        + 'kifejezetten ELŐÍRTA a szintetikus tesztelőképek átvezetését. Az eredeti program az R63 '
+        + 'ELŐTT született, ezért a beváltásra épülő HÁROM eset (T01 · T02 · T05) a fixtúrában, a MÉRT '
+        + 'KÉRDÉS ELŐTT bukott el. A szigorítás MARAD, a teszt-előfeltétel változik. '
+        + '(2) A BATTÉRIA HÍVÁSÁNAK ALAKJA: egy hívás helyett N egység + `--merge`, N a '
+        + 'mutáció-számból származik (felülírható: VS_BATTERY_UNITS) — ugyanaz a bővítés, mint az '
+        + '`r59a`-n.',
+      unchanged: 'egyetlen eset-azonosító (T01–T05 · E01–E04) · ÁLLÍTÁS · mutáció · elvárás · '
+        + 'forráskötés · az óra (2026-09-10T10:00:00.000Z és a T01 két lejárata) és az '
+        + 'időkeret-ÉRVÉNYESÍTÉS sem. A TÁMADÁSI UTAK VALÓDIAK: a T02 őr nélküli ágán a nyers '
+        + '`UPDATE invite SET offered_role` SZÁNDÉKOS (a pecsét-eltérés TÉNYÉT állítja elő, és a '
+        + 'beváltás az (1/b) ponton — a 3/b alap-kapu ELŐTT — fogja meg), és a T05 tizennégy nyers '
+        + 'DML-alakja is SZÁNDÉKOS. A jogadási szabály NEM gyengült: a bírálati hatáskör-ág (R63 (A) '
+        + 'szabály) erre a programra kimondottan nem vonatkozik.',
       measured_before: 'a `df79358a` könyvelt eredményében és az R136-os köron ÚJRAMÉRVE is: 9-ből '
         + '7 eset zöld, E02 · E03 `spawnSync ETIMEDOUT` a `runBatteryUnits` 15 000 ms-os '
         + 'egység-korlátján (a 233 mutáció 1/10 szelete ezen a futtatón a korlát fölött van) — '

@@ -18402,6 +18402,89 @@ Object.freeze({
     ],
     forbidden: [],
   }),
+  // ── R202 — A MAI ELFOGADÁSI PROFIL ÉS A TÖRTÉNETI DIAGNOSZTIKA ELVÁLASZTÁSA ────────────────────
+  Object.freeze({
+    id: 'KUKA-497',
+    date: '2026-10-13',
+    title: 'AZ ELFOGADÁS MÉRCÉJE A TELJES REGISZTER VOLT — A TÖRTÉNETI PROGRAM BLOKKOLTA A MAI ZÖLDET',
+    what: 'A külső ellenőrző lánc elfogadási kapuja a TELJES, 19-programos regiszterhez mért. Az R201-ben '
+      + 'ezért a kapu PIROS lett: a külső fél KÉT VÁLTOZATLAN, EREDETI programja (`r57` · `r59`) a SAJÁT '
+      + 'bejelentett 15 000 ms-os belső korlátjába futott ezen a környezeten, miközben az ADAPTÁLT párjuk '
+      + '(`r57a` 9/9 · `r59a` 7/7) átment, és a másik 15 program is zöld volt.',
+    why_wrong: 'A mérce és a TÖRTÉNETI DIAGNOSZTIKA egy készletben állt, tehát nem volt gépi módja kimondani, '
+      + 'hogy MA mit fogadunk el. Két rossz kimenet közül kellett választani: vagy a historikus program '
+      + 'blokkolja a mai elfogadást (és akkor a kapu sosem zöld), vagy a bukást „várt bukásnak" nevezzük '
+      + '(és akkor a kapu nem kapu — `KUKA-121`). A manifeszt a helyetteseket és az R63 szerinti '
+      + '`rule_superseded` eseteket MÁR megnevezte, de csak SZÖVEGBEN: a gépi döntés nem használta.',
+    replaced_by: 'SAJÁT, VERZIÓZOTT PROFIL-OTTHON (`v3ref/external-checks/acceptanceProfile.mjs`, PRF-01): '
+      + 'a `today-17` a mai elfogadási mérce (17 program · 152 aktív program-eset, a FÜGGETLEN manifesztből '
+      + 'számolva), a `historical-19` a változatlan régi futtató-szerződés. A profil AZONOSÍTÓJA és TARTALMI '
+      + 'LENYOMATA bekerül a sorozat KÖTÉSÉBE, tehát MÁS PROFIL → MÁS KÖTÉS → MÁS SOROZAT: egy történeti '
+      + 'eredmény gépileg nem adható be mai profilbizonyítékként. A profil választása EXPLICIT '
+      + '(`--profile <név>`), néma alapérték nincs; a régi CLI, a `--only r57/r59` és az eredményalak '
+      + 'VÁLTOZATLAN. A helyettesítések névvel, az R63 §4 és az R202 §0 döntéssel, forrásfájllal és MÉRT '
+      + 'fájl-lenyomattal visszakövethetők.',
+    replacement: 'AZ ELFOGADÁS MÉRCÉJE ÉS A TÖRTÉNETI DIAGNOSZTIKA KÉT KÜLÖN KÉSZLET — és a kettőt a KÖTÉS '
+      + 'választja el, nem a szöveg. A bukás nem lesz PASS, és „várt bukás = siker" szabály nincs.',
+    decision: 'D-VS-3263',
+    found_by: 'chatgpt-v3 (R202 §0) — az R201 jelentésében kért szakmai döntést meghozta, és a GitHubról '
+      + 'olvasott négy `r57`/`r59` programot, a `case-manifest.mjs`-t meg az R63-as lapot összevetve '
+      + 'kimondta, hogy a hiány „a mai elfogadás és a történeti diagnosztika következetes GÉPI elválasztása".',
+    lesson: 'AMI MA ELFOGADÁS, AZ NEM UGYANAZ, AMI TÖRTÉNETI MÉRÉS. Ha a kettő egy készletben van, a kapu '
+      + 'vagy sosem zöld, vagy kivételekkel hazudik — a szétválasztást a KÖTÉSBE kell tenni.',
+    guard_note: 'gépi jel: `npm run verify:acceptance-profile` (`PRF01`–`PRF08`): a jó, teljes mai készlet '
+      + 'elfogadva · egyetlen aktív program/eset hiánya, bukása vagy érvénytelen bizonyítéka elutasítva · az '
+      + '`r57a`/`r59a` hiányát a történeti eredeti SEMMILYEN állapota nem pótolja · történeti eredmény nem '
+      + 'adható be mai profilként (a kötés és az ÉLŐ futtató-úton is) · a régi bukások megmaradnak a történeti '
+      + 'nézetben · a fájl-azonosság a KÖNYVELT rekordokhoz mérve · a biztonsági tanú ÉL · és a profil-otthon '
+      + 'saját kapuja. Mérve az ellenpróbákkal: a profil kivétele a kötésből „a két profil UGYANABBA a '
+      + 'sorozatba esik"-et ad, a néma alapérték a PRF08-at, az aktívan hagyott `r57` a PRF01/04/05-öt.',
+    home: 'v3',
+    positive: [
+      { paths: ['v3ref/external-checks/acceptanceProfile.mjs'], pattern: 'export const PROFILES', why: 'a profil VERZIÓZOTT otthonban él' },
+      { paths: ['v3ref/external-checks/acceptanceProfile.mjs'], pattern: 'a profil nincs megnevezve', why: 'a választás EXPLICIT, néma alapérték nincs' },
+      { paths: ['v3ref/external-checks/seriesLedger.mjs'], pattern: 'profile_digest: str\\(binding', why: 'a profil a KÖTÉS része — más profil, más sorozat' },
+      { paths: ['v3ref/external-checks/run-all.mjs'], pattern: "flag\\('--profile'\\)", why: 'a futtató EXPLICIT profilt kér' },
+      { paths: ['tools/vs_verify_acceptance_profile.mjs'], pattern: 'PRF04', why: 'a történeti eredmény nem mai profilbizonyíték — mérve' },
+    ],
+    forbidden: [],
+  }),
+  Object.freeze({
+    id: 'KUKA-498',
+    date: '2026-10-13',
+    title: 'A MANIFESZT „KIZÁRÓLAG HÍVÁSALAK" SZÖVEGE TÖBBET ÁLLÍTOTT, MINT AMI IGAZ VOLT',
+    what: 'A `case-manifest.mjs` mindkét ADAPTÁLT programról azt írta, hogy „KIZÁRÓLAG a battéria HÍVÁSÁNAK '
+      + 'ALAKJA" változott. MÉRVE (a két forrás diffjével): az `r57a` a SZINTETIKUS TESZTELŐKÉPET is '
+      + 'átvezette — a `world()` fixtúra meghívója nyers `INSERT INTO invite` helyett NEVEZETT, RÖGZÍTETT '
+      + 'felhatalmazási alap alatt születik (`recordAuthorityBasis` + `issueInviteUnderBasis`) —, az `r59a` '
+      + 'pedig egy DIAGNOSZTIKAI mezőt is (`norm_evidence?.required ?? null`).',
+    why_wrong: 'A „kizárólag" szó ERŐSEBBET állított a valóságnál, és épp arról hallgatott, ami a mai '
+      + 'elfogadási döntés ÉRDEMI alapja: hogy a teszt-ELŐFELTÉTEL vált szabályos alapra, nem a TERMÉK '
+      + 'szabálya gyengült (`KUKA-050`: a szöveg a valóságot követi). Aki csak a manifesztet olvassa, abból '
+      + 'nem tudhatta meg, hogy az R63 §4 előírt átvezetése MEGTÖRTÉNT — pedig az adaptált program fejléce '
+      + 'ezt részletesen leírja.',
+    replaced_by: 'A `changed` mező MINDKÉT programnál a mért valóságot mondja, SORSZÁMOZVA: az `r57a`-nál (1) a '
+      + 'szabályos felhatalmazási tesztelőkép az R63 §4 szerint, (2) a battéria darabolt hívása; az '
+      + '`r59a`-nál (1) a darabolt hívás, (2) a diagnosztikai mező — azzal a kimondott megjegyzéssel, hogy a '
+      + 'pass-predikátum VÁLTOZATLAN. Az `unchanged` mező kimondja, hogy a TÁMADÁSI UTAK valódiak maradnak '
+      + '(a T02 nyers `UPDATE`-je és a T05 tizennégy nyers DML-alakja SZÁNDÉKOS).',
+    replacement: 'A „KIZÁRÓLAG" SZÓ BIZONYÍTÁST KÉR. Ha a leírás szűkebb, mint a valóság, akkor épp a '
+      + 'legfontosabb változás marad láthatatlan.',
+    decision: 'D-VS-3263',
+    found_by: 'chatgpt-v3 (R202 §0) — a GitHubról olvasta a négy programot, és kimondta: *„A tesztadat '
+      + 'előállítása szabályos alapra váltott"*, valamint hogy a manifeszt régi szövege „ehhez már pontatlan". '
+      + 'A Claude-v3 a két forrás diffjével visszaigazolta, és az `r59a` diagnosztikai mezőjét is megmérte.',
+    lesson: 'A LEÍRÁST A FORRÁSHOZ KELL MÉRNI, NEM AZ EMLÉKEZETHEZ — főleg ha a leírás egy DÖNTÉS alapja.',
+    guard_note: 'gépi jel: `npm run verify:acceptance-profile` (`PRF06`): a helyettesített és a helyettesítő '
+      + 'eset-készletének AZONOSSÁGA mérve, és a fájl-lenyomatok a KÖNYVELT rekordokhoz hasonlítva (nem új, '
+      + 'kézzel beírt pinhez — az a `KUKA-003`).',
+    home: 'v3',
+    positive: [
+      { paths: ['v3ref/external-checks/case-manifest.mjs'], pattern: 'A SZABÁLYOS FELHATALMAZÁSI TESZTELŐKÉP', why: 'az r57a leírása kimondja az átvezetést' },
+      { paths: ['v3ref/external-checks/case-manifest.mjs'], pattern: 'pass-predikátum \\(`pass: process.exit !== 0`\\) VÁLTOZATLAN', why: 'az r59a diagnosztikai mezője megnevezve, az ítélet érintetlensége kimondva' },
+    ],
+    forbidden: [],
+  }),
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

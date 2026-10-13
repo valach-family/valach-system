@@ -52,6 +52,11 @@ import { MUTATIONS } from '../mutations.mjs';
 // A KÖTÉS MÉRÉSE KÜLÖN OTTHONBAN (R196 §1 · KUKA-003): az ÖSSZESÍTŐ is UGYANEZT hívja, hogy a
 // frissesség-ellenőrzés ne két, egymástól elcsúszó példányon dőljön el.
 import { measureSource, liveBinding } from './seriesBinding.mjs';
+// AZ ELFOGADÁSI PROFIL OTTHONA (PRF-01 · R202 §1) — a futtató, a kapu és a söprés UGYANEZT hívja.
+import {
+  HISTORICAL_PROFILE, resolveProfile, profileProgramRows, profileCaseKeys,
+  measureProfileFiles, profileDigest, profileProblems, profileLine,
+} from './acceptanceProfile.mjs';
 // A PROGRAM-REGISZTER ÉS AZ ESET-SZEMLE KÜLÖN MODULBAN ÁLL (EXT-02, R59/F02), hogy a verifier
 // HÍVHASSA ugyanazt a döntést, amit a futtató használ — ne a forrás szövegét olvassa (KUKA-009).
 import {
@@ -78,12 +83,56 @@ const only = flag('--only');
 const keep = argv.includes('--keep');
 const OUT = resolve(flag('--out') || join(HERE, 'results'));
 
-if (only && !PROGRAMS.some((p) => p.id === only)) {
-  // KUKA-064: a nemleges válasz ne legyen zsákutca — a választható halmaz jöjjön vele.
-  console.error(`ismeretlen program: "${only}" — választható: ${PROGRAMS.map((p) => p.id).join(' · ')}`);
+/**
+ * AZ ELFOGADÁSI PROFIL — EXPLICIT VÁLASZTÁS, A RÉGI ÚT VÁLTOZATLAN (PRF-01 · R202 §1).
+ *
+ * `--profile <név>` nélkül a futtató a TÖRTÉNETI, 19-programos szerződés szerint fut: ez a külső
+ * programok és a korábbi körök útja, és a SPEC kimondja, hogy változatlanul kell maradnia — a CLI,
+ * a `--only r57/r59` és az eredményalak is. A MAI elfogadási profilt KÉZZEL kell kérni
+ * (`--profile today-17`), mert a mérce megválasztása nem lehet néma alapérték.
+ *
+ * Ami a két utat GÉPILEG elválasztja: a profil azonosítója és tartalmi lenyomata bekerül a sorozat
+ * KÖTÉSÉBE, tehát más profil → más sorozat. Nem a jóindulat választ (`KUKA-121`).
+ */
+const PROFILE_NAME = flag('--profile') || HISTORICAL_PROFILE;
+const profileResolved = resolveProfile(PROFILE_NAME);
+if (!profileResolved.ok) {
+  console.error(`PROFIL: ${profileResolved.why}`);
+  console.error('  a mai elfogadási profil:  node v3ref/external-checks/run-all.mjs --profile today-17');
+  console.error('  a történeti szerződés:    node v3ref/external-checks/run-all.mjs   (változatlan, profil nélkül)');
   process.exit(2);
 }
-const selected = only ? PROGRAMS.filter((p) => p.id === only) : PROGRAMS;
+const PROFILE = profileResolved.profile;
+const PROFILE_FILES = measureProfileFiles(HERE, PROFILE, PROGRAMS);
+const PROFILE_DIGEST = profileDigest({ profile: PROFILE, programs: PROGRAMS, fileDigests: PROFILE_FILES });
+{
+  // A PROFIL SAJÁT KAPUJA A MÉRÉS ELŐTT: egy elcsúszott profilból nem lesz bizonyíték.
+  const pp = profileProblems({ profile: PROFILE, programs: PROGRAMS, fileDigests: PROFILE_FILES });
+  if (pp.length) {
+    console.error(`A PROFIL NEM ÉRVÉNYES (${PROFILE.id}) — ${pp.length} lelet:`);
+    for (const x of pp) console.error(`  · ${x}`);
+    process.exit(2);
+  }
+}
+/** A PROFIL ELVÁRT PROGRAM-KÉSZLETE — a manifeszt sorai, a profil szerint szűrve. */
+const PROFILE_PROGRAMS = profileProgramRows(PROFILE, PROGRAMS).filter(Boolean);
+
+if (only && !PROFILE_PROGRAMS.some((p) => p.id === only)) {
+  // KUKA-064: a nemleges válasz ne legyen zsákutca — a választható halmaz jöjjön vele.
+  // ÉS A PROFIL IS: ha a program LÉTEZIK, de nem AKTÍV ebben a profilban, azt kimondjuk, nem
+  // „ismeretlen program"-nak nevezzük (`KUKA-002`: a kettő nem ugyanaz).
+  const letezik = PROGRAMS.some((p) => p.id === only);
+  if (letezik) {
+    console.error(`a(z) "${only}" program LÉTEZIK a regiszterben, de a(z) ${PROFILE.id} profilban NEM AKTÍV.`);
+    const sub = (PROFILE.substitutions || []).find((x) => x.from === only);
+    if (sub) console.error(`  a helyettesítője ebben a profilban: ${sub.to} (döntés: ${sub.decision.join(' · ')})`);
+    console.error(`  a történeti futtatásához: node v3ref/external-checks/run-all.mjs --only ${only}   (profil nélkül)`);
+  } else {
+    console.error(`ismeretlen program: "${only}" — választható: ${PROFILE_PROGRAMS.map((p) => p.id).join(' · ')}`);
+  }
+  process.exit(2);
+}
+const selected = only ? PROFILE_PROGRAMS.filter((p) => p.id === only) : PROFILE_PROGRAMS;
 
 // A FORRÁS-ÁLLAPOT MÉRÉSE a `seriesBinding.mjs`-ben él (R196 §1): a futtató ÉS az összesítő
 // ugyanazt a szabályt hívja, nem két példányt (KUKA-003 · KUKA-029).
@@ -114,7 +163,7 @@ function stage(src) {
   // bejegyzés egy BURKOLÓRA mutat, és a változatlan próba a `companions` listán áll — a másolat
   // enélkül némán hiányos volna, és a program „nem futott végig" jelzéssel bukna el egy olyan
   // okból, aminek semmi köze a méréshez (KUKA-049).
-  for (const p of PROGRAMS) {
+  for (const p of PROFILE_PROGRAMS) {
     for (const f of [p.file, ...(p.companions || [])]) cpSync(join(HERE, f), join(dir, f));
   }
   return dir;
@@ -149,6 +198,22 @@ for (const f of src.dirty_files) console.log(`                  · ${f}`);
 console.log(`  munkakönyvtár:  ${dir}`);
 console.log(`  gépi eredmény:  ${OUT}`);
 console.log(`  node:           ${process.version}`);
+/**
+ * A MÉRCE LÁTSZÓDJON — A PROFIL A FEJLÉCBEN (R202 §1).
+ *
+ * A SPEC kimondja: *„a záró elfogadási kimenet nevezze a profilt, az elvárt és mért program-/esetkészletet"*.
+ * Ha a mérce nem látszik a kimeneten, akkor a kimenetet olvasó ember nem tudja, MIHEZ mértünk — és
+ * épp ez volt az R200-as lelet osztálya (`KUKA-121`).
+ */
+console.log(`  ${profileLine({ profile: PROFILE, programs: PROGRAMS, fileDigests: PROFILE_FILES })}`);
+if ((PROFILE.substitutions || []).length) {
+  for (const sub of PROFILE.substitutions) {
+    console.log(`                  ${sub.from} → ${sub.to} · döntés: ${sub.decision.join(' · ')}`);
+    console.log(`                  a helyettesített ${sub.from} TÖRTÉNETI/DIAGNOSZTIKAI program marad — a bukása NEM PASS`);
+  }
+} else {
+  console.log('                  (ez a TÖRTÉNETI szerződés: az eredeti r57/r59 is aktív, a bukásaik LÁTHATÓK)');
+}
 console.log('');
 
 // A LENYOMAT A TÉNYLEGES FÁJLBÓL (EXT-03). A manifeszt a KAPCSOLATOT deklarálja, a SZÁMOT itt
@@ -186,7 +251,11 @@ const seriesConfig = {
 // A KÖTÉST A MEGOSZTOTT MÉRŐ ADJA — ugyanaz, amit az összesítő is hív (R196 §1). A FUTTATÓ-lenyomat
 // a NEVEZETT fájl-listából jön (`RUNNER_FILES`), mert a futtató ma már nem egy fájl: a kapu
 // (`seriesLedger.mjs`) és a kötés-mérő (`seriesBinding.mjs`) is dönt a mérés eredményéről.
-const seriesLive = liveBinding({ root: ROOT, here: HERE, configDigest: configDigest(seriesConfig) });
+const seriesLive = liveBinding({
+  root: ROOT, here: HERE, configDigest: configDigest(seriesConfig),
+  // A PROFIL A KÖTÉS RÉSZE (R202 §1): más profil → más sorozat.
+  profileId: PROFILE.id, profileDigest: PROFILE_DIGEST,
+});
 const seriesBinding = seriesLive.binding;
 // A SZÁRMAZÁS külön: melyik könyvelt állapot írta. A sorozat AZONOSSÁGA a mért forrás TARTALMA,
 // nem ez — különben a sorozat a saját bizonyítéka commitolását sem élné túl (R196 §1, mérve).
@@ -200,7 +269,8 @@ const anchorPath = join(seriesDir, BINDING_ANCHOR_FILE);
     provenance: seriesProvenance,
     // AZ ELVÁRT KÉSZLET A TELJES MANIFESZT, NEM A MOSTANI `--only` VÁLASZTÁS: a részfutás nem
     // szűkítheti le azt, amihez a teljességet mérjük (KUKA-206).
-    programs: PROGRAMS.map((p) => p.id),
+    // AZ ELVÁRT KÉSZLET A PROFILBÓL JÖN, NEM A TELJES REGISZTERBŐL (R202 §1).
+    programs: PROFILE_PROGRAMS.map((p) => p.id),
     config: seriesConfig,
     recorded_by: 'run-all.mjs',
   });
@@ -232,7 +302,7 @@ const anchorPath = join(seriesDir, BINDING_ANCHOR_FILE);
     }
   }
 }
-const seriesAnchorOk = anchorProblems(makeAnchor({ binding: seriesBinding, provenance: seriesProvenance, programs: PROGRAMS.map((p) => p.id) })).length === 0;
+const seriesAnchorOk = anchorProblems(makeAnchor({ binding: seriesBinding, provenance: seriesProvenance, programs: PROFILE_PROGRAMS.map((p) => p.id) })).length === 0;
 
 const summary = [];
 for (const p of selected) {
@@ -431,7 +501,9 @@ for (const p of selected) {
 // A HATÓKÖR KIMONDVA (R59/F02). A `--only` legitim, de a RÉSZLEGES futás soha nem a lánc teljes
 // bizonyítéka — és ezt a GÉPI kimenetnek is hordoznia kell, nem csak a képernyőnek (KUKA-104: két
 // csatorna, két igazság). Aki a JSON-t olvassa, a `scope`-ból tudja meg, mit ér a zöld.
-const scope = runScope(selected.map((p) => p.id), PROGRAMS.map((p) => p.id));
+// A HATÓKÖR A PROFIL ELVÁRT KÉSZLETÉHEZ MÉRVE (R202 §1): a részleges futás így a PROFILHOZ képest
+// részleges, nem a teljes regiszterhez — különben a 17-programos profil mindig „hiányosnak" látszana.
+const scope = runScope(selected.map((p) => p.id), PROFILE_PROGRAMS.map((p) => p.id));
 
 // ── A KÖRNYEZETI KIHAGYÁS — NEVEZETTEN, ÉS CSAK ÉLŐ HELYETTESSEL (R81 §5) ───────────────────────
 //

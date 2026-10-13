@@ -1,11 +1,17 @@
 {
-  "at": "2026-10-12T15:44:43.087Z",
+  "at": "2026-10-13T08:18:49.949Z",
   "node": "v22.22.0",
   "source": {
-    "commit": "a0a4079ba15a2d1a6a4ea2c25af320dbfa7e0c00",
-    "clean": true,
-    "dirty_files": [],
-    "note": "a lemásolt forrás a könyvelt állapoton áll"
+    "commit": "4b0a239c3d509595dd2984dabb1b235206bcaf33+uncommitted",
+    "clean": false,
+    "dirty_files": [
+      "v3ref/external-checks/case-manifest.mjs",
+      "v3ref/external-checks/run-all.mjs",
+      "v3ref/external-checks/seriesBinding.mjs",
+      "v3ref/external-checks/seriesLedger.mjs",
+      "v3ref/external-checks/acceptanceProfile.mjs"
+    ],
+    "note": "a lemásolt forráson nem-könyvelt változás áll — a bemondott commit ezért jelölt"
   },
   "scope": {
     "complete": false,
@@ -52,7 +58,7 @@
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 6380,
+      "ms": 5377,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
@@ -76,7 +82,7 @@
       "expected_from": "az R54-es körünk jegyzőkönyve (támadás + ellenpár)",
       "evidence_file": "f03-restated.json",
       "evidence_present": true,
-      "evidence_pin": "a0a4079ba15a2d1a6a4ea2c25af320dbfa7e0c00",
+      "evidence_pin": "4b0a239c3d509595dd2984dabb1b235206bcaf33+uncommitted",
       "total": 2,
       "case_rows": [
         {

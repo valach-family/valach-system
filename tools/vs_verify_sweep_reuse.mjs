@@ -29,6 +29,8 @@ import { digestOfBundle } from '../v3ref/bundleDigest.mjs';
 // A FÜGGETLENÜL ELVÁRT program-/esetkészlet: a rögzítő NEM a saját számát nevezi teljesnek (R200 §2).
 import { PROGRAMS } from '../v3ref/external-checks/case-manifest.mjs';
 import { BATCH_EXTRA_FILES } from '../v3ref/mutationBatch.mjs';
+// A MAI ELFOGADÁSI PROFIL (PRF-01 · R202 §1) — a próba a profilból veszi a darabszámot.
+import { ACCEPTANCE_PROFILE, resolveProfile, profileProgramRows, measureProfileFiles, profileDigest } from '../v3ref/external-checks/acceptanceProfile.mjs';
 import { seriesId, makeAnchor, makeRecord, configDigest, evidenceDigest, SERIES_CONTRACT, BINDING_ANCHOR_FILE } from '../v3ref/external-checks/seriesLedger.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -115,7 +117,11 @@ const SKIP = ['--skip', 'verify:external-checks,verify:v3ref'];
   say('SRU02', v.status === 'unverified' && /lenyomata|munkafa eltér/.test(v.why), `módosított munkafán a mag-battéria kihagyása átment: ${v.why}`);
   const s = sweep([...SKIP, '--reuse', C1]);
   say('SRU02', s.code === 1, `a VALÓDI söprés módosított munkafán nem 1-gyel zárt (${s.code})`);
-  say('SRU02', /NEM FUTOTT — NEM IGAZOLT/.test(s.out) && /ÖSSZVERDIKT: NEM ZÖLD/.test(s.out), 'a söprés nem mondja ki a NEM IGAZOLT állapotot és a nem zöld összverdiktet');
+  // A HÁROM ÁLLAPOT (R202 §3): a söprés a „nincs érvényes mérés" VAGY a „mért bukás" szóval mondja
+  // ki a nem igazolt kihagyást — a pin a SZABÁLYT méri (van nevezett állapot + nem zöld összverdikt),
+  // nem a korábbi egyetlen szövegalakot (`KUKA-009`).
+  say('SRU02', /NINCS ÉRVÉNYES MÉRÉS|MÉRT BUKÁS/.test(s.out) && /ÖSSZVERDIKT: NEM ZÖLD/.test(s.out),
+    'a söprés nem mondja ki a nevezett állapotot (NINCS ÉRVÉNYES MÉRÉS / MÉRT BUKÁS) és a nem zöld összverdiktet');
   say('SRU02', !s.chainRan, 'a söprés az elutasított kihagyás után ELINDÍTOTTA a hosszú láncot (R69: nem indíthat)');
   say('SRU02', !/érvényes/.test(s.out), 'a söprés módosított munkafán is „érvényes"-t ír');
   git('checkout', '--', 'v3ref/a.mjs');
@@ -246,11 +252,31 @@ const synthHex = (n, seed) => {
   return out.slice(0, n);
 };
 const SYN_CFG = configDigest({ battery_units: 64, unit_plan: [64, 253], unit_budget_ms: 12_000, external_cap_ms: 15_000, node: NODE });
+/**
+ * A SZINTETIKUS KÖTÉS A MAI ELFOGADÁSI PROFILT HORDOZZA (PRF-01 · R202 §1).
+ *
+ * MÉRVE: amikor a kötés a profil-párral bővült, ez a fixtúra még a PRF-01 ELŐTTI alakot építette, és
+ * az SRU12–SRU14 pirosat adott egy HELYES kódra („MÁS PROFIL (nincs megnevezve)"). Ez a `KUKA-495`
+ * osztálya — a szerződés-bővítés kinőtte a saját próbáját. Ezért a profil-lenyomatot UGYANAZZAL a
+ * függvénnyel számoljuk, amit a feloldó is hív, UGYANARRÓL a szintetikus gyökérről: így a két érték
+ * KONSTRUKCIÓ SZERINT egyezik, nem egyeztetés útján (`KUKA-003`).
+ */
+const SYN_PROFILE = resolveProfile(ACCEPTANCE_PROFILE).profile;
+const SYN_PROFILE_ROWS = profileProgramRows(SYN_PROFILE, PROGRAMS).filter(Boolean);
+const SYN_PROFILE_DIGEST = profileDigest({
+  profile: SYN_PROFILE,
+  programs: PROGRAMS,
+  // A SZINTETIKUS GYÖKÉRRŐL: ott a külső program-fájlok nincsenek meg, tehát a mért lenyomatok
+  // `null`-ok — és épp ez a lényeg: a feloldó UGYANÍGY számol, tehát ugyanezt kapja.
+  fileDigests: measureProfileFiles(join(tmp, 'v3ref/external-checks'), SYN_PROFILE, PROGRAMS),
+});
 const SYN_BINDING = Object.freeze({
   bundle_digest: synthHex(64, 'sru-bundle'),
   programs_digest: synthHex(64, 'sru-manifest'),
   runner_digest: synthHex(64, 'sru-runner'),
   config_digest: SYN_CFG,
+  profile_id: SYN_PROFILE.id,
+  profile_digest: SYN_PROFILE_DIGEST,
   clean: true,
 });
 const SYN_SID = seriesId(SYN_BINDING);
@@ -264,7 +290,8 @@ const SYN_SID = seriesId(SYN_BINDING);
 const writeSeries = (ids, { sid = SYN_SID, binding = SYN_BINDING, provenance = { commit: C0 } } = {}) => {
   const dir = `${SERIES_BASE_REL}/${sid}`;
   W(`${dir}/${BINDING_ANCHOR_FILE}`, JSON.stringify(makeAnchor({
-    binding, provenance, programs: PROGRAMS.map((x) => String(x.id)), recorded_by: 'sru-fixture',
+    // AZ ELVÁRT KÉSZLET A MAI PROFILBÓL — nem a teljes történeti regiszterből (R202 §1).
+    binding, provenance, programs: SYN_PROFILE_ROWS.map((x) => String(x.id)), recorded_by: 'sru-fixture',
   }), null, 2));
   for (const id of ids) {
     const prog = PROGRAMS.find((x) => String(x.id) === String(id));
@@ -298,21 +325,24 @@ const dropSeries = () => { rmSync(join(tmp, SERIES_BASE_REL), { recursive: true,
   const e = assess('verify:external-checks', C);
   say('SRU11', e.status === 'unverified',
     `az EGYETLEN RÉSZPROGRAM (1/1, complete_evidence:false) bizonyítéka a TELJES lánc kihagyásaként ÁTMENT: ${e.why}`);
-  say('SRU11', /complete_evidence=false/.test(e.why) && /HIÁNYZIK 18\/19/.test(e.why),
-    `az elutasítás nem nevezi meg sem a nem-teljes jelet, sem a FÜGGETLEN készlet hiányát: ${e.why}`);
+  // A DARABSZÁM A MAI PROFILBÓL JÖN, NEM BEÍRT „18/19"-BŐL (R202 §1 · `KUKA-003`): ha a profil
+  // változik, a próba VELE változik, nem marad el tőle.
+  const AKTIV = profileProgramRows(resolveProfile(ACCEPTANCE_PROFILE).profile, PROGRAMS).filter(Boolean).length;
+  say('SRU11', /complete_evidence=false/.test(e.why) && new RegExp(`HIÁNYZIK ${AKTIV - 1}/${AKTIV}`).test(e.why),
+    `az elutasítás nem nevezi meg sem a nem-teljes jelet, sem a MAI profil készletének hiányát (elvárt: ${AKTIV - 1}/${AKTIV}): ${e.why}`);
   say('SRU11', /EGYETLEN SOROZAT SINCS/.test(e.why),
     `az elutasítás nem mondja ki, hogy a sorozat-út sem adja a teljes bizonyítékot: ${e.why}`);
   // AZ ELUTASÍTÁS NEM INDÍT HOSSZÚ LÁNCOT (R69).
   const sw = sweep([...SKIP, '--reuse', C]);
-  say('SRU11', sw.code === 1 && /NEM FUTOTT — NEM IGAZOLT/.test(sw.out), `a söprés a részprogram-bizonyítékot elfogadta (${sw.code})`);
+  say('SRU11', sw.code === 1 && /NINCS ÉRVÉNYES MÉRÉS|MÉRT BUKÁS/.test(sw.out), `a söprés a részprogram-bizonyítékot elfogadta (${sw.code})`);
   say('SRU11', !sw.chainRan, 'a söprés az elutasított kihagyás után ELINDÍTOTTA a hosszú láncot');
 }
 
 // ── SRU12 — HIÁNYOS SOROZAT, EGYÖNTETŰEN ZÖLD SAJÁT SZÁMOKKAL → ELUTASÍTVA ────────────────────────
 {
   // A sorozat 18 programot visz a 19-ből, MINDET zölden: a saját könyvelése hibátlan.
-  const ids = PROGRAMS.slice(0, PROGRAMS.length - 1).map((x) => String(x.id));
-  const missing = String(PROGRAMS[PROGRAMS.length - 1].id);
+  const ids = SYN_PROFILE_ROWS.slice(0, SYN_PROFILE_ROWS.length - 1).map((x) => String(x.id));
+  const missing = String(SYN_PROFILE_ROWS[SYN_PROFILE_ROWS.length - 1].id);
   writeSeries(ids);
   git('add', '-A'); git('commit', '-q', '-m', 'SRU12 hianyos sorozat, sajat szamai zoldek');
   const C = git('rev-parse', 'HEAD');
@@ -328,14 +358,14 @@ const dropSeries = () => { rmSync(join(tmp, SERIES_BASE_REL), { recursive: true,
 // ── SRU13 — VALÓDI TELJES, KÖTÖTT KÉSZLET → ELFOGADVA (pozitív kontroll, SOROZAT-alapon) ──────────
 {
   dropSeries();
-  writeSeries(PROGRAMS.map((x) => String(x.id)));
+  writeSeries(SYN_PROFILE_ROWS.map((x) => String(x.id)));
   // Az EGYFUTÁS-fájl RÉSZLEGES marad: a teljességet KIZÁRÓLAG a sorozat adja — így az is mérve van,
   // hogy a sorozat-út önmagában elég, és nem a `results/` alatti, felülírt fájl hitelesít.
   git('add', '-A'); git('commit', '-q', '-m', 'SRU13 teljes kotott sorozat');
   const C = git('rev-parse', 'HEAD');
   const e = assess('verify:external-checks', C);
   say('SRU13', e.status === 'reused', `a VALÓDI teljes, kötött sorozat kihagyása NEM ment át: ${e.why}`);
-  say('SRU13', /SOROZAT/.test(e.evidence.summary) && new RegExp(`${PROGRAMS.length}/${PROGRAMS.length}`).test(e.evidence.summary),
+  say('SRU13', /SOROZAT/.test(e.evidence.summary) && new RegExp(`${SYN_PROFILE_ROWS.length}/${SYN_PROFILE_ROWS.length}`).test(e.evidence.summary),
     `az elfogadás nem a SOROZATOT és a teljes készletet nevezi meg: ${e.evidence.summary}`);
   const sw = sweep([...SKIP, '--reuse', C]);
   say('SRU13', sw.code === 0, `a söprés a valódi teljes készlettel nem 0-val zárt (${sw.code}): ${sw.out.slice(-300)}`);

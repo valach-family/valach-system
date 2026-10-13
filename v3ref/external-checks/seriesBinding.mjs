@@ -88,7 +88,7 @@ export function measureSource(root) {
  * AZ ÉLŐ KÖTÉS — amit az összesítő a horgonyhoz mér (L3, R196 §1). `configDigest`-et a hívó adja be,
  * hogy a darabolási állandók a saját otthonukban maradjanak (`batteryUnits.mjs`).
  */
-export function liveBinding({ root, here, configDigest }) {
+export function liveBinding({ root, here, configDigest, profileId, profileDigest }) {
   const src = measureSource(root);
   let bundle = null;
   try { bundle = String(digestOfBundle(root)).replace(/^sha256:/, ''); } catch { bundle = null; }
@@ -99,6 +99,15 @@ export function liveBinding({ root, here, configDigest }) {
       programs_digest: fileDigest(here, PROGRAMS_FILE),
       runner_digest: runnerDigest(here),
       config_digest: configDigest,
+      /**
+       * AZ ELFOGADÁSI PROFIL (PRF-01 · R202 §1) — A HÍVÓ ADJA, ÉS A HÍVÓ VÁLASZTJA EXPLICIT.
+       *
+       * Szándékosan NINCS alapérték: ha a hívó nem ad profilt, a kötés profil nélkül születik, és a
+       * `bindingProblems` ezt NEVEZETTEN kimondja. Egy néma „legyen a mai" alapérték azt jelentené,
+       * hogy egy elírás csendben más mércét választ (`KUKA-051`).
+       */
+      profile_id: profileId,
+      profile_digest: profileDigest,
       clean: src.clean === true,
     },
     // A SZÁRMAZÁS: melyik könyvelt állapot írta. Ez a visszakereséshez kell, nem az azonossághoz.

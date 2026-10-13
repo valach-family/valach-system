@@ -135,6 +135,21 @@ export function canonBinding(binding = {}) {
     programs_digest: str(binding && binding.programs_digest),
     runner_digest: str(binding && binding.runner_digest),
     config_digest: str(binding && binding.config_digest),
+    /**
+     * AZ ELFOGADÁSI PROFIL A KÖTÉS RÉSZE (PRF-01 · R202 §1).
+     *
+     * MIÉRT IDE. A SPEC kimondja: *„a profilazonosító és lenyomat a bizonyíték kötésének része"*.
+     * Következmény, és épp ez a cél: MÁS PROFIL → MÁS KÖTÉS → MÁS SOROZAT. Egy történeti,
+     * 19-programos futás eredménye így GÉPILEG nem adható be mai, 17-programos profil
+     * bizonyítékaként — és fordítva sem. A szétválasztás nem a jóindulaton áll (`KUKA-121`).
+     *
+     * A KÖVETKEZMÉNYT KIMONDOM: a profil-mezők BEVEZETÉSE ELŐTTI horgonyok és rekordok (R196–R201)
+     * ezeket nem hordozzák, ezért a mai kötés-alakhoz mérve TÖRTÉNETIEK. Ez szándékos: a korábbi
+     * mérések a SAJÁT körük fejére szólnak, és nem minősítjük őket visszamenőleg mainak
+     * (`KUKA-206`). A régi sorozatok OLVASHATÓK maradnak — az összesítő külön kimondja róluk.
+     */
+    profile_id: str(binding && binding.profile_id),
+    profile_digest: str(binding && binding.profile_digest),
     clean: Boolean(binding && binding.clean),
   };
 }
@@ -169,6 +184,16 @@ export function bindingProblems(binding, { label = 'kötés' } = {}) {
   if (!isHex(b.programs_digest, 64)) p.push(`a ${label} MANIFESZT-lenyomata nem valódi (64-hex) lenyomat: ${JSON.stringify(b.programs_digest)}`);
   if (!isHex(b.runner_digest, 64)) p.push(`a ${label} FUTTATÓ-lenyomata nem valódi (64-hex) lenyomat: ${JSON.stringify(b.runner_digest)}`);
   if (!isHex(b.config_digest, 16)) p.push(`a ${label} konfiguráció-lenyomata nem valódi (16-hex) lenyomat: ${JSON.stringify(b.config_digest)}`);
+  // AZ ELFOGADÁSI PROFIL (PRF-01 · R202 §1): a MEGNEVEZÉSE és a TARTALMI lenyomata is kötelező. A
+  // hiányuk NEM üres mező, hanem nevezett hiba — különben egy profil nélküli futás „bármelyik"
+  // profil bizonyítékának látszana (`KUKA-051`).
+  if (!b.profile_id) {
+    p.push(`a ${label} nem nevezi meg az ELFOGADÁSI PROFILT (profile_id) — profil nélkül nem tudjuk, `
+      + 'MIHEZ mérünk (PRF-01 · R202 §1)');
+  }
+  if (!isHex(b.profile_digest, 16)) {
+    p.push(`a ${label} PROFIL-lenyomata nem valódi (16-hex) lenyomat: ${JSON.stringify(b.profile_digest)}`);
+  }
   return p;
 }
 
@@ -177,7 +202,7 @@ export function bindingMismatch(got, expected) {
   const a = canonBinding(got);
   const b = canonBinding(expected);
   const out = [];
-  for (const k of ['bundle_digest', 'programs_digest', 'runner_digest', 'config_digest', 'clean']) {
+  for (const k of ['bundle_digest', 'programs_digest', 'runner_digest', 'config_digest', 'profile_id', 'profile_digest', 'clean']) {
     if (a[k] !== b[k]) {
       const sh = (v) => (typeof v === 'string' && v.length > 16 ? `${v.slice(0, 12)}…` : JSON.stringify(v));
       out.push(`${k}: ${sh(a[k])} ≠ ELVÁRT ${sh(b[k])}`);

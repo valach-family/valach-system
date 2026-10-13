@@ -16,6 +16,74 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3263 — A MAI ELFOGADÁSI PROFIL ÉS A TÖRTÉNETI DIAGNOSZTIKA GÉPI ELVÁLASZTÁSA (PRF-01, R202)
+
+Az R201-ben kértem szakmai döntést, és a **chatgpt-v3 az R202 §0-ban meghozta**: a mai elfogadási
+profilban az `r57` helyét az `r57a`, az `r59` helyét az `r59a` tölti be. Az eredeti kettő
+**történeti/diagnosztikai** program marad, a saját nyers eredményével.
+
+**MIT NEM MOND KI EZ A DÖNTÉS** — és ezt a SPEC szó szerint kimondja:
+· a bukásuk **nem lesz PASS**, és **nincs** általános „várt bukás = siker" szabály;
+· az R201 régi, 19-programos kapujának `accepted=false` eredménye **történeti tény** — nem
+  minősítjük visszamenőleg zöldnek;
+· a 15 000 ms-os korlát **nem emelkedik**, és egyetlen gép méréséből nem következtetünk minden gépre;
+· a termék jogadási szabálya **nem gyengül**.
+
+**A HIÁNY, AMIT BETÖLT.** A manifeszt már megnevezte a helyetteseket és az R63 szerinti
+`rule_superseded` eseteket — de csak **szövegben**. Ami hiányzott: a mai elfogadás és a történeti
+diagnosztika **következetes, gépi** elválasztása. *(KUKA-497)*
+
+**A DÖNTÉS: SAJÁT, VERZIÓZOTT PROFIL-OTTHON** (`v3ref/external-checks/acceptanceProfile.mjs`, `PRF-01`):
+
+| profil | mit jelent | mérve |
+|---|---|---|
+| `today-17` | a **mai** elfogadási mérce | 17 program · **152 aktív program-eset** · lenyomat `1964f62c4f96870b` |
+| `historical-19` | a **változatlan** régi futtató-szerződés | 19 program · 168 eset · lenyomat `7abf08b62d6ad2a9` |
+
+**A 152 a FÜGGETLEN profilból van számolva, nem a beérkező eredményből** — ahogy a SPEC kéri; a 168
+történeti esetből az eredeti `r57` kilenc és `r59` hét ismételt változata esik ki.
+
+**A SZÉTVÁLASZTÁS A KÖTÉSBEN ÁLL, NEM A SZÖVEGBEN.** A profil azonosítója és **tartalmi lenyomata**
+bekerül a sorozat kötésébe (`canonBinding`), tehát **más profil → más kötés → más sorozat**: mérve, a
+két profil két külön sorozatba esik. Egy történeti eredmény így **gépileg** nem adható be mai
+profilbizonyítékként — nem a jóindulat választ *(KUKA-121)*.
+
+**A VÁLASZTÁS EXPLICIT, NÉMA ALAPÉRTÉK NINCS** (`--profile <név>`), és **a régi út változatlan**: a
+CLI, a `--only r57/r59` és az eredményalak is. Aki a mai profilban az eredetit kéri, **nevezett**
+elutasítást kap, a helyettesítő megnevezésével. A helyettesítések névvel, az **R63 §4** (a termék
+szabálya) és az **R202 §0** (a mai profil) döntéssel, forrásfájllal és **mért** fájl-lenyomattal
+visszakövethetők. Kézzel beírt pint nem vezetünk be: a lenyomat a profil-lenyomat része, és az
+azonosságot a **könyvelt** R201-es rekordokhoz mérjük.
+
+**A BIZTONSÁGI SZÁNDÉK MEGTARTVA, TANÚVAL.** A SPEC kérte, hogy a 69 magpróba meglévő készletében
+nevezzem meg az alap nélküli meghívó **elutasításának** közvetlen tanúját és a szabályos pozitív
+párját. **Van ilyen**, ezért új próbát nem gyártottam, hanem megnevezte a profil, és gépi jel fogja:
+· **`P-ORG-basis-limit` (e)** — nyers, pecsét nélküli meghívó → `no_declared_basis` +
+  `invite_without_basis`, **és a meghívó nem fogy el** (`redeemed_at === null`); a kikényszerítés
+  helye nevezve (`invite_redeem_without_basis`);
+· **`P-ORG-basis-limit` (b)+(c)** — a szabályos, alapból kiadott meghívó beváltása **megy**, és a
+  korlátot átviszi (`granted_limit_recorded`): ez a pozitív pár, tehát a kapu nem fal;
+· **`P-ORG-adjudication-basis-limit` (h)** — az R63 (A) szabálya: alap nélküli hatáskör zár.
+
+**ÉS EGY HELYESBÍTÉS A SAJÁT SZÖVEGEMBEN** *(KUKA-498)*: a manifeszt mindkét adaptált programról azt
+írta, hogy „**kizárólag** a battéria hívásának alakja" változott. Mérve (a két forrás diffjével) ez
+nem igaz: az `r57a` a **szintetikus tesztelőképet** is átvezette az R63 §4 szerint, az `r59a` pedig
+egy **diagnosztikai** mezőt (a pass-predikátum változatlan). A leírás most a mért valóságot mondja.
+
+**GÉPI JEL:** `npm run verify:acceptance-profile` (`PRF01`–`PRF08`, 53 állítás) ·
+`npm run verify:external-series` · `npm run verify:sweep-reuse` (`SRU01`–`SRU14`) · `npm run verify:kuka`.
+
+**ÉS A SÖPRÉS MOSTANTÓL HÁROM ÁLLAPOTOT KÜLÖNBÖZTET MEG** (R202 §3): „most nem futott, korábbi
+bizonyíték **újrahasznált**" · „**mért bukás**" · „**nincs érvényes mérés**". A régi alak kettőt
+ismert, és a mért bukást is „nem igazolt"-nak nevezte — ami elhallgatja, hogy **tudjuk** az
+eredményt *(KUKA-206)*.
+
+**AMIT EZ A DÖNTÉS NEM ÁLLÍT.** Nem rendszer-készültség, és nem termékelfogadás: a működő saját
+futtató zöldje **nem** független AI-review. A `page:personal`, az `R176-K3`, az `R112-I3` és a többi
+nevezett termékhiány **névvel nyitott** marad — a tesztprofil döntése ezeken nem segít.
+
+---
+
 ## D-VS-3262 — A BIZONYÍTÉK TELJESSÉGE KÍVÜLRŐL DŐL EL, ÉS AZ EGYSZERI FUTÁS SAJÁT AZONOSÍTÓT KAP (R200)
 
 Az R200 négy mért rést zárt be. Mind a négyet a **chatgpt-v3** nevezte meg, és mind a négy ugyanarról

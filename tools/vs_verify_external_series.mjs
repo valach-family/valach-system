@@ -36,6 +36,10 @@ import { PROGRAMS } from '../v3ref/external-checks/case-manifest.mjs';
 import { batteryUnits, unitPlan, UNIT_BUDGET_MS, EXTERNAL_CAP_MS } from '../v3ref/external-checks/batteryUnits.mjs';
 import { MUTATIONS } from '../v3ref/mutations.mjs';
 import { liveBinding } from '../v3ref/external-checks/seriesBinding.mjs';
+// AZ ELFOGADÁSI PROFIL OTTHONA (PRF-01 · R202 §1) — a FÜGGETLEN mérce, amit a sorozat horgonya NEVEZ MEG.
+import {
+  resolveProfile, profileProgramRows, profileCaseKeys, measureProfileFiles, profileDigest, profileLine,
+} from '../v3ref/external-checks/acceptanceProfile.mjs';
 import {
   SERIES_CONTRACT, BINDING_ANCHOR_FILE, configDigest, seriesId, makeRecord, makeAnchor,
   verifySeries, classify, classifyFacts, tally, evidenceDigest,
@@ -75,11 +79,28 @@ const seriesBaseArg = (() => {
 // elutasítja, tehát a FIXTÚRÁNAK is azt kell adnia, amit az éles futtató ad.
 const hex = (n, seed) => createHash('sha256').update(String(seed)).digest('hex').slice(0, n);
 const CFG = configDigest({ battery_units: 64, unit_plan: [64, 253], unit_budget_ms: 12_000, external_cap_ms: 15_000, node: process.version });
+/**
+ * A FIXTÚRA A MAI SZERZŐDÉST HORDOZZA — ÉS A PROFILT AZ OTTHONÁBÓL VESZI (R202 §1).
+ *
+ * MÉRVE: amikor a kötés a `profile_id`/`profile_digest` párral bővült, ez a fixtúra még a PRF-01
+ * ELŐTTI alakot építette, és az `EXS15` pirosat adott egy HELYES kódra („HORGONYZOTT: NEM"). Ez a
+ * `KUKA-495` osztálya, amit az R200-ban épp kivezettem: a szerződés-bővítés kinőtte a saját próbáját.
+ * Ezért a profil ITT sem beírt érték: a `historical-19` profilt a FÜGGETLEN otthonból oldjuk fel, és
+ * a lenyomatát ugyanazzal a függvénnyel számoljuk, amit az éles futtató hív.
+ */
+const FIXTURE_PROFILE = resolveProfile('historical-19').profile;
+const FIXTURE_PROFILE_DIGEST = profileDigest({
+  profile: FIXTURE_PROFILE,
+  programs: PROGRAMS,
+  fileDigests: measureProfileFiles(HERE, FIXTURE_PROFILE, PROGRAMS),
+});
 const BINDING = {
   bundle_digest: hex(64, 'r196-fixture-bundle'),
   programs_digest: hex(64, 'r196-fixture-manifest'),
   runner_digest: hex(64, 'r196-fixture-runner'),
   config_digest: CFG,
+  profile_id: FIXTURE_PROFILE.id,
+  profile_digest: FIXTURE_PROFILE_DIGEST,
   clean: true,
 };
 const PROV = { commit: hex(40, 'r196-fixture-commit') };
@@ -502,16 +523,19 @@ if (MODE_AGGREGATE || MODE_GATE) {
     ? resolve(seriesBaseArg)
     : join(ROOT, 'v3ref/external-checks/results/series');
   // AZ ÉLŐ ÁLLAPOT A MEGOSZTOTT MÉRŐBŐL (L3) — ugyanaz a szabály, amit a futtató is hív.
+  // AZ ÉLŐ KONFIGURÁCIÓ-LENYOMAT EGY HELYEN: a per-sorozat frissesség-mérés is ezt hívja, nem egy
+  // másolatot (`KUKA-003`).
+  const LIVE_CONFIG_DIGEST = configDigest({
+    battery_units: batteryUnits(),
+    unit_plan: unitPlan({ startUnits: batteryUnits(), mutationCount: MUTATIONS.length }),
+    unit_budget_ms: UNIT_BUDGET_MS,
+    external_cap_ms: EXTERNAL_CAP_MS,
+    node: process.version,
+  });
   const liveFull = seriesBaseArg ? { binding: LIVE, provenance: PROV } : liveBinding({
     root: ROOT,
     here: HERE,
-    configDigest: configDigest({
-      battery_units: batteryUnits(),
-      unit_plan: unitPlan({ startUnits: batteryUnits(), mutationCount: MUTATIONS.length }),
-      unit_budget_ms: UNIT_BUDGET_MS,
-      external_cap_ms: EXTERNAL_CAP_MS,
-      node: process.version,
-    }),
+    configDigest: LIVE_CONFIG_DIGEST,
   });
   const live = liveFull.binding;
   const liveProv = liveFull.provenance || {};
@@ -567,13 +591,66 @@ if (MODE_AGGREGATE || MODE_GATE) {
       const own = join(evDir, `${p.id}.json`);
       if (existsSync(own)) evidenceDigests.set(p.id, evidenceDigest(readFileSync(own)));
     }
+    /**
+     * A MÉRCE A SOROZAT HORGONYÁBAN MEGNEVEZETT PROFILBÓL JÖN — DE A FÜGGETLEN OTTHONBÓL FELOLDVA
+     * (PRF-01 · R202 §1).
+     *
+     * MIÉRT ÍGY, ÉS MIÉRT NEM A HORGONY LISTÁJÁBÓL. A horgony `programs` mezője a futtató állítása;
+     * ha azt vennénk mércének, a bizonyíték a SAJÁT hatókörét nevezné teljesnek — pontosan az R200-as
+     * lelet (`KUKA-121`). Ezért a horgony csak a profil NEVÉT adja, az elvárt készletet a repóban álló,
+     * verziózott profil-otthon + a független manifeszt adja, és a horgony `profile_digest`-jét
+     * ÚJRASZÁMOLJUK: ha nem egyezik, az NEVEZETT lelet, nem néma elfogadás.
+     *
+     * ÉS A FRISSESSÉG IS A SOROZAT PROFILJÁHOZ MÉRŐDIK: az élő kötést a sorozat SAJÁT profiljával
+     * számoljuk újra, különben egy 17-programos sorozat mindig „nem mai"-nak látszana egy
+     * 19-programos élő kötés mellett (és fordítva).
+     */
+    const anchorProfileId = String(((anchor || {}).binding || {}).profile_id || '');
+    const profileResolved = resolveProfile(anchorProfileId);
+    const seriesProfile = profileResolved.ok ? profileResolved.profile : null;
+    const profileNotes = [];
+    let expectedPrograms = PROGRAMS;
+    let seriesLive = live;
+    if (!anchor) {
+      profileNotes.push('a sorozatnak NINCS horgonya — profilt sem nevez meg (a PRF-01 bevezetése ELŐTTI sorozat)');
+    } else if (!anchorProfileId) {
+      profileNotes.push('a horgony NEM nevez meg elfogadási profilt (PRF-01 ELŐTTI kötés-alak) — '
+        + 'TÖRTÉNETI: a saját mércéjéről beszélhet, MAI profil bizonyítékaként nem hivatkozható');
+    } else if (!seriesProfile) {
+      profileNotes.push(`a horgony NEM NEVEZETT profilt ad: ${profileResolved.why}`);
+    } else {
+      const fd = measureProfileFiles(HERE, seriesProfile, PROGRAMS);
+      const recomputed = profileDigest({ profile: seriesProfile, programs: PROGRAMS, fileDigests: fd });
+      const claimed = String(anchor.binding.profile_digest || '');
+      if (recomputed !== claimed) {
+        profileNotes.push(`a horgony PROFIL-lenyomata ${claimed || '(nincs)'}, a repóban álló `
+          + `${seriesProfile.id} profilból ÚJRASZÁMOLVA ${recomputed} — a profil MEGVÁLTOZOTT a mérés óta, `
+          + 'tehát ez a sorozat a RÉGI profilról beszél');
+      }
+      expectedPrograms = profileProgramRows(seriesProfile, PROGRAMS).filter(Boolean);
+      // A FRISSESSÉG a sorozat SAJÁT profiljával mérve (lásd a fenti indoklást).
+      seriesLive = seriesBaseArg
+        ? { ...live, profile_id: seriesProfile.id, profile_digest: recomputed }
+        : liveBinding({
+          root: ROOT, here: HERE, configDigest: LIVE_CONFIG_DIGEST,
+          profileId: seriesProfile.id, profileDigest: recomputed,
+        }).binding;
+    }
     const { verdict, problems: pr, anchorIssues, freshness, byId, invalidById } = verifySeries({
-      records, programs: PROGRAMS, expected: anchor, live, evidenceDigests,
+      records, programs: expectedPrograms, expected: anchor, live: seriesLive, evidenceDigests,
     });
-    const t = tally({ byId, programs: PROGRAMS, invalidById });
+    const t = tally({ byId, programs: expectedPrograms, invalidById });
     accepted.push(verdict.accepted === true);
 
     console.log(`\n  SOROZAT ${d}  ·  ${records.length} rekord`);
+    // A MÉRCE LÁTSZÓDJON: melyik profilhoz mérünk, és miért (R202 §1).
+    if (seriesProfile) {
+      const fd = measureProfileFiles(HERE, seriesProfile, PROGRAMS);
+      console.log(`    ${profileLine({ profile: seriesProfile, programs: PROGRAMS, fileDigests: fd })}`);
+      console.log(`             az elvárt készlet a FÜGGETLEN profil-otthonból: ${expectedPrograms.length} program · `
+        + `${profileCaseKeys(seriesProfile, PROGRAMS).length} aktív program-eset`);
+    }
+    for (const n of profileNotes) console.log(`    PROFIL-LELET: ${n}`);
     if (anchor && anchor.binding) {
       console.log(`    HORGONY (a futtató rögzítette ${anchor.recorded_at || '?'}): mért forrás `
         + `${sh(anchor.binding.bundle_digest, 'NINCS — a mai kötés-alak ELŐTTI horgony')}`
