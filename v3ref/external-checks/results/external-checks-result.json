@@ -1,8 +1,8 @@
 {
-  "at": "2026-10-13T09:18:00.141Z",
+  "at": "2026-10-13T09:33:25.486Z",
   "node": "v22.22.0",
   "source": {
-    "commit": "0e2d67a5cb34587294c46e314a3713772b8c9bc6",
+    "commit": "22e48bba416d474dff08179867f8ebce2d1e03ac",
     "clean": true,
     "dirty_files": [],
     "note": "a lemásolt forrás a könyvelt állapoton áll"
@@ -11,7 +11,7 @@
     "complete": false,
     "scope": "partial",
     "ran": [
-      "r79"
+      "r59a"
     ],
     "skipped": [
       "r16core",
@@ -25,7 +25,7 @@
       "r61",
       "r81core",
       "r79core",
-      "r59a",
+      "r79",
       "r57a",
       "r55",
       "r53",
@@ -42,35 +42,60 @@
   },
   "programs": [
     {
-      "id": "r79",
-      "file": "r79_run_contract_restated.mjs",
-      "by": "Claude-v3 — a SAJÁT sávunk (önvizsgálat)",
-      "origin": "R80",
-      "program_digest": "066a733249068a09e8b06c256741aef654730a6a33cb1798351d332b1c931a22",
-      "adapted": false,
-      "adapted_from": null,
+      "id": "r59a",
+      "file": "r59_chatgpt-v3.adapted.mjs",
+      "by": "chatgpt-v3 — KÜLSŐ, független fél (ADAPTÁLT változat, az ő szerzőségükkel)",
+      "origin": "R81 §5 — az R59-es programjuk ADAPTÁLT alakja. NEM bájtazonos az R59-essel, és AZ R8 ÓTA MI IS ÍRTUNK BELE (lásd `adapted`) — a korábbi „egyetlen karaktert sem írtunk át benne\" mondat innentől NEM állítható.",
+      "program_digest": "925be49aebcd61f2fbd7207660c019c65fd87a3db200efb3cbeb2f8b02b8cb0c",
+      "adapted": true,
+      "adapted_from": {
+        "id": "r59",
+        "file": "r59_chatgpt-v3.mjs",
+        "digest": "80adb50a698624e4dfbc037807c2ef3376e26b342ddf78d3955280cf251e78e6",
+        "by": [
+          "chatgpt-v3 (R81 §5) — a battéria darabolt hívása",
+          "Claude-v3 (R8 §3, az ő kimondott hozzájárulásukkal) — a darabszám konfigurálható paraméter, alapértéke 6"
+        ],
+        "changed": "(1) A BATTÉRIA HÍVÁSÁNAK ALAKJA: egy hívás helyett N egység + `--merge`, N alapértéke 6 (felülírható: VS_BATTERY_UNITS). MIÉRT: a battéria 134 mutációra nőtt, és a rögzített HÁRMAS darabolásnál minden egység ~12,0–12,4 s — a `v3ref/mutate.mjs` SAJÁT költségvetése (12 000 ms = a külső 15 000 ms-os korlát 80%-a) fölött —, ezért a battéria 1-gyel lépett ki, miközben a MÉRT TARTALOM tiszta volt (134/134 elkapva). (2) ÉS EGY DIAGNOSZTIKAI MEZŐ az E07 esetben: `result.norm_evidence.required` → `result.norm_evidence?.required ?? null`. Ez a visszaadott `required` DIAGNOSZTIKA; a pass-predikátum (`pass: process.exit !== 0`) VÁLTOZATLAN, tehát az ítéletet nem érinti — de „kizárólag hívásalak\" ettől már nem állítható (R202 §1, mérve a két fájl diffjével).",
+        "unchanged": "egyetlen eset · mutáció · elvárás · forráskötés és az időkeret-ÉRVÉNYESÍTÉS sem (a 15 000 ms-os külső és a 12 000 ms-os belső korlát áll) — a merge továbbra is a pontosan egyszeres, azonos forrású egység-készletet fogadja el."
+      },
       "exit": 0,
-      "ms": 938225,
+      "ms": 925140,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
         {
-          "id": "U04",
+          "id": "P01",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "U01",
+          "id": "E05",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "U02",
+          "id": "E06",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "U03",
+          "id": "E07",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "E08",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "P02",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "E09",
           "kind": "ok",
           "why": null
         }
@@ -78,39 +103,57 @@
       "failure_witness_limit": null,
       "failure_witness_basis": null,
       "expected_cases": [
-        "U04",
-        "U01",
-        "U02",
-        "U03"
+        "P01",
+        "E05",
+        "E06",
+        "E07",
+        "E08",
+        "P02",
+        "E09"
       ],
-      "expected_from": "az R80-as körünk jegyzőkönyve (R79 §6 — RUN-02), a pozitív ellenpárral EGYÜTT",
-      "evidence_file": "r79-run-contract.json",
+      "expected_from": "a külső fél R59-es kísérő lapja (§2 esetlista) — az adaptálás az eseteket nem érinti",
+      "evidence_file": "r58-challenge.json",
       "evidence_present": true,
-      "evidence_pin": "0e2d67a5cb34587294c46e314a3713772b8c9bc6",
-      "total": 4,
+      "evidence_pin": "22e48bba416d474dff08179867f8ebce2d1e03ac",
+      "total": 7,
       "case_rows": [
         {
-          "id": "U04",
+          "id": "P01",
           "pass": true
         },
         {
-          "id": "U01",
+          "id": "E05",
           "pass": true
         },
         {
-          "id": "U02",
+          "id": "E06",
           "pass": true
         },
         {
-          "id": "U03",
+          "id": "E07",
+          "pass": true
+        },
+        {
+          "id": "E08",
+          "pass": true
+        },
+        {
+          "id": "P02",
+          "pass": true
+        },
+        {
+          "id": "E09",
           "pass": true
         }
       ],
       "present": [
-        "U04",
-        "U01",
-        "U02",
-        "U03"
+        "P01",
+        "E05",
+        "E06",
+        "E07",
+        "E08",
+        "P02",
+        "E09"
       ],
       "missing": [],
       "unknown": [],
@@ -118,8 +161,11 @@
       "failed": [],
       "problems": [],
       "ok": true,
-      "saved": "/home/user/valach-system/v3ref/external-checks/results/r79_r79-run-contract.json",
-      "stderr": [],
+      "saved": "/home/user/valach-system/v3ref/external-checks/results/r59a_r58-challenge.json",
+      "stderr": [
+        "[battéria-darabolás] 1. 64 egység — belefért a 15000 ms-os korlátba",
+        "  [battéria-darabolás] 1. 64 egység — belefért a 15000 ms-os korlátba"
+      ],
       "error": null,
       "child_trace": null
     }
