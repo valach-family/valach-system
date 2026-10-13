@@ -18485,6 +18485,47 @@ Object.freeze({
     ],
     forbidden: [],
   }),
+  Object.freeze({
+    id: 'KUKA-499',
+    date: '2026-10-13',
+    title: 'A MÉRET-KORLÁT NÉMÁN „HIÁNYZÓ BIZONYÍTÉKKÁ" VÁLTOZOTT — EGY ZÖLD SOROZAT „MÉRT BUKÁS" LETT',
+    what: 'A söprés-feloldó `showBytesAt` függvénye (R200) a bizonyíték-fájlokat az `execFileSync` '
+      + 'ALAPÉRTELMEZETT, 1 MB-os kimeneti pufferével olvasta a commitból, és a hibát '
+      + '`catch { return null; }`-lal elnyelte. A külső programok részletes bizonyítéka viszont nagy: '
+      + 'MÉRVE az `r57a` **15,4 MB**, az `r59a` **7,4 MB** — mindkettő `ENOBUFS`-ra futott. A hívó ezt '
+      + '„a részletes bizonyíték-fájl NEM TALÁLHATÓ"-ként olvasta, és az R202-ben egy TELJES, '
+      + 'ELFOGADOTT, 17/17-es sorozat a söprésben **15/17 „MÉRT BUKÁS"-ként** jelent meg — miközben az '
+      + 'elfogadási kapu ugyanazon a sorozaton ZÖLD volt (`accepted=true`).',
+    why_wrong: 'A méret-korlát KÖRNYEZETI akadály, a hiányzó bizonyíték TARTALMI hiány — a kettő '
+      + 'összemosása a legdrágább fajta hazugság, mert ÉPP A MEGLÉVŐ mérést tagadja le (`KUKA-051`: a '
+      + 'néma visszaesés; `KUKA-485`: a néma kihagyás; `KUKA-220`: a nem tudott nem „nem történt meg"). '
+      + 'Ráadásul a két kapu ELTÉRŐ verdiktet adott ugyanarra a sorozatra, és a söprés a hamisat mondta.',
+    replaced_by: 'A puffer a valódi mérethez szabott (`EVIDENCE_MAX_BUFFER`), és az olvasási hiba '
+      + 'NEVEZETTEN tér vissza: a `showBytesAt` `{ ok, bytes }` vagy `{ ok: false, why }` alakot ad, a '
+      + 'sorozat-betöltő `readProblems` listát visz, és a feloldó ezt KÜLÖN állapotnak kezeli — '
+      + '„NINCS ÉRVÉNYES MÉRÉS", nem „MÉRT BUKÁS". A szöveg kimondja: *„ez NEM azt jelenti, hogy a fájl '
+      + 'hiányzik"*. És a MAI profil sorozatainak indoka CSONKÍTÁS NÉLKÜL megy ki (a korábbi egyetlen, '
+      + '`slice(0, 2)`-vel vágott lista épp a releváns leletet dobta el).',
+    replacement: 'AMIT NEM TUDTUNK ELOLVASNI, AZ NEM „NINCS" — és a két állapotot külön kell nevezni. '
+      + 'Minden kimenet-pufferhez tartozik egy méret-feltevés; ha az nincs kimondva, a korlát '
+      + 'tartalmi hiánynak látszik.',
+    decision: 'D-VS-3263',
+    found_by: 'Claude-v3 (R202 §3, mérve) — az elfogadási kapu `accepted=true`-t adott a 17/17-es '
+      + 'sorozatra, a söprés-feloldó viszont `measured_failure`-t. Az eltérést nem hagytam annyiban: a '
+      + 'két fájl méretét (15,4 MB · 7,4 MB) és az `ENOBUFS` hibát megmértem.',
+    lesson: 'KÉT KAPU ELTÉRŐ VERDIKTJE UGYANARRA A BIZONYÍTÉKRA MINDIG LELET — és a hibát abban kell '
+      + 'keresni, amelyik ROSSZABBAT mond, mert az elnyelt kivétel ott bújik meg.',
+    guard_note: 'gépi jel: `npm run verify:sweep-reuse` — és az ellenpróba MÉRVE: a puffer 1 MB-ra '
+      + 'visszagörgetve a lánc `no_valid_measurement` lesz, a nevezett mondattal („a kimenet túllépte a '
+      + '… bájtos puffert (ez NEM azt jelenti, hogy a fájl hiányzik)"), NEM pedig hamis „mért bukás".',
+    home: 'v3',
+    positive: [
+      { paths: ['tools/lib/vs_sweep_reuse.mjs'], pattern: 'EVIDENCE_MAX_BUFFER', why: 'a puffer mérete KIMONDOTT, nem alapértelmezett' },
+      { paths: ['tools/lib/vs_sweep_reuse.mjs'], pattern: 'ez NEM azt jelenti, hogy a fájl hiányzik', why: 'a méret-korlát nem hiányzó bizonyíték' },
+      { paths: ['tools/lib/vs_sweep_reuse.mjs'], pattern: 'readProblems', why: 'az olvasási hiba NEVEZETTEN utazik a döntésig' },
+    ],
+    forbidden: [],
+  }),
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

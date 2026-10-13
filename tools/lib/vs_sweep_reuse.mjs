@@ -108,11 +108,40 @@ function showAt(root, commit, path) {
   try { return git(root, ['show', `${commit}:${path}`]); } catch { return null; }
 }
 
-/** A bizonyíték-fájl NYERS BÁJTJAI a commitból — a lenyomat bájton mér, nem szövegen. */
+/**
+ * A bizonyíték-fájl NYERS BÁJTJAI a commitból — a lenyomat bájton mér, nem szövegen.
+ *
+ * A PUFFER MÉRETE NEM MELLÉKES, ÉS A HIBA NEM LEHET NÉMA (R202, MÉRVE).
+ *
+ * A LELET, a saját kódomban: ez a függvény az `execFileSync` ALAPÉRTELMEZETT, 1 MB-os kimeneti
+ * pufferével futott, és a hibát `catch { return null; }`-lal elnyelte. A külső programok részletes
+ * bizonyítéka viszont nagy: MÉRVE az `r57a` **15,4 MB**, az `r59a` **7,4 MB** — mindkettő `ENOBUFS`-ra
+ * futott, és a hívó ezt „a bizonyíték-fájl NEM TALÁLHATÓ"-ként olvasta. Következmény: egy TELJES,
+ * ELFOGADOTT, 17/17-es sorozat a söprésben **15/17 „MÉRT BUKÁS"-ként** jelent meg. A méret-korlát
+ * így NEM hiányzó bizonyítékká változott (`KUKA-051`: a néma visszaesés; `KUKA-485`: a néma kihagyás).
+ *
+ * MA: a puffer a valódi mérethez szabott, és az olvasási hiba NEVEZETTEN tér vissza — a hívó
+ * megkülönbözteti a „nincs fájl"-t a „nem tudtam elolvasni"-tól.
+ */
+const EVIDENCE_MAX_BUFFER = 512 * 1024 * 1024;
 function showBytesAt(root, commit, path) {
   try {
-    return execFileSync('git', ['show', `${commit}:${path}`], { cwd: root, stdio: ['ignore', 'pipe', 'ignore'] });
-  } catch { return null; }
+    return {
+      ok: true,
+      bytes: execFileSync('git', ['show', `${commit}:${path}`], {
+        cwd: root, stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: EVIDENCE_MAX_BUFFER,
+      }),
+    };
+  } catch (e) {
+    const code = String((e && e.code) || '');
+    return {
+      ok: false,
+      why: code === 'ENOBUFS'
+        ? `a bizonyíték-fájl NEM OLVASHATÓ BE: a kimenet túllépte a(z) ${EVIDENCE_MAX_BUFFER} bájtos puffert `
+          + '(ez NEM azt jelenti, hogy a fájl hiányzik)'
+        : `a bizonyíték-fájl nem olvasható a commitból: ${String((e && e.message) || e).slice(0, 160)}`,
+    };
+  }
 }
 
 /** A SOROZATOK OTTHONA — ugyanaz az út, amit a futtató ír és a kapu olvas. */
@@ -134,7 +163,7 @@ export function seriesAtCommit(root, commit) {
   const want = new Set(PROGRAMS.map((p) => String(p.id)));
   const bySid = new Map();
   const ensure = (sid) => {
-    if (!bySid.has(sid)) bySid.set(sid, { sid, anchor: null, records: [], evidenceDigests: new Map() });
+    if (!bySid.has(sid)) bySid.set(sid, { sid, anchor: null, records: [], evidenceDigests: new Map(), readProblems: [] });
     return bySid.get(sid);
   };
   for (const full of names) {
@@ -150,8 +179,10 @@ export function seriesAtCommit(root, commit) {
     } else if (tail.startsWith('evidence/')) {
       const id = tail.slice('evidence/'.length).replace(/\.json$/, '');
       if (!want.has(id)) continue;
-      const bytes = showBytesAt(root, commit, full);
-      if (bytes) e.evidenceDigests.set(id, evidenceDigest(bytes));
+      const r = showBytesAt(root, commit, full);
+      // A HIBA NEVEZETTEN UTAZIK: a hívó NEM hiheti azt, hogy a bizonyíték hiányzik (R202).
+      if (r.ok) e.evidenceDigests.set(id, evidenceDigest(r.bytes));
+      else e.readProblems.push(`[${id}] ${r.why}`);
     } else if (!tail.includes('/') && tail.endsWith('.json')) {
       const raw = showAt(root, commit, full);
       try { e.records.push(JSON.parse(raw)); } catch { e.records.push(`OLVASHATATLAN: ${tail}`); }
@@ -239,7 +270,16 @@ export function externalCompleteness(root, commit, j) {
 
   // ── (b) VAGY A SOROZAT — a MEGLÉVŐ EXS elfogadási szabállyal ────────────────────────────────────
   const all = seriesAtCommit(root, commit);
-  const seriesWhy = [];
+  /**
+   * KÉT INDOK-LISTA, MERT A KETTŐ MÁST MOND (R202, mérve).
+   *
+   * `todayWhy`: a MAI profil alatt született sorozatok indoka — EZ a releváns, és ez megy ki ELŐL,
+   * csonkítás nélkül. `otherWhy`: a más profilú (történeti) sorozatok — ezek tájékoztatás.
+   * A korábbi alak egyetlen listát vágott `slice(0, 2)`-vel, és MÉRVE épp a mai sorozat indokát
+   * dobta el: a nevezett lelet nem jutott el az olvasóig (`KUKA-050` · `KUKA-064`).
+   */
+  const todayWhy = [];
+  const otherWhy = [];
   // HÁROM ÁLLAPOT, NEM KETTŐ (R202 §3): a „mért bukás" nem ugyanaz, mint a „nincs érvényes mérés".
   let measuredFailure = false;
   for (const e of all) {
@@ -252,14 +292,24 @@ export function externalCompleteness(root, commit, j) {
      */
     const anchorProfile = String(((e.anchor || {}).binding || {}).profile_id || '');
     if (anchorProfile !== PROFILE.id) {
-      seriesWhy.push(`${e.sid}: MÁS PROFIL (${anchorProfile || 'nincs megnevezve — PRF-01 előtti kötés'}) `
+      otherWhy.push(`${e.sid}: MÁS PROFIL (${anchorProfile || 'nincs megnevezve — PRF-01 előtti kötés'}) `
         + `≠ a mai ${PROFILE.id} — történeti eredmény nem mai profilbizonyíték`);
       continue;
     }
     const claimed = String(((e.anchor || {}).binding || {}).profile_digest || '');
     if (claimed !== PROFILE_DIGEST) {
-      seriesWhy.push(`${e.sid}: a horgony PROFIL-lenyomata ${claimed || '(nincs)'}, a repóból ÚJRASZÁMOLVA `
+      todayWhy.push(`${e.sid}: a horgony PROFIL-lenyomata ${claimed || '(nincs)'}, a repóból ÚJRASZÁMOLVA `
         + `${PROFILE_DIGEST} — a profil megváltozott a mérés óta`);
+      continue;
+    }
+    /**
+     * AZ OLVASÁSI HIBA NEM BIZONYÍTÉK-HIÁNY (R202, MÉRVE). Ha a sorozat bizonyíték-fájljai közül
+     * bármelyiket nem tudtuk BEOLVASNI, azt NEVEZETTEN mondjuk ki, és a lánc állapota „nincs érvényes
+     * mérés" — NEM „mért bukás". A kettő összemosása épp azt hallgatta volna el, hogy a mérés megvan.
+     */
+    if ((e.readProblems || []).length) {
+      todayWhy.push(`${e.sid}: a bizonyíték NEM OLVASHATÓ BE (${e.readProblems.length}): `
+        + `${e.readProblems.slice(0, 2).join(' · ')}`);
       continue;
     }
     const { verdict } = verifySeries({
@@ -277,14 +327,19 @@ export function externalCompleteness(root, commit, j) {
     }
     // A MAI PROFIL ALATT, TELJES KÉSZLETTEL, DE NEM ZÖLD → ez MÉRT BUKÁS, nem „nincs mérés".
     if (verdict.complete === true) measuredFailure = true;
-    seriesWhy.push(`${e.sid} (profil ${PROFILE.id}): ${verdict.why}`);
+    todayWhy.push(`${e.sid} (profil ${PROFILE.id}): ${verdict.why}`);
   }
   why.push(...singleWhy.map((x) => `EGYETLEN FUTÁS — ${x}`));
   if (!all.length) {
     why.push(`a commitban EGYETLEN SOROZAT SINCS (${EXTERNAL_SERIES_BASE}) — a teljes lánc bizonyítéka hiányzik`);
+  } else if (todayWhy.length) {
+    // A MAI PROFIL SOROZATAINAK INDOKA TELJES EGÉSZÉBEN KIMEGY — ez a releváns lelet.
+    why.push(`a mai ${PROFILE.id} profil ${todayWhy.length} sorozatát az EXS szabály NEM fogadja el: `
+      + `${todayWhy.join(' | ')}`);
+    if (otherWhy.length) why.push(`(a commit további ${otherWhy.length} sorozata MÁS profilú — tájékoztatás)`);
   } else {
-    why.push(`a commit ${all.length} sorozata közül EGYIKET SEM fogadja el az EXS szabály: `
-      + `${seriesWhy.slice(0, 2).join(' | ')}${seriesWhy.length > 2 ? ' | …' : ''}`);
+    why.push(`a commitban NINCS a mai ${PROFILE.id} profil alatt született sorozat: `
+      + `${otherWhy.slice(0, 2).join(' | ')}${otherWhy.length > 2 ? ' | …' : ''}`);
   }
   return {
     complete: false,
