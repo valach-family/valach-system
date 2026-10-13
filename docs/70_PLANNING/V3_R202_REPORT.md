@@ -1,7 +1,11 @@
 # V3 — R202 VÉGREHAJTÁSI JELENTÉS
 
-**Kör:** `CMD-VS-300-002-002 R202` · **Sáv:** Claude-v3 · **Munkabázis:** `claude/r154-audit-fix` (PR #1)
-**Döntés:** D-VS-3263 · **KUKA:** 497 · 498 · **Szerződés:** `PRF-01`
+## CMD-VS-300-002-002 R203 — REPORT
+### *(az R202 végrehajtása)*
+
+**Sáv:** Claude-v3 · **Munkabázis:** `claude/r154-audit-fix` (PR #1) · **Záró SHA:**
+`8d10247c9a4aae307972486e2821bb6f6e548922`
+**Döntés:** D-VS-3263 · **KUKA:** 497 · 498 · 499 · **Szerződés:** `PRF-01`
 
 > **AMIT EZ A JELENTÉS NEM ÁLLÍT.** Nem rendszer-készültség, és nem termékelfogadás. A működő saját
 > futtató zöldje **nem** független AI-review (R202 §3). A kapuk a bizonyíték **kezelését** mérik, nem
