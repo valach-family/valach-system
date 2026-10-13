@@ -283,6 +283,36 @@ nevezett mondattal — **nem** hamis „mért bukás". Visszaállítva: `reused_
 
 ---
 
+## 6b. A ZÁRÓ SÖPRÉS — EGY FUTÁS
+
+```
+SÖPRÉS (43 verifier + 2 újrahasznált bizonyíték, 1081s):
+  41 zöld · 0 env-kihagyás · 1 NEM FEJEZŐDÖTT BE · 1 piros        [kilépés 1]
+```
+
+**MIND A KÉT HOSSZÚ LÁNC SZABÁLYOSAN ÚJRAHASZNÁLT**, és a söprés mind a négy feltételt kiírja:
+
+- **`verify:external-checks`** → *„MOST NEM FUTOTT, a(z) `04706c1` commit bizonyítéka ZÖLD (SOROZAT
+  `sab2e6a0cc9f5` · profil `today-17` (**17/17**, EXS elfogadva) — a MAI profil elvárt készlete: 17
+  program)"*, azonosság mérve: feloldott commit · zöld bizonyíték tiszta forráson · a bizonyíték
+  forrás-commitja feloldható · a lánc bemenete azonos a forrás-commit (`18ebdb0`) alakjával (munkafa
+  + index + követetlen) · lánc-szkriptek, függőségek, `package-lock` azonosak · a futtató fő verziója
+  azonos.
+- **`verify:v3ref`** → ugyanígy, 253/253, **és az olcsó fele lefutott**.
+
+**A két nem-zöld, nevezve:**
+
+| lánc | állapot | mit jelent |
+|---|---|---|
+| `verify:lefedes` | **PIROS** | **örökölt**, nevesített fejlesztési rés (`page:personal`); az `(LT)` sor azért piros, mert a cél NULLA, miközben a pótolható hiány **0** és osztályozatlan **0**. Az R200-ban mértem, hogy az **átvételi alapon is** piros, azonos üzenettel — tehát nem ebből a körből jön. |
+| `verify:browser-gate` | **NEM FEJEZŐDÖTT BE** | a söprés **900 s-os türelmén** (904 s). A söprés maga írja ki: *„Ez NEM azt jelenti, hogy a verifier elbukott."* Az R201-ben **külön zöld** volt (kilépés 0, 26 próba-fájl), és a bemenete ebben a körben **0 fájlban** változott. |
+
+**A `SWEEP_EXIT=1` tehát a `verify:lefedes` örökölt pirosából jön** — nem „nem igazolt" kihagyásból:
+ebben a körben **egyetlen lánc sem** maradt nem igazolt. A söprés mostantól a három állapotot külön
+nevezi, és itt mind a kettő érintett sor az **„ÚJRAHASZNÁLT BIZONYÍTÉK"** alakot kapta.
+
+---
+
 ## 7. A KÖR FOGYASZTÁSA — ÉS A SÁV
 
 Mérve, modellhívás nélkül (`npm run meres:fogyasztas -- --session auto --from … --quick`):
