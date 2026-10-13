@@ -1,8 +1,8 @@
 {
-  "at": "2026-10-13T09:33:25.486Z",
+  "at": "2026-10-13T09:49:23.065Z",
   "node": "v22.22.0",
   "source": {
-    "commit": "22e48bba416d474dff08179867f8ebce2d1e03ac",
+    "commit": "489f8fc5080780346c49bb899a977f7a4da12466",
     "clean": true,
     "dirty_files": [],
     "note": "a lemásolt forrás a könyvelt állapoton áll"
@@ -11,7 +11,7 @@
     "complete": false,
     "scope": "partial",
     "ran": [
-      "r59a"
+      "r57a"
     ],
     "skipped": [
       "r16core",
@@ -26,7 +26,7 @@
       "r81core",
       "r79core",
       "r79",
-      "r57a",
+      "r59a",
       "r55",
       "r53",
       "r83core"
@@ -42,60 +42,71 @@
   },
   "programs": [
     {
-      "id": "r59a",
-      "file": "r59_chatgpt-v3.adapted.mjs",
+      "id": "r57a",
+      "file": "r57_chatgpt-v3.adapted.mjs",
       "by": "chatgpt-v3 — KÜLSŐ, független fél (ADAPTÁLT változat, az ő szerzőségükkel)",
-      "origin": "R81 §5 — az R59-es programjuk ADAPTÁLT alakja. NEM bájtazonos az R59-essel, és AZ R8 ÓTA MI IS ÍRTUNK BELE (lásd `adapted`) — a korábbi „egyetlen karaktert sem írtunk át benne\" mondat innentől NEM állítható.",
-      "program_digest": "925be49aebcd61f2fbd7207660c019c65fd87a3db200efb3cbeb2f8b02b8cb0c",
+      "origin": "R81 §5 — az R57-es programjuk ADAPTÁLT alakja. NEM bájtazonos az R57-essel, és AZ R8 ÓTA MI IS ÍRTUNK BELE (lásd `adapted`) — a korábbi „egyetlen karaktert sem írtunk át benne\" mondat innentől NEM állítható.",
+      "program_digest": "6f6dd9cffe8461e4f88d1495421fd14733b16163e5a9b76cdac5b71698f1a4f3",
       "adapted": true,
       "adapted_from": {
-        "id": "r59",
-        "file": "r59_chatgpt-v3.mjs",
-        "digest": "80adb50a698624e4dfbc037807c2ef3376e26b342ddf78d3955280cf251e78e6",
+        "id": "r57",
+        "file": "r57_chatgpt-v3.mjs",
+        "digest": "5ce2ad7bafd1ca0154a580c1673259586b75e086efb53d130ada1336b6b490e5",
         "by": [
           "chatgpt-v3 (R81 §5) — a battéria darabolt hívása",
-          "Claude-v3 (R8 §3, az ő kimondott hozzájárulásukkal) — a darabszám konfigurálható paraméter, alapértéke 6"
+          "Claude-v3 (R8 §3, az ő kimondott hozzájárulásukkal) — a darabszám konfigurálható paraméter, alapértéke 6",
+          "Claude-v3 (R8 §3) — a darabszám a mutáció-számból származik, padló 6"
         ],
-        "changed": "(1) A BATTÉRIA HÍVÁSÁNAK ALAKJA: egy hívás helyett N egység + `--merge`, N alapértéke 6 (felülírható: VS_BATTERY_UNITS). MIÉRT: a battéria 134 mutációra nőtt, és a rögzített HÁRMAS darabolásnál minden egység ~12,0–12,4 s — a `v3ref/mutate.mjs` SAJÁT költségvetése (12 000 ms = a külső 15 000 ms-os korlát 80%-a) fölött —, ezért a battéria 1-gyel lépett ki, miközben a MÉRT TARTALOM tiszta volt (134/134 elkapva). (2) ÉS EGY DIAGNOSZTIKAI MEZŐ az E07 esetben: `result.norm_evidence.required` → `result.norm_evidence?.required ?? null`. Ez a visszaadott `required` DIAGNOSZTIKA; a pass-predikátum (`pass: process.exit !== 0`) VÁLTOZATLAN, tehát az ítéletet nem érinti — de „kizárólag hívásalak\" ettől már nem állítható (R202 §1, mérve a két fájl diffjével).",
-        "unchanged": "egyetlen eset · mutáció · elvárás · forráskötés és az időkeret-ÉRVÉNYESÍTÉS sem (a 15 000 ms-os külső és a 12 000 ms-os belső korlát áll) — a merge továbbra is a pontosan egyszeres, azonos forrású egység-készletet fogadja el."
+        "changed": "(1) A SZABÁLYOS FELHATALMAZÁSI TESZTELŐKÉP (R63 §4): a `world()` fixtúra meghívója NEVEZETT, RÖGZÍTETT felhatalmazási alap alatt, a rendszer SAJÁT kiadóján születik — a nyers `INSERT INTO invite VALUES (…)` helyett `recordAuthorityBasis(…)` (`authorityBasis.mjs`, BAS-01: `allowedOperations: [invite_issue]` · `allowedRoles: [a kínált szerep]` · `allowedScopes: [keszlet]` · `evidenceRef: synthetic:R63-adaptation`) + `issueInviteUnderBasis(…)` (`basisLimit.mjs`, BLI-01), UGYANAZOKKAL a meghívó-mezőkkel és UGYANAZON az órán. MIÉRT: az R63 §4 a TERMÉK szabályát szigorította (az alap nélküli nyers meghívó a beváltásnál ELUTASÍTVA: `invite_without_basis` / `no_declared_basis`), és kifejezetten ELŐÍRTA a szintetikus tesztelőképek átvezetését. Az eredeti program az R63 ELŐTT született, ezért a beváltásra épülő HÁROM eset (T01 · T02 · T05) a fixtúrában, a MÉRT KÉRDÉS ELŐTT bukott el. A szigorítás MARAD, a teszt-előfeltétel változik. (2) A BATTÉRIA HÍVÁSÁNAK ALAKJA: egy hívás helyett N egység + `--merge`, N a mutáció-számból származik (felülírható: VS_BATTERY_UNITS) — ugyanaz a bővítés, mint az `r59a`-n.",
+        "unchanged": "egyetlen eset-azonosító (T01–T05 · E01–E04) · ÁLLÍTÁS · mutáció · elvárás · forráskötés · az óra (2026-09-10T10:00:00.000Z és a T01 két lejárata) és az időkeret-ÉRVÉNYESÍTÉS sem. A TÁMADÁSI UTAK VALÓDIAK: a T02 őr nélküli ágán a nyers `UPDATE invite SET offered_role` SZÁNDÉKOS (a pecsét-eltérés TÉNYÉT állítja elő, és a beváltás az (1/b) ponton — a 3/b alap-kapu ELŐTT — fogja meg), és a T05 tizennégy nyers DML-alakja is SZÁNDÉKOS. A jogadási szabály NEM gyengült: a bírálati hatáskör-ág (R63 (A) szabály) erre a programra kimondottan nem vonatkozik."
       },
       "exit": 0,
-      "ms": 925140,
+      "ms": 957250,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
         {
-          "id": "P01",
+          "id": "T01",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "E05",
+          "id": "T02",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "E06",
+          "id": "T03",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "E07",
+          "id": "T04",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "E08",
+          "id": "T05",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "P02",
+          "id": "E01",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "E09",
+          "id": "E02",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "E03",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "E04",
           "kind": "ok",
           "why": null
         }
@@ -103,57 +114,69 @@
       "failure_witness_limit": null,
       "failure_witness_basis": null,
       "expected_cases": [
-        "P01",
-        "E05",
-        "E06",
-        "E07",
-        "E08",
-        "P02",
-        "E09"
+        "T01",
+        "T02",
+        "T03",
+        "T04",
+        "T05",
+        "E01",
+        "E02",
+        "E03",
+        "E04"
       ],
-      "expected_from": "a külső fél R59-es kísérő lapja (§2 esetlista) — az adaptálás az eseteket nem érinti",
-      "evidence_file": "r58-challenge.json",
+      "expected_from": "a külső fél R57-es kísérő lapja („T01–T05 · E01–E04\") — az adaptálás az eseteket nem érinti",
+      "evidence_file": "r56-challenge.json",
       "evidence_present": true,
-      "evidence_pin": "22e48bba416d474dff08179867f8ebce2d1e03ac",
-      "total": 7,
+      "evidence_pin": "489f8fc5080780346c49bb899a977f7a4da12466",
+      "total": 9,
       "case_rows": [
         {
-          "id": "P01",
+          "id": "T01",
           "pass": true
         },
         {
-          "id": "E05",
+          "id": "T02",
           "pass": true
         },
         {
-          "id": "E06",
+          "id": "T03",
           "pass": true
         },
         {
-          "id": "E07",
+          "id": "T04",
           "pass": true
         },
         {
-          "id": "E08",
+          "id": "T05",
           "pass": true
         },
         {
-          "id": "P02",
+          "id": "E01",
           "pass": true
         },
         {
-          "id": "E09",
+          "id": "E02",
+          "pass": true
+        },
+        {
+          "id": "E03",
+          "pass": true
+        },
+        {
+          "id": "E04",
           "pass": true
         }
       ],
       "present": [
-        "P01",
-        "E05",
-        "E06",
-        "E07",
-        "E08",
-        "P02",
-        "E09"
+        "T01",
+        "T02",
+        "T03",
+        "T04",
+        "T05",
+        "E01",
+        "E02",
+        "E03",
+        "E04"
       ],
       "missing": [],
       "unknown": [],
@@ -161,10 +184,12 @@
       "failed": [],
       "problems": [],
       "ok": true,
-      "saved": "/home/user/valach-system/v3ref/external-checks/results/r59a_r58-challenge.json",
+      "saved": "/home/user/valach-system/v3ref/external-checks/results/r57a_r56-challenge.json",
       "stderr": [
         "[battéria-darabolás] 1. 64 egység — belefért a 15000 ms-os korlátba",
-        "  [battéria-darabolás] 1. 64 egység — belefért a 15000 ms-os korlátba"
+        "  [battéria-darabolás] 1. 64 egység — belefért a 15000 ms-os korlátba",
+        "(node:21190) ExperimentalWarning: SQLite is an experimental feature and might change at any time",
+        "(Use `node --trace-warnings ...` to show where the warning was created)"
       ],
       "error": null,
       "child_trace": null
