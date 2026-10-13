@@ -199,3 +199,159 @@ NINCS ÉRVÉNYES MÉRÉS — <lánc>: …
    sorozat az, aminek a **sorozatazonosítója** azonos azzal, amit a futtató ma számolna (a teljes
    kötésből, a profil-párral együtt) — **egy mező összevetése nem azonosság**. *(A futtató maga helyes
    volt: ő a teljes kötésből képzi a sorozat útját.)*
+
+---
+
+## 5. A VÉGES MÉRÉS — A MAI PROFIL 17/17 (§3)
+
+A profilpróbák után **tiszta, commitolt forrás** (`18ebdb0`), majd **egyszer, sorosan** a mai
+17-programos profil, az **új kötés** alatt (a profil a kötésben). Új sorozat: **`sab2e6a0cc9f5`** —
+nem az R201 sorozata (`sc8598e8472f6`), ahogy a döntés kéri; az R201 rekordjai **érintetlenek**.
+
+| program | állapot | kilépés | idő (ms) |
+|---|---|---|---|
+| `r57a` | befejezett | 0 | **957 544** |
+| `r79` | befejezett | 0 | **938 379** |
+| `r59a` | befejezett | 0 | **925 409** |
+| `r55` | befejezett | 0 | 479 546 |
+| `r81core` | befejezett | 0 | 462 769 |
+| `r83core` | befejezett | 0 | 457 931 |
+| `r53` | befejezett | 0 | 6 316 |
+| `r61` | befejezett | 0 | 1 745 |
+| `r77` · `r69` · `r75` · `r67` · `r88core` · `r92authz` · `r16core` · `r85core` · `r79core` | befejezett | 0 | 409–826 |
+
+**Egy program sem maradt „el nem indult", és egy sem szakadt meg.** A sorozat ideje **3 776 457 ms**
+(63 perc) + az `r83core` külön mért 457 931 ms-a — a **4 órás keret ~26%-a**. Programonkénti korlát a
+futtató sajátja (**120 perc**); nem szűkítettem és nem emeltem. A 12 000 / 15 000 ms-os egység- és
+külső korlát **változatlan**.
+
+### 5.1 AZ ELFOGADÁSI KAPU — ZÖLD
+
+```
+SOROZAT sab2e6a0cc9f5  ·  17 rekord
+  PROFIL today-17 v1 (acceptance) · 17 program · 152 aktív program-eset · lenyomat 1964f62c4f96870b
+           az elvárt készlet a FÜGGETLEN profil-otthonból: 17 program · 152 aktív program-eset
+  HORGONY: mért forrás 0f9de36606d0… · tiszta: true · SZÁRMAZÁS: 18ebdb0efb30…
+  TELJES: IGEN · HORGONYZOTT: IGEN · MAI: IGEN · ELFOGADVA: IGEN
+  GEPI: complete=true anchored=true fresh=true accepted=true
+        green=17 failed=0 invalid=0 measured=17 of=17
+  sikeres 17 · tartalmi hibás 0 · hiányos mérésű 0 · környezeti kihagyás 0 ·
+  érvénytelen rekord 0 · el nem indult 0   (összesen 17 — a today-17 profil elvárt készlete)
+  „a sorozat TELJES, HORGONYZOTT és a MA itt álló forrásról szól — ez a lánc teljes bizonyítéka"
+
+ELFOGADÁSI KAPU: ZÖLD — van elfogadott, MAI, teljes sorozat        [kilépés 0]
+```
+
+**Ez a blokk lezárási feltétele** (R202 §3). És a kiírás **nem** mond „19/19 zöldet": az összeg a
+profil elvárt készlete, megnevezve, melyik profilé. *(Ez egy javítás: az összesítő korábban a teljes
+történeti regiszter darabszámát írta — „összesen 19" — egy 17-programos profil alatt.)*
+
+### 5.2 AMIT NEM MÉRTEM ÚJRA, ÉS MIÉRT
+
+| mit | miért nem | mérve |
+|---|---|---|
+| az eredeti `r57`/`r59` történeti diagnosztikája | az R201 rögzítette, és a SPEC §3 kifejezetten ezt kéri | az **azonosságot** olcsó összehasonlítással igazoltam: mind a négy fájl (`r57` · `r59` · `r57a` · `r59a`) lenyomata **bájtazonos** az R201 sorozatának könyvelt `program_digest`-jeivel — gépi jel `PRF06` |
+| a mag mutációs battériája | a lánc bemenete **bájtra változatlan** ebben a körben (`git diff 4b0a239..HEAD` a bemeneti listán: üres) | a feloldó `reused / reused_ok`, 253/253 |
+| a böngészős kapu | a bemenete (`v3app/` · `tests/` · `playwright.config.mjs`) **0 fájlban** változott | az R201-ben külön zöld volt (154 eset, `verify:browser-gate` kilépés 0) |
+
+---
+
+## 6. EGY NEGYEDIK SAJÁT HIBA — A LEGSÚLYOSABB *(KUKA-499)*
+
+**Két kapu eltérő verdiktet adott ugyanarra a sorozatra, és nem hagytam annyiban.** Az elfogadási
+kapu `accepted=true`-t mondott a 17/17-es sorozatra, a söprés-feloldó viszont **`measured_failure`**-t
+(15/17). A gyökér a **saját kódomban** volt (R200): a `showBytesAt` az `execFileSync`
+**alapértelmezett, 1 MB-os** kimeneti pufferével olvasta a bizonyíték-fájlokat a commitból, és a hibát
+`catch { return null; }`-lal **elnyelte**.
+
+**Mérve:** az `r57a` bizonyítéka **15 418 363** bájt, az `r59a`-é **7 447 627** — mindkettő
+`ENOBUFS`-ra futott, és a hívó ezt *„a részletes bizonyíték-fájl NEM TALÁLHATÓ"*-ként olvasta. A
+**méret-korlát** (környezeti akadály) így **hiányzó bizonyítékká** (tartalmi hiány) változott — és épp
+a **meglévő** mérést tagadta le.
+
+**Javítva:** a puffer kimondott és a valódi mérethez szabott; az olvasási hiba **nevezetten** tér
+vissza; a feloldó ezt **külön állapotnak** kezeli — „NINCS ÉRVÉNYES MÉRÉS", nem „MÉRT BUKÁS" —, és a
+szöveg kimondja: *„ez NEM azt jelenti, hogy a fájl hiányzik"*. **És a nevezett indok eljut az
+olvasóig:** a korábbi egyetlen, `slice(0, 2)`-vel vágott indok-lista mérve épp a mai profil
+sorozatának leletét dobta el; most a mai profil indoka csonkítás nélkül megy ki.
+
+**Ellenpróba (mérve):** a puffert 1 MB-ra visszagörgetve a lánc `no_valid_measurement` lesz, a
+nevezett mondattal — **nem** hamis „mért bukás". Visszaállítva: `reused_ok`.
+
+**A tanulság, amit ebből levontam:** *két kapu eltérő verdiktje ugyanarra a bizonyítékra mindig lelet
+— és a hibát abban kell keresni, amelyik rosszabbat mond, mert az elnyelt kivétel ott bújik meg.*
+
+---
+
+## 7. A KÖR FOGYASZTÁSA — ÉS A SÁV
+
+Mérve, modellhívás nélkül (`npm run meres:fogyasztas -- --session auto --from … --quick`):
+
+| mit | mérve |
+|---|---|
+| hívás | 152 |
+| fő-szál kontextusmedián | **634 471,5** · max 745 417 |
+| **ügynök-bemenet** | **0 (0 ügynök)** |
+| cache-olvasás | 95 269 962 [teljes összeg] |
+| lefedettség | **teljes** |
+
+**A mérő sávja: CHATVÁLTÁSI JELZŐ ELÉRVE** (634 471,5 ≥ 400 000). A szabály szerint *a FUTÓ
+munkablokk célzott ellenőrzéssel lezárható, és a KÖVETKEZŐ önálló nagy blokk induljon friss
+beszélgetésben*. Ezt a kör záró ellenőrzésén túl nem lépem túl: **nincs új feltárás és nincs új
+funkció** a lezárás címén. *(Az ablak kezdetét a csomag kezdetéhez igazítottam; a határ bizonytalan,
+ezért jelölve.)*
+
+---
+
+## 8. AMI NYITOTT MARADT — NÉVVEL
+
+A SPEC kimondja, hogy ezek **nem** oldódnak meg a tesztprofil döntésével, és névvel nyitottak:
+
+1. **`page:personal` / `personal.ownMatters`** — a SAJÁT ÜGYEK listája még nem létezik: nincs olyan
+   adatkör, amit a belépett ember a saját terén listázhatna. A `verify:lefedes` `(LT)` sora emiatt
+   piros (a cél NULLA), miközben a `(LT2)` pótolható hiány **0** és osztályozatlan **0** — tehát ez
+   **nevesített fejlesztési rés**, nem romlás. Örökölt: az átvételi alapon is piros.
+2. **`R176-K3`** és **`R112-I3`** — nevezett termékhiányok, változatlanul nyitottak.
+3. **A `digestOfBundle` nem rekurzív** (BND-01). Az R202-ben ez **harmadszor** ütött vissza: a
+   mérés-vezénylőm a köteg-lenyomat egyezésével válogatta a sorozatokat, és egy kizárólag
+   `v3ref/external-checks/` alatti változás után „már rögzítettnek" látta az R201-es sorozatot. A
+   SPEC §3 kimondottan **nem** kér rekurzív digest-átépítést ebben a körben — ez **nevesített függő**,
+   külön kör, mert a `base_digest` megváltozása minden korábbi mutációs bizonyítékot érvénytelenít.
+4. **Az egység-fájl nincs kriptográfiailag a futásához kötve** — a futtató ezt minden összefűzésnél
+   kiírja. A SPEC §3 kimondja, hogy a kézzel minden fájlt átíró ellenfél elleni kriptográfiai védelem
+   **nem** e projektblokk elfogadási követelménye, és új ilyen blokkolót nem állítok.
+
+---
+
+## 9. A KÖVETKEZŐ TERMÉKMUNKA — RÖVIDEN
+
+A SPEC §4 kéri, hogy a következő termékmunka induló feladata és a meglévő specifikációjának helye
+**röviden** szerepeljen, új leltár és külön PLAN-kör nélkül:
+
+- **Induló feladat:** a `page:personal` — a belépett ember **SAJÁT ÜGYEK** listája a személyes terén.
+  Ez az egyetlen, ma is nyitott *pótolható* lefedési rés, amit a `verify:lefedes` nevesített
+  fejlesztési résként tart nyilván (`LC2`: „a SAJÁT ÜGYEK listája még nem létezik: nincs olyan adatkör,
+  amit a belépett…").
+- **A meglévő specifikáció helye:** `docs/70_PLANNING/V3_R91_HASZNALATI_UTAK.md` (az átadási kapu:
+  tudás-regiszter + súgó + GYIK + oldaltérkép + végigvihető bemutató, `D-VS-3075`/`D-VS-3076`), a
+  képesség-regiszter `v3app/knowledge/features.mjs`, és az UX-elfogadás
+  `docs/70_PLANNING/V3_R81_UX_ELFOGADAS.json`. A felület szabályai a `CLAUDE.md` 3. szakaszának
+  „a FELÜLETET (v3app/public)" sorából olvashatók.
+- **Amit ez NEM jelent:** nem indítok termékmunkát ebben a körben, és nem nyitok új PLAN-kört. A
+  fogyasztási sáv szerint a következő önálló nagy blokk **friss beszélgetésben** induljon.
+
+---
+
+## 10. AMIT EZ A KÖR NEM TETT MEG
+
+Nem volt termékkód-, üzleti adat- vagy titok-módosítás, merge, deploy, force-push, V2- vagy
+production-érintés, fizetett infrastruktúra, al-ügynök, Codex vagy helyettesítő AI-review, CMD/PR
+lezárás. A termékkódot (`v3app/`), a külső **eredeti**, **core** és **adaptált** programokat, a külső
+pineket és a külső elvárásokat **nem** módosítottam — az adaptált próbák **állításait** sem. A
+12 000 ms-os egység- és a 15 000 ms-os külső korlát **nem emelkedett**. Új általános audit, új
+optimalizáló kör, rekurzív digest-átépítés és aláírt bizonyíték-infrastruktúra **nem** indult, és új
+ilyen blokkolót nem állítottam.
+
+**A mai profil sikeres mérése e blokk lezárási feltétele — és teljesült.** De ez **nem**
+rendszer-készültség, **nem** termékelfogadás, és a működő saját futtató zöldje **nem** független
+AI-review.
