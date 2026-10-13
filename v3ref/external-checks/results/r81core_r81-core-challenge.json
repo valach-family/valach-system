@@ -1,9 +1,9 @@
 {
   "program": "r81_chatgpt-v3.core.adapted.mjs + r81_merge_chatgpt-v3.core.mjs",
   "variant": "adapted",
-  "source_commit": "430cb9e5fe42df0f20f6d1d522d89004a7dc977d",
+  "source_commit": "85bb473d58eaa4c6b441c8c93d0659f0eec61fb7",
   "node": "v22.22.0",
-  "at": "2026-10-12T14:39:07.623Z",
+  "at": "2026-10-13T09:02:21.276Z",
   "verbatim": true,
   "genuine_units": {
     "requested": 64,
@@ -171,10 +171,10 @@
         "result_count": 257,
         "why": [
           "[unit-99-of-99.json] a fájlnév és a benne álló egység-jelölés KÜLÖNBÖZIK (1/64)",
-          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-64.json/M1 és unit-99-of-99.json/M1 (rt_8804463a-57f4-411f-87d7-565854759ed1)",
-          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-64.json/M60 és unit-99-of-99.json/M60 (rt_b0f4bee7-7e20-463e-9f31-cb4b6254facc)",
-          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-64.json/M124 és unit-99-of-99.json/M124 (rt_439ec61b-7f4b-40db-ac23-ee486fa804a5)",
-          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-64.json/M316 és unit-99-of-99.json/M316 (rt_91838ae1-6714-4ead-987e-3e2a61095d8c)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-64.json/M1 és unit-99-of-99.json/M1 (rt_7c0d06e8-1d3a-4fb3-96bb-683f7ba4398f)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-64.json/M60 és unit-99-of-99.json/M60 (rt_c5d3c797-4ab4-49c9-bc7b-2e64d6dab576)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-64.json/M124 és unit-99-of-99.json/M124 (rt_f80b68e8-cb86-47af-bed6-6a5b571a686e)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-64.json/M316 és unit-99-of-99.json/M316 (rt_c401bf8c-3932-4fb7-b98e-9e1d182c44bb)",
           "DUPLIKÁLT mutáció-eredmény: M1, M60, M124, M316"
         ]
       },
@@ -1368,10 +1368,10 @@
         "result_count": 257,
         "why": [
           "[unit-99-of-99.json] a fájlnév és a benne álló egység-jelölés KÜLÖNBÖZIK (1/64)",
-          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-64.json/M1 és unit-99-of-99.json/M1 (rt_8804463a-57f4-411f-87d7-565854759ed1)",
-          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-64.json/M60 és unit-99-of-99.json/M60 (rt_b0f4bee7-7e20-463e-9f31-cb4b6254facc)",
-          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-64.json/M124 és unit-99-of-99.json/M124 (rt_439ec61b-7f4b-40db-ac23-ee486fa804a5)",
-          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-64.json/M316 és unit-99-of-99.json/M316 (rt_91838ae1-6714-4ead-987e-3e2a61095d8c)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-64.json/M1 és unit-99-of-99.json/M1 (rt_7c0d06e8-1d3a-4fb3-96bb-683f7ba4398f)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-64.json/M60 és unit-99-of-99.json/M60 (rt_c5d3c797-4ab4-49c9-bc7b-2e64d6dab576)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-64.json/M124 és unit-99-of-99.json/M124 (rt_f80b68e8-cb86-47af-bed6-6a5b571a686e)",
+          "ugyanaz a futás-jel KÉT eredményen: unit-1-of-64.json/M316 és unit-99-of-99.json/M316 (rt_c401bf8c-3932-4fb7-b98e-9e1d182c44bb)",
           "DUPLIKÁLT mutáció-eredmény: M1, M60, M124, M316"
         ]
       }

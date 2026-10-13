@@ -1,0 +1,100 @@
+{
+  "contract": "EXS-01",
+  "series": "sab2e6a0cc9f5",
+  "binding": {
+    "bundle_digest": "0f9de36606d0298237ba28c76a33a13658330c0b163f1e748140cd2cfe49eefd",
+    "programs_digest": "32669221eb583c73e760f82eb1e1f7d50a5ad7cca77c5774c2210f7343645bc4",
+    "runner_digest": "7f22e546b5a3dcc3a7bafcafddba3852bff2e11a29e49465452628daf9aeaf07",
+    "config_digest": "f0ce4e38338ca820",
+    "profile_id": "today-17",
+    "profile_digest": "1964f62c4f96870b",
+    "clean": true
+  },
+  "provenance": {
+    "commit": "0e2d67a5cb34587294c46e314a3713772b8c9bc6"
+  },
+  "program": "r79core",
+  "program_digest": "31fd0d5dac5de799f36c8fec947997dd3f4490241ab744fab58c249016c5052b",
+  "exit": 0,
+  "ok": true,
+  "cases": [
+    {
+      "id": "P01-flat-quantity",
+      "pass": true
+    },
+    {
+      "id": "P02-flat-price",
+      "pass": true
+    },
+    {
+      "id": "F01-nested-price",
+      "pass": true
+    },
+    {
+      "id": "F01-object-in-qty",
+      "pass": true
+    },
+    {
+      "id": "P03-unknown-top-field",
+      "pass": true
+    },
+    {
+      "id": "P04-revoke-before",
+      "pass": true
+    },
+    {
+      "id": "P04-revoke-after",
+      "pass": true
+    },
+    {
+      "id": "P04-revoke-cross",
+      "pass": true
+    },
+    {
+      "id": "P06-adjudicate-before",
+      "pass": true
+    },
+    {
+      "id": "P06-adjudicate-after",
+      "pass": true
+    },
+    {
+      "id": "P06-adjudicate-cross",
+      "pass": true
+    },
+    {
+      "id": "P07-command-before",
+      "pass": true
+    },
+    {
+      "id": "P07-command-after",
+      "pass": true
+    },
+    {
+      "id": "P05-nested-effect-rolls-back",
+      "pass": true
+    },
+    {
+      "id": "F02-command-time-splits-at-finalization",
+      "pass": true
+    },
+    {
+      "id": "F03-revoke-credential-matching",
+      "pass": true
+    },
+    {
+      "id": "F03-revoke-credential-other",
+      "pass": true
+    },
+    {
+      "id": "F03-revoke-credential-absent",
+      "pass": true
+    }
+  ],
+  "evidence_digest": "c2877e31e2ca71e160cf658128a19e1d23e91785b8c04a3890eb88b962ce5331",
+  "failure_kind": "unknown",
+  "failure_why": "nincs mért környezeti akadály a nyers eredményben",
+  "ms": 255,
+  "at": "2026-10-13T09:02:21.769Z",
+  "env_skipped": false
+}
