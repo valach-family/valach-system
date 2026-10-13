@@ -1,23 +1,17 @@
 {
-  "at": "2026-10-13T08:18:49.949Z",
+  "at": "2026-10-13T08:54:38.583Z",
   "node": "v22.22.0",
   "source": {
-    "commit": "4b0a239c3d509595dd2984dabb1b235206bcaf33+uncommitted",
-    "clean": false,
-    "dirty_files": [
-      "v3ref/external-checks/case-manifest.mjs",
-      "v3ref/external-checks/run-all.mjs",
-      "v3ref/external-checks/seriesBinding.mjs",
-      "v3ref/external-checks/seriesLedger.mjs",
-      "v3ref/external-checks/acceptanceProfile.mjs"
-    ],
-    "note": "a lemásolt forráson nem-könyvelt változás áll — a bemondott commit ezért jelölt"
+    "commit": "85bb473d58eaa4c6b441c8c93d0659f0eec61fb7",
+    "clean": true,
+    "dirty_files": [],
+    "note": "a lemásolt forrás a könyvelt állapoton áll"
   },
   "scope": {
     "complete": false,
     "scope": "partial",
     "ran": [
-      "r53"
+      "r61"
     ],
     "skipped": [
       "r16core",
@@ -28,16 +22,14 @@
       "r75",
       "r69",
       "r67",
-      "r61",
-      "r83core",
       "r81core",
       "r79core",
       "r79",
       "r59a",
       "r57a",
-      "r59",
-      "r57",
-      "r55"
+      "r55",
+      "r53",
+      "r83core"
     ],
     "why": "RÉSZLEGES futás (--only): ez NEM a lánc teljes bizonyítéka, csak a megnevezett programé"
   },
@@ -50,25 +42,55 @@
   },
   "programs": [
     {
-      "id": "r53",
-      "file": "r53_f03_restated.mjs",
-      "by": "Claude-v3 — a SAJÁT sávunk (önvizsgálat)",
-      "origin": "R54",
-      "program_digest": "cc15e231de13d715f450cab93fc9ffa2adfc53f87b98115c36db62d7dc2ffd64",
+      "id": "r61",
+      "file": "r61_chatgpt-v3.mjs",
+      "by": "chatgpt-v3 — KÜLSŐ, független fél",
+      "origin": "R63 (a bővített, 8 esetes alak — változatlanul, ahogy a boardon érkezett)",
+      "program_digest": "94b768131418e36523bf80ab3ade8f422340f1a803474fdd410b25a8af2fa2d2",
       "adapted": false,
       "adapted_from": null,
       "exit": 0,
-      "ms": 5377,
+      "ms": 1448,
       "failure_kind": "unknown",
       "failure_why": "nincs mért környezeti akadály a nyers eredményben",
       "failure_rows": [
         {
-          "id": "G01",
+          "id": "P03",
           "kind": "ok",
           "why": null
         },
         {
-          "id": "G02",
+          "id": "R01",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "R02",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "R03",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "U01",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "U02",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "U03",
+          "kind": "ok",
+          "why": null
+        },
+        {
+          "id": "U04",
           "kind": "ok",
           "why": null
         }
@@ -76,27 +98,63 @@
       "failure_witness_limit": null,
       "failure_witness_basis": null,
       "expected_cases": [
-        "G01",
-        "G02"
+        "P03",
+        "R01",
+        "R02",
+        "R03",
+        "U01",
+        "U02",
+        "U03",
+        "U04"
       ],
-      "expected_from": "az R54-es körünk jegyzőkönyve (támadás + ellenpár)",
-      "evidence_file": "f03-restated.json",
+      "expected_from": "a külső fél R63-as kísérő lapja (§8 esetkészlet) — az eredeti NÉGY változatlan, az U01–U04 kiegészítés",
+      "evidence_file": "r60-challenge.json",
       "evidence_present": true,
-      "evidence_pin": "4b0a239c3d509595dd2984dabb1b235206bcaf33+uncommitted",
-      "total": 2,
+      "evidence_pin": "85bb473d58eaa4c6b441c8c93d0659f0eec61fb7",
+      "total": 8,
       "case_rows": [
         {
-          "id": "G01",
+          "id": "P03",
           "pass": true
         },
         {
-          "id": "G02",
+          "id": "R01",
+          "pass": true
+        },
+        {
+          "id": "R02",
+          "pass": true
+        },
+        {
+          "id": "R03",
+          "pass": true
+        },
+        {
+          "id": "U01",
+          "pass": true
+        },
+        {
+          "id": "U02",
+          "pass": true
+        },
+        {
+          "id": "U03",
+          "pass": true
+        },
+        {
+          "id": "U04",
           "pass": true
         }
       ],
       "present": [
-        "G01",
-        "G02"
+        "P03",
+        "R01",
+        "R02",
+        "R03",
+        "U01",
+        "U02",
+        "U03",
+        "U04"
       ],
       "missing": [],
       "unknown": [],
@@ -104,7 +162,7 @@
       "failed": [],
       "problems": [],
       "ok": true,
-      "saved": "/home/user/valach-system/v3ref/external-checks/results/r53_f03-restated.json",
+      "saved": "/home/user/valach-system/v3ref/external-checks/results/r61_r60-challenge.json",
       "stderr": [],
       "error": null,
       "child_trace": null
