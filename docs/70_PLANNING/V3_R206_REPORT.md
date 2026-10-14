@@ -11,7 +11,7 @@ force-push nem történt; egy aktív író, alügynök nélkül; merge, telepít
 |---|---|
 | **A PR #1 feje induláskor** (a fast-forward célja) | `ea74d127499ccfc51de159f2357d180f6412f242` |
 | **INDULÓ** (a végrehajtási ág tényleges feje, feloldva) | `9ec9ac49e264322d78a4eb7f0d67992e2dcf8b59` |
-| **MÉRT** (a kötelező böngésző-kapu és a célzott próbák ezen futottak) | `a34fa830881fb4b2721c1cc699a71c9272869a30` |
+| **MÉRT** (a végső kötelező böngésző-kapu és a célzott próbák ezen futottak) | `53ff719e018ce645ded715fdaa2a209416336278` |
 | **ZÁRÓ PR-FEJ** (a GitHubról visszaolvasva, a fast-forward után) | *lentebb, §7* |
 
 **Mit teljesített ez a csomag, egy mondatban:** a nem igazolt kontextusnak **egy** jelentése van a
