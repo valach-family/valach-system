@@ -289,10 +289,24 @@ hívás 107 · fő-szál kontextus medián 315 041 / max 441 623 · ügynök-bem
 lefedettség: teljes · FIGYELMEZTETÉS (a 300 000–400 000 sávban)
 ```
 
+**ZÁRÓ MÉRÉS** (`2026-10-14T07:05:30Z` → `09:15Z`, a csomag teljes ablaka):
+
+```
+hívás 201 · ügynök-bemenet 0 (0 ügynök) · lefedettség: TELJES
+fő szál kontextus: medián 422 334 · max 579 606 · 400 ezer fölött 107 hívás
+CHATVÁLTÁSI JELZŐ ELÉRVE (422 334 ≥ 400 000): a FUTÓ munkablokk célzott ellenőrzéssel
+lezárható, a KÖVETKEZŐ önálló nagy blokk friss beszélgetésben induljon
+```
+
+A **tartalom nélküli leltár** a repóban: `docs/70_PLANNING/V3_R205_FOGYASZTAS_LELTAR.json`
+(207 hívás · sorszám, idő, szereplő, modell, négy számláló, kontextus, ébresztés — **üzenet, parancs
+és eszköz-kimenet NEM**).
+
 **Alügynököt nem indítottam** (a SPEC tiltja, és a mérés is 0-t ad). **Amit a számhoz ki kell
 mondani:** a ráfordítás **jelentős részét a 0. szakaszban leírt félreindulás vitte el** — ezt nem
-mosom bele a termékmunka költségébe, és **megtakarítást nem állítok**. A záró mérés a kör-üzenettel
-együtt megy ki.
+mosom bele a termékmunka költségébe, és **megtakarítást nem állítok**. A chatváltási jelző elérése
+**nem** szolgáltatói limit és nem kimért optimum: a mai munkablokk ezzel a jelentéssel **lezárul**,
+és a következő önálló nagy blokk friss beszélgetésben induljon.
 
 ---
 
