@@ -73,6 +73,13 @@
       <div class="menu" data-testid="ws-list"></div>
     </details>
 
+    <!-- R206/F206-01 — A NEM IGAZOLT KONTEXTUS MŰKÖDŐ FOLYTATÁSA. Ha a lap nem tudta igazolni,
+         KI ül a gépnél, a fiókválasztó és a profil elrejtőzik (a régi személyt nem állítjuk
+         aktuálisnak), és ITT, ugyanazon a helyen áll az állapot-ellenőrzés. A gomb alapból
+         rejtett, a `renderHeader` mutatja meg; a felirata a nyelvcsomagból jön (a vázban SZÖVEG
+         NINCS — SZO-01 · I18N-01). -->
+    <button type="button" class="plain" data-testid="ctx-recheck" data-action="ctx-recheck" hidden></button>
+
     <span class="spacer"></span>
     <span class="sr-only" data-testid="header-acting-as">—</span>
     <span class="sr-only" data-testid="channel-proven">—</span>

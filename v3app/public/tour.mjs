@@ -1052,7 +1052,7 @@ export const TUR_CONTRACT = Object.freeze({
     + 'értél", ha MINDEN lépés elvégezve — különben kimondja az átugrott és a hátralévő számot',
   skip_rule: 'a tudatos kihagyás KÜLÖN állapot és külön gomb (skipStep): a felhasználó nincs '
     + 'bezárva, de az átugrott lépés az elszámolásban is átugrottnak látszik',
-  abort_reasons: Object.freeze(['contextChanged', 'rightLost', 'targetMissing', 'inviteSignInFirst']),
+  abort_reasons: Object.freeze(['contextChanged', 'rightLost', 'targetMissing', 'inviteSignInFirst', 'contextUnconfirmed']),
   overlap_rule: 'a buborék KITÉR a kiemelt cél elől (avoidOverlap), és ha nincs szabad sarok (a cél '
     + 'egy egész lista), a kártya ÁTENGEDI a kattintást, miközben a saját gombjai működnek — a '
     + 'szerződés („a képernyő mögötte kattintható marad") így minden célméretnél igaz',

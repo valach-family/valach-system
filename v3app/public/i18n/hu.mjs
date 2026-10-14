@@ -469,8 +469,15 @@ export const UI = Object.freeze({
   // R204: a szerver RÖGZÍTETTE az elfogadást, de a lap nem tudta ellenőrizni, KI ül most a
   // gépnél (a frissítés olvasó kérése nem jutott el, vagy közben újabb frissítés indult). A
   // mondat a NEM ELDÖNTHETŐ állapotot mondja ki, és nem állít személyre szóló sikert.
-  inviteAcceptedUnconfirmed: 'A szerver rögzítette az elfogadást, de a lap nem tudta ellenőrizni, ki ül most a gépnél. Tölts be újra a lapot — a tagság nem veszett el.',
+  inviteAcceptedUnconfirmed: 'A szerver rögzítette az elfogadást, de a lap nem tudta ellenőrizni, ki ül most a gépnél. Nyomd meg a fejlécben az „Állapot ellenőrzése” gombot — a tagság nem veszett el.',
   contextUnconfirmedShort: 'Nem igazolt',
+  // R206/F206-01: a képernyőolvasónak szánt sor sem állíthatja aktuálisnak a korábbi embert —
+  // ugyanazt az egy állapotot mondja ki, amit a fejléc látható mezői.
+  contextUnconfirmedActing: 'Nem igazolt, ki ül most a gépnél.',
+  contextRecheck: 'Állapot ellenőrzése',
+  contextRecheckRunning: 'Ellenőrzés folyamatban…',
+  contextRecheckBusy: 'Egy újabb ellenőrzés már fut — a lap magától helyreáll, amint megérkezik a válasz.',
+  contextRecheckFailed: 'A lap most sem érte el a kiszolgálót, ezért továbbra sem tudjuk, ki ül a gépnél. Próbáld újra, vagy lépj be újból.',
   // FELTÉTELES MONDAT (R112): a más fiókkal belépett néző és az ismeretlen hivatkozás a szerver szerint
   // megkülönböztethetetlen (KUKA-084) — a lap nem állíthatja, melyik eset áll fenn.
   inviteOtherPersonLead: 'Ha a meghívás másik címre szól, jelentkezz ki, és lépj be azzal a címmel, amelyre a meghívás érkezett.',
@@ -654,6 +661,9 @@ export const TOURUI = Object.freeze({
   notAvailable: 'Ez az útmutató most nem indítható: a képernyője ebben az állapotban nem érhető el. A leírás a Súgó → Leírások fülön továbbra is elolvasható.',
   rightLost: 'Közben megszűnt a jogosultságod ehhez a lépéshez, ezért az útmutató itt megáll.',
   contextChanged: 'Közben másik fiókra vagy felhasználóra váltottál, ezért az útmutató itt megáll. Újraindítható.',
+  // R206/F206-01: a MEGÁLLÁS OKA itt nem a változás, hanem az, hogy nem tudjuk, ki ül a gépnél —
+  // a kettő NEM ugyanaz (az üres és az elérhetetlen sem ugyanaz, KUKA-012).
+  contextUnconfirmed: 'A lap nem tudta ellenőrizni, ki ül most a gépnél, ezért az útmutató itt megáll. A fejlécben ellenőrizheted az állapotot, utána újraindítható.',
   taskNotDone: 'Ez a lépés a művelet tényleges elvégzéséhez kötött; a gomb megnyomása önmagában még nem siker. Végezd el a műveletet, vagy hagyd ki a lépést a „Kihagyom ezt a lépést” gombbal.',
   skipped: 'Kihagyva',
   done: 'Elvégezve',

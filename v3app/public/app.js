@@ -33,12 +33,34 @@ import { inviteNextKey } from './inviteText.mjs';
 
   const state = {
     me: null, page: 'overview', tabs: ['overview'], generation: 0, seq: 0,
+    /**
+     * HÁNYSZOR ALKALMAZTUK A SZERVER IGAZSÁGÁT (R206 — F206-02).
+     *
+     * A `seq` azt számolja, hány frissítés INDULT; ez azt, hány frissítés ALKALMAZOTT. A kettő
+     * NEM ugyanaz, és pontosan ezen a különbségen bukott el a korábbi alak: a `superseded`
+     * eredmény azt jelenti, hogy egy ÚJABB frissítés indult — amelyik akár MÁR alkalmazta is a
+     * mai nézetet. Az elavult hívó ebből nem következtethet bizonytalanságra (KUKA-202: az őr
+     * ott álljon, ahol a kár keletkezik).
+     */
+    appliedSeq: 0,
     ctx: { subject: null, book: null, bookName: null }, noticeSeq: 0, selfInitiated: false, afterCreate: null,
     // R204: a kontextus NEM IGAZOLHATO — a frissites nem alkalmazta a szerver igazsagat, tehat a
     // lap NEM allithatja tovabb, hogy KI ul itt. Ez HARMADIK allapot: nem belepve es nem kilepve
     // (KUKA-012: az ures es az elerhetetlen nem ugyanaz). A frissites torli, amint ujra
     // alkalmazott igazsaga van.
     ctxUnconfirmed: false,
+    /**
+     * A FELFÜGGESZTETT MŰVELET, AMI MÉG VÁLASZRA VÁR (R206 — F206-01).
+     *
+     * A szerver MÁR igazolta a műveletet (a tagság létrejött), csak azt nem tudjuk, KI ül most a
+     * gépnél. A sikert tehát nem dobjuk el — az hamis tagadás volna (a SPEC §2: „az ismert,
+     * szerveren már sikeres műveletet ne mondd sikertelennek") —, de nem is adjuk át: itt áll a
+     * művelet ALANYA és KÖNYVE, és az állapot tisztázásakor EGY helyen derül ki, kinek szól
+     * (`resolveCtxPending` — KUKA-204 · KUKA-208: a kontextus PÁR).
+     */
+    ctxPending: null,
+    /** Fut-e eppen az allapot-ellenorzes (a gomb ilyenkor dolgozik — nincs parhuzamos kor). */
+    ctxRechecking: false,
     // A PANELEK TARTALMA ÁLLAPOT, NEM CSAK DOM — és a LEKÉRÉS NÉZETENKÉNT EGYSZER indul magától.
     // MÉRT LELET (R81, a saját böngésző-próbámon): a kötetlen válasz mondata után a lap
     // újrarajzolt, az újrarajzolás pedig ÚJRA kért — 700 ms alatt 33 kérés. A nemleges válasz
@@ -425,12 +447,71 @@ import { inviteNextKey } from './inviteText.mjs';
     state.selfInitiated = false;
     state.me = me;
     state.ctxUnconfirmed = false;   // van alkalmazott igazsag (R204)
+    state.appliedSeq += 1;          // ÉS EZT MEG IS SZÁMOLJUK (R206 — F206-02)
     render();
     if (changed) loadPageData();      // ÚJ nézet ⇒ ÚJ adat; a rajzolás maga nem kérdez
+    // A NEM IGAZOLT ÁLLAPOT EGY HELYEN SZŰNIK MEG (R206 — F206-01 · KUKA-003): akármelyik
+    // frissítés alkalmazta a szerver igazságát, a felfüggesztett művelet ITT kapja meg a
+    // válaszát — a rajzolás UTÁN, mert a mondat helye (`global-notice`) csak akkor létezik.
+    resolveCtxPending();
     // A PÁR MÁSIK FELE (F142-01). A rajzolás UTÁN: a következő lépés célja (pl. `nav-stock`) csak
     // a kész képernyőn mérhető. Átadás nélkül ez azonnal visszatér.
     if (!deferTourResume) await resumeTourAfterSwitch();
     return FRISSULT;
+  }
+
+  /**
+   * A FELFÜGGESZTETT MŰVELET VÁLASZA — EGY HELYEN, A SZERVER IGAZOLT SZEMÉLYÉHEZ MÉRVE
+   * (R206 — F206-01 · F206-02).
+   *
+   * MIÉRT ITT, ÉS NEM A HÍVÓBAN. Az állapot HÁROM úton tisztázódhat: a felhasználó megnyomja az
+   * állapot-ellenőrzést, egy MÁR FUTÓ újabb frissítés megérkezik, vagy a lap bármely más
+   * frissítése alkalmazza a szerver igazságát. Ha a válasz a hívónál élne, a másik két úton
+   * NÉMÁN maradna el (`KUKA-218`: a nézethez kötött tár EGY helyen ürül) — és pontosan ez a
+   * hiba-osztály szülte az R204-es leletet is.
+   *
+   * ÉS A SIKER ANNAK SZÓL, AKINEK A SZERVER KISZOLGÁLTA (`KUKA-204`). Ha MÁS ember van a
+   * munkamenetben, a régi művelet eredménye NEM száll át rá: a lap a személyváltást mondja ki,
+   * a tagság tényét pedig nem tagadja le — az a szerveren áll, nem ettől a mondattól.
+   */
+  function resolveCtxPending() {
+    const p = state.ctxPending;
+    if (!p) return;
+    state.ctxPending = null;
+    if (p.what !== 'invite_redeemed') return;
+    const same = Boolean(state.me && p.subject_id && state.me.subject_id === p.subject_id);
+    if (!same) { notice(UI.otherPersonHere, 'warn'); return; }
+    // A CSATLAKOZOTT FIÓK NEVÉT A MŰVELET KÖNYVÉBŐL vesszük, nem a pillanatnyi nézetből (R112).
+    const joined = (state.me.workspaces || []).find((x) => x.book_id === p.book_id);
+    const nev = joined ? accountLabel({ name: joined.name, personal: joined.personal === true }) : accountName();
+    notice(`${UI.inviteAcceptedLead} ${tpl('accountJoined', { nev })} ${UI.inviteJoinedScopeNote}`, 'ok');
+  }
+
+  /**
+   * AZ ÁLLAPOT ELLENŐRZÉSE — A NEM IGAZOLT KONTEXTUS MŰKÖDŐ FOLYTATÁSA (R206 — F206-01).
+   *
+   * EGY KÖR FUT EGYSZERRE, és ez nem kényelmi döntés: két párhuzamos kérdés közül a MÁSODIK
+   * léptetné előre a `seq`-et, vagyis a felhasználó saját kattintása tenné elavulttá a saját
+   * előző kérdését — a lap pedig „újabb frissítés fut" indokkal maradna bizonytalan. Nincs
+   * időzítő, nincs automatikus újrapróbálkozás és nincs végtelen várakozás: EGY kérdés, EGY
+   * válasz, és a döntés a felhasználónál marad.
+   */
+  async function recheckContext() {
+    if (state.ctxRechecking) return;
+    state.ctxRechecking = true;
+    renderHeader();                       // a gomb MOST dolgozik — ez is a válasz része
+    const appliedBefore = state.appliedSeq;
+    try {
+      const r = await refreshMe();
+      // AZ ÚJABB FRISSÍTÉS IS IGAZOLÁS (F206-02): ha közben EGY MÁSIK frissítés alkalmazta a
+      // szerver igazságát, ez a kör NEM mondhatja újra nem igazoltnak az állapotot.
+      if (r.applied || state.appliedSeq > appliedBefore) return;
+      state.ctxUnconfirmed = true;
+      notice(r.why === 'superseded' ? UI.contextRecheckBusy : UI.contextRecheckFailed, 'warn');
+    } finally {
+      state.ctxRechecking = false;
+      renderHeader();
+    }
   }
 
   /** Létezik-e ez az oldal az ÚJ nézetben? (A tag nem lát Beállítások-oldalt — UX-09.) */
@@ -613,14 +694,36 @@ import { inviteNextKey } from './inviteText.mjs';
   function renderHeader() {
     const me = state.me;
     const loggedIn = !!(me && me.subject_id);
-    const list = (me && me.workspaces) || [];
+    /**
+     * A NEM IGAZOLT ÁLLAPOTNAK EGY JELENTÉSE VAN, NEM HÁROM FELIRATA (R206 — F206-01, a külső
+     * ellenőrző fél lelete, FORRÁSBÓL igazolva).
+     *
+     * A LELET. Az R204-es alak a `ctxUnconfirmed` ágon HÁROM mezőt írt át (fiók · személy ·
+     * monogram), a többi sor viszont UGYANEBBEN a függvényben a RÉGI `me`-ből élt tovább: a
+     * képernyőolvasónak szánt „ki nevében járunk el" és a cím-megerősítés a régi emberé maradt,
+     * a fiókválasztó a régi fióklistát kínálta, a profilmenü pedig kiírta a régi e-mail-címet.
+     * Vagyis a lap EGYSZERRE állította, hogy nem tudjuk, ki ül itt, és hogy ő CARL — belső
+     * ellentmondás, és épp azt a hamis állítást tartotta életben, amiért a harmadik állapot
+     * megszületett (`KUKA-210`: a felirat EGY forrásból jön · `KUKA-208`: a fél-megerősítés a
+     * másik felét láthatatlanná teszi).
+     *
+     * A JAVÍTÁS NEM ÚJ FELIRAT, HANEM EGY FELOLDÓ: minden személyhez kötött sor ettől a
+     * `identityKnown`-tól függ, nem a puszta `loggedIn`-tól. Így egy ÚJ személy-függő sor sem
+     * születhet bélyeg nélkül (`KUKA-227`), mert nincs hova „elfelejteni" a kérdést.
+     *
+     * AMIT EZ NEM TESZ: nem jog-mátrix és nem kijelentkeztetés. A jogot továbbra is KIZÁRÓLAG a
+     * szerver dönti el; a tagság szerveroldali helyességéhez ez a függvény nem ér hozzá.
+     */
+    const unconfirmed = state.ctxUnconfirmed === true;
+    const identityKnown = loggedIn && !unconfirmed;
+    const list = (identityKnown && me.workspaces) || [];
     // R204 — A FEJLEC NEM ALLITHAT OLYAT, AMIT NEM TUDUNK IGAZOLNI (MERVE).
     // A LELET: egy elvesztett `/api/me` utan a fejlec TOVABB mutatta az ELOZO ember cimet,
     // mikozben a munkamenet mar a MASIKE volt — a SPEC §2 pedig azt keri, hogy a szemely, a
     // fejlec, az aktiv nezet es az ertesites UGYANAZT a kontextust tukrozze. A regi nev
     // megtartasa itt nem ovatossag, hanem hamis allitas; a „nincs belepve” szinten az volna.
     // Ezert a HARMADIK allapotot mondjuk ki, es a teendot is (KUKA-201).
-    if (state.ctxUnconfirmed) {
+    if (unconfirmed) {
       setText(byTest('header-workspace'), UI.contextUnconfirmedShort);
       setText(byTest('header-subject'), UI.contextUnconfirmedShort);
       setText(byTest('avatar'), '?');
@@ -632,10 +735,26 @@ import { inviteNextKey } from './inviteText.mjs';
     // KI NEVÉBEN JÁRUNK EL, és a cím-megerősítés állapota: képernyőolvasónak mindig elérhető, a szemnek
     // a Saját profil / Belépés és biztonság oldalon (R81 §3.3). A mondat a SZERVER TÉNYEIBŐL, de a
     // NYELVCSOMAG szavaival épül (R112): a szerver kész mondata magyar volt, nyers szerepkóddal.
-    setText(byTest('header-acting-as'), loggedIn ? actingAsText(me) : '—');
-    setText(byTest('channel-proven'), loggedIn ? (me.channel_proven ? UI.yes : UI.no) : '—');
-    show(byTest('account-switcher'), loggedIn);
-    show(byTest('profile'), loggedIn);
+    setText(byTest('header-acting-as'), identityKnown ? actingAsText(me)
+      : (unconfirmed ? UI.contextUnconfirmedActing : '—'));
+    setText(byTest('channel-proven'), identityKnown ? (me.channel_proven ? UI.yes : UI.no) : '—');
+    show(byTest('account-switcher'), identityKnown);
+    show(byTest('profile'), identityKnown);
+    /**
+     * ÉS A NEMLEGES ÁLLAPOT VISZI A MŰKÖDŐ FOLYTATÁST (`KUKA-201`, R206 — F206-01).
+     *
+     * A régi alak egyetlen teendője a „tölts be újra a lapot" mondat volt — vagyis a felhasználó
+     * eszközére bíztuk azt, amit a lap maga is meg tud kérdezni. A gomb a fiókválasztó HELYÉN áll
+     * (az ilyenkor rejtve van), tehát nem kell keresni; a felirata a nyelvcsomagból jön (SZO-01),
+     * és amíg a kérdés fut, a gomb ezt KI IS MONDJA — a néma várakozás ugyanaz a hiba volna
+     * (`KUKA-228`: amit a lap nem nyom meg helyettünk, arra VÁRNI kell).
+     */
+    const recheck = byTest('ctx-recheck');
+    if (recheck) {
+      setText(recheck, state.ctxRechecking ? UI.contextRecheckRunning : UI.contextRecheck);
+      recheck.disabled = state.ctxRechecking === true;
+      show(recheck, unconfirmed);
+    }
 
     const personal = list.filter((w) => w.personal);
     const shared = list.filter((w) => !w.personal);
@@ -647,7 +766,7 @@ import { inviteNextKey } from './inviteText.mjs';
       </button></li>`;
     const menu = byTest('ws-list');
     if (menu) {
-      menu.innerHTML = loggedIn ? `
+      menu.innerHTML = identityKnown ? `
         ${personal.length ? `<div class="group">${esc(UI.groupPersonal)}</div><ul class="menu-list">${personal.map(line).join('')}</ul>` : ''}
         ${shared.length ? `<div class="group">${esc(UI.groupShared)}</div><ul class="menu-list">${shared.map(line).join('')}</ul>` : ''}
         <div class="divider"></div>
@@ -655,7 +774,7 @@ import { inviteNextKey } from './inviteText.mjs';
     }
     const pm = byTest('profile-menu');
     if (pm) {
-      pm.innerHTML = loggedIn ? `
+      pm.innerHTML = identityKnown ? `
         <div class="identity"><strong>${esc(me.email || me.subject_id)}</strong>
           <small data-testid="profile-menu-channel">${esc(me.channel_proven ? UI.channelProven : UI.channelPending)}</small></div>
         ${me.channel_proven ? '' : `<button type="button" data-auth="resend" data-testid="profile-menu-resend">${esc(UI.resendAsk)}</button>`}
@@ -3106,6 +3225,8 @@ import { inviteNextKey } from './inviteText.mjs';
         if (allowed.focus) { const f = byTest(allowed.focus); if (f && typeof f.focus === 'function') f.focus(); }
         break;
       }
+      // AZ ÁLLAPOT ELLENŐRZÉSE (R206 — F206-01): a nem igazolt kontextus MŰKÖDŐ folytatása.
+      case 'ctx-recheck': await recheckContext(); break;
       case 'logout': await doLogout(); break;
       case 'revoke': await doRevoke(b.dataset.subject, b); break;
       case 'redeem': await doRedeem(); break;
@@ -3704,6 +3825,7 @@ import { inviteNextKey } from './inviteText.mjs';
     state.tabs = ['overview']; state.page = 'overview';
     // KIMONDOTT KÉSLELTETÉS (F142-01): itt a visszaállás a „más ember ült le közben" ág UTÁN
     // történik — egy idegen nézőnek nem állítjuk vissza az előző ember futását (R112-I3 · KUKA-204).
+    const appliedBefore = state.appliedSeq;
     const frissult = await refreshMe({ deferTourResume: true });
     /**
      * ELŐBB AZT KÉRDEZZÜK MEG, TUDJUK-E, KI ÜL A LAPNÁL (R204 — SAJÁT LELET, MÉRVE).
@@ -3720,13 +3842,74 @@ import { inviteNextKey } from './inviteText.mjs';
      * ezen az ágon a RÉGI embert festené — a SPEC §2: „Késői válasz ne rajzoljon vissza régi
      * személyt/adatot"), és a hordozott lezárás sem száll át.
      */
+    /**
+     * AZ ELAVULT FRISSÍTÉS NEM ÉRVÉNYTELENÍTHETI AZ ÚJABBAT (R206 — F206-02, a külső ellenőrző
+     * fél lelete, FORRÁSBÓL igazolva).
+     *
+     * A LELET. A korábbi alak MINDEN `applied: false` eredményre bizonytalanra állította a
+     * kontextust, a `why` különbségétől függetlenül. A `superseded` viszont NEM azt jelenti,
+     * hogy nem tudjuk, ki ül itt — azt jelenti, hogy egy ÚJABB frissítés indult, és az akár
+     * MÁR alkalmazta is a mai nézetet. Ilyenkor az elavult hívó egy IGAZOLT, frissebb képet
+     * tett volna újra bizonytalanná, és a saját, régebbi mondatát írta volna a frissebb
+     * értesítés helyére (`KUKA-211`: a válasz a MEGNYITÁSKORI nézethez tartozik ·
+     * `KUKA-041`: a késve érkező válasz nem írhat az új nézetbe).
+     *
+     * A KÉT ESET KÉT VÁLASZ, ÉS A KÜLÖNBSÉGET MÉRJÜK, nem feltételezzük: a `appliedSeq`
+     * megmondja, alkalmazott-e KÖZBEN egy újabb frissítés.
+     *   · ÚJABB MÁR ALKALMAZTA → a frissebb, igazolt képhez nem érünk hozzá: se bizonytalanság,
+     *     se átrajzolás, se felülírt értesítés. A művelet eredménye a SAJÁT helyén marad.
+     *   · ÚJABB MÉG FÜGGŐBEN (vagy a kiszolgáló elérhetetlen) → a kontextus VALÓBAN nem igazolt;
+     *     a lap ezt kimondja, a folytatást felkínálja, és amint a függő frissítés megérkezik, az
+     *     állapot MAGÁTÓL helyreáll (a feloldó a `refreshMe`-ben áll — nincs várakozó időzítő).
+     */
+    const ujabbIgazolas = !frissult.applied && frissult.why === 'superseded'
+      && state.appliedSeq > appliedBefore;
+    if (ujabbIgazolas) {
+      // A SAJÁT HELYÉN, A SAJÁT MŰVELETÉRŐL (a kártya sora): a héj közös értesítése a FRISSEBB,
+      // igazolt eseményé — azt nem írjuk át egy korábbi művelet mondatával.
+      formResult('invite-redeem-result', UI.inviteAcceptedLead, 'ok');
+      return;
+    }
     if (!frissult.applied) {
       state.tourCarry = null;
       // A MONDAT ODA MEGY, AHOL A FELHASZNÁLÓ ÁLL: a meghívó kártya saját sora MOST látszik (a héj
       // `global-notice`-a ezen a képernyőn nincs is a lapon — ezért nyelte el a régi alak a
       // `notice()`-t, némán).
       state.ctxUnconfirmed = true;
+      /**
+       * A SIKER NEM TŰNIK EL, CSAK VÁR A CÍMZETTJÉRE (R206 — F206-01). A szerver IGAZOLTA a
+       * tagságot; a kérdés csak az, kinek szól. A művelet alanya és könyve ezért ITT marad, és
+       * az állapot tisztázásakor EGY feloldó dönt (`resolveCtxPending`).
+       */
+      state.ctxPending = { what: 'invite_redeemed', subject_id: r.subject_id ?? null, book_id: r.book_id ?? null };
+      /**
+       * A SAJÁT KEZDEMÉNYEZÉS JELE ITT ELAVULT (R206 — F206-01). A `newContext('invite_redeemed')`
+       * azért állította be, hogy a SAJÁT váltásunkra ne jöjjön „másik ember ült le ide" mondat —
+       * de az a frissítés, amelyik ezt elhasználta volna, NEM alkalmazott. Ha a jel itt maradna,
+       * a KÖVETKEZŐ frissítés elnyelné a személyváltás mondatát: pontosan az a némaság, amit az
+       * R112-I3 lelete leírt (`KUKA-204`).
+       */
+      state.selfInitiated = false;
+      /**
+       * A RÉGI MŰVELET NEM KÜLDHETŐ BE ÚJRA (a SPEC §2 kikötése). A beváltás MEGTÖRTÉNT a
+       * kiszolgálón, a gomb viszont ott maradt a kártyán — és ha közben MÁS ember ült le, az ő
+       * ujja alatt indult volna újra ugyanaz a művelet. A jegyet a `forgetInvite()` már elvette;
+       * a gombot NEVEZETTEN vesszük ki a használatból, nem elrejtve (`KUKA-011`: a „nem látszik"
+       * nem ugyanaz, mint a „nincs ott").
+       */
+      const redeemBtn = byTest('invite-redeem');
+      if (redeemBtn) redeemBtn.disabled = true;
+      /**
+       * ÉS A BEMUTATÓ EREDMÉNYE SEM SZÁLL ÁT (a SPEC §2 · `KUKA-204` · `KUKA-218`). A futó
+       * útmutató a MEGNYITÁSKORI személyhez tartozik; egy nem igazolt nézetben nem folytatható,
+       * és nem is zárható le sikerrel. A futás NEVEZETT indokkal áll meg (a hátralévő lépések
+       * átugrottak, nem elvégzettek — TUR-01), a lezárás pedig nem hordozódik tovább.
+       */
+      if (state.tour) tourMod.exitRun(state.tour, 'context_unconfirmed');
+      state.tour = null; state.tourFinished = false; state.tourBlocked = null;
+      state.tourAborted = 'contextUnconfirmed';
       renderHeader();                 // CSAK a fejlec — a nezetet nem rajzoljuk at igazolas nelkul
+      renderTour();
       formResult('invite-redeem-result', UI.inviteAcceptedUnconfirmed, 'warn');
       notice(UI.inviteAcceptedUnconfirmed, 'warn');
       return;
