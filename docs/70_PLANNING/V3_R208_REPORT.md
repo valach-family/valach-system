@@ -123,3 +123,83 @@ felülettel kompatibilis alakra építem át (a meglévő felületi forrásból,
 **Két konkrét lépés, amit csak a tulajdonos tud megtenni:** (1) nyissa meg a linket a saját
 claude.ai-fiókjában, és írja meg, mit lát; (2) ha a chatgpt-v3-nak is látnia kell, a lap „Share"
 menüjéből ossza meg vele.
+
+**ÉS EGY TÉNY, AMIT A JAVÍTÁS KÖVETELT MEG:** a publikált csomag a 2. verzióban még a **javítás
+előtti** `app.js`-t hordozta, tehát a nyelvváltás hibája benne volt. Ezért a kapu UTÁN, a **végleges
+kódból épült** csomagot publikáltam ugyanarra a linkre (**3. verzió**). Mérve, a publikált alak
+fájl-listájával összevetve: mind a **19 kísérő fájl bájtra egyezik** a csomaggal (`app.js` **260 092**
+bájt — a javítás mérete is benne), az `index.html` a publikált alakban 364 bájttal nagyobb, mert a
+befogadó a saját vázát (doctype · head · alap-stílus) teszi a lapunk körül — ezt visszaolvasva is
+látom, és ez nem tartalmi eltérés.
+
+---
+
+## 5. MÉRÉSEK — ÚJ · KORÁBBI · NEM FUTOTT
+
+**A kötelező böngésző-kapu (a végleges kódon, `566424c`): PASS** — a teljes napló:
+`var/logs/r208_browser_gate.log`.
+
+| lánc | eredmény |
+|---|---|
+| `test:e2e + proof:core-ux` | **ZÖLD, 644 s** — **157 helyzet · 0 bukott · 0 ingadozó · 0 kihagyott · mind a 27 próbafájl mérve** |
+| `proof:demo-walk` | **ZÖLD, 481 s** (a BEMUTATÓ-felület tanúja — lásd §1) |
+| `docs:kiprobalas-kepek` | **ZÖLD, 38 s** (valódi `startServer` + eldobható SQLite) |
+| `proof:bemutato-artifact` *(a kibővített lánc)* | **ZÖLD, 25 s** |
+| záró sor | **„MINDEN deklarált lánc TÉNYLEGESEN elindult"** |
+
+**Új mérés ebben a körben:** a bájt-azonosság (20 fájl) · a nyelvcsomagok éles váltása a csomagban ·
+mind a két vezetett történet indulása/haladása/kilépése · az `R97-02` nyugta-állítása · és a
+visszacsúszási ellenpróba a nyelvváltás javítására (**a régi sorral PIROS**).
+**Korábbi, változatlan mérés:** `verify:kuka` **1273/1273** (1270 volt — egy új bejegyzés) ·
+`verify:i18n` 49/49 + 6/6 · `verify:tutor` 94/94 + 14/14 · `verify:bemutato-artifact` 10/10 ·
+`verify:browser-gate-plan` 10/10 · `verify:decision-numbers` 4/4 · `verify:doc-html` 9/9.
+
+**NEM futott, és miért (kimondva):** `verify:v3ref` (a mag `v3ref/` alatt **0 fájl** változott) ·
+`verify:external-checks` (nincs bemeneti érintettség) · PostgreSQL-láncok (tárolót, migrációt,
+mentést nem érintettem) · teljes `verify:sweep` (a SPEC §4 szerint a kiadási kapu ebben a körben a
+böngésző-kapu). **A „nem futott" nem „zöld"** (`KUKA-206`): ezekről csak annyit állítok, hogy a
+**bemenetük** nem változott. Újrahasznált bizonyítékra ebben a körben sem hivatkoztam.
+
+**A konkrét érintettség, amiért a TELJES kapu futott** (a SPEC §4 kérése): a `v3app/public/app.js`
+**termékkód** változott (a nyelvváltás javítása), és vele a próba-kód (`tests/e2e/v3app-r97.spec.mjs`
++ `tools/v3_bemutato_artifact_proof.mjs`). Mind a négy lánc betölti az `app.js`-t, tehát mind a négy
+érintett volt — ezért nem célzott újramérés, hanem **egy teljes kapu-futás** zárja a kört.
+
+---
+
+## 6. A CSOMAG ÁTADÁSA
+
+**A kijelölt munkamenet-ág:** `claude/cmd-vs-300-002-002-r204-2l0dva`; innen **fast-forward** a PR
+fejágára (`claude/r154-audit-fix`), friss `git fetch` utáni ősviszony-igazolással, **force-push
+nélkül**. A PR frissítése nem a PR merge-elése; merge, telepítés, CMD/PR lezárás nem történt.
+A PR leírása az új fejet, a valós mérési hatókört **és a §1 helyesbítését** mondja.
+
+**A ZÁRÓ PR-FEJ, a GitHubról visszaolvasva:** `__FINAL_SHA__`
+
+---
+
+## 7. FOGYASZTÁS — EGY SOR
+
+**Mérve** (`meres:fogyasztas`, modellhívás nélkül · ablak: a parancs board-időbélyegétől a csomag
+záró pillanatáig, `2026-10-14T15:25:20Z → 16:08:49Z`): **47 hívás · kimenet 65 177 · cache-olvasás
+31 066 204 · ügynök-bemenet 0 (0 ügynök** — a SPEC §4 kizárta az alügynököt). A tartalom nélküli
+leltár a repóban: `docs/70_PLANNING/V3_R208_FOGYASZTAS_LELTAR.json`; a mérés gépi alakja
+`var/reports/…_160849_fogyasztas.json`.
+
+> **A CHATVÁLTÁSI JELZŐ ELÉRVE, és ezt ki kell mondanom.** A mérő a fő-szál kontextusmediánját
+> **665 154**-nek mérte (max 700 636) — a 400 ezres sáv **fölött**. A projekt szabálya szerint
+> (`D-VS-3083`) **ez a futó munkablokk célzott ellenőrzéssel lezárható** (ez a jelentés az), a
+> **KÖVETKEZŐ önálló nagy blokk viszont friss beszélgetésben induljon.** A lezárás címén nem nyitottam
+> új feltárást, új funkciót és nem indítottam opcionális teljes söprést. Gépi jel:
+> `verify:fogyasztas-meres` (a sáv-kiírás egy feloldóból jön).
+
+---
+
+## 8. AMIT EZ A JELENTÉS NEM ÁLLÍT
+
+- **Nem** állítja, hogy a végleges host megjelenítése ellenőrzött — az **nem igazolt** (§4).
+- **Nem** merge-engedély és **nem** független AI-review: a zöld kapu a saját mérésem.
+- **Nem** nyitja újra az `R176-K3` és a *Saját ügyek* tételeket: mindkettő **változatlanul nyitott**,
+  egyikre sem indítottam kampányt (a SPEC §1 kikötése).
+- **Nem** minősíti sikertelennek a `proof:demo-walk` korábbi futásait: azok zöldek voltak és azok
+  maradnak — csak a **hatókörük** megnevezése volt téves.
