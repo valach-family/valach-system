@@ -269,4 +269,21 @@ felül. A PR **frissítése nem a PR merge-elése**; merge, telepítés, CMD/PR 
 **A PR leírása** megnevezi az új fejet és a valós mérési hatókört (a mag `v3ref/` **0 fájl**;
 tároló, migráció, mentés, V2 és éles üzem **nem érintett**).
 
-**A ZÁRÓ PR-FEJ, a GitHubról visszaolvasva:** `__FINAL_SHA__`
+**A ZÁRÓ PR-FEJ, a GitHubról visszaolvasva** (`pull_request_read` → `head.sha`):
+**`03fb970d329866c773e93a8cba9610824f87c2cb`** — a fast-forward `ea74d12..03fb970`, tehát a PR feje
+MOST az a commit, amelyik a mért kódot (`53ff719`) és ezt a jelentést is hordozza. Az ezt a sort
+pótló dokumentum-commit ugyanezen a fast-forwardon megy utána; **kód attól nem változik**, és a
+záró fejet a board-kör meg a chat-üzenet nevezi meg.
+
+### Három saját hiba, menet közben elkapva — kimondva
+
+1. **A próbám hiányzó felülettel is zöld lehetett** (`F206-03`) — a külső fél találta meg a saját
+   őrömön; a javítás a §4-ben.
+2. **A kapu tanú-kötésének NEVE elcsúszott** az F206-04 átszervezésekor: a `findings_r154` (X/x6)
+   szerkezeti pinje pirosat adott. A nevet állítottam vissza, nem az őrt lazítottam, és **a kaput
+   újra futtattam** (§4b).
+3. **A fogyasztás-exportot elsőre rossz mezővel hívtam** (`--leltar` az ÖSSZEHASONLÍTÁSI bemenet,
+   nem a kimenet), ezért a kimenet az alapértelmezett útra ment, és **felülírta a TÖRTÉNETI
+   `V3_R71_FOGYASZTAS_EXPORT` lapokat**. Visszaállítva bájtra azonos tartalomra (mérve: a két
+   commit közti diff ÜRES), az R206-os leltár pedig a saját nevén áll. Egy korábbi kör
+   bizonyítékát nem írjuk át — akkor sem, ha véletlen (`KUKA-122`).
