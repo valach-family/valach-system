@@ -559,6 +559,7 @@ const GUARD_HOME = Object.freeze({
   'KUKA-502': Object.freeze({ home: 'v3', note: 'az alkalmazás-számláló (`appliedSeq`) és a sorrendvédelem a V3 felületén él — a jel a vezérelt sorrend-próba (R206-K2: az újabb MÁR alkalmazott · R206-K3: az újabb MÉG függőben)' }),
   'KUKA-503': Object.freeze({ home: 'v3', note: 'a próba szabálya (`nemIgazoltHianyok`) és a két beépített ellenpróba ebben a repóban él — a jel maga a próba, a kötelező böngésző-kapuban futva' }),
   'KUKA-504': Object.freeze({ home: 'v3', note: 'a kapu futtatási terve (`tools/lib/vs_browser_gate_plan.mjs`) és az ellenpróbái a V3 szerszám-könyvtárában élnek — a jel a verify:browser-gate-plan (böngésző nélkül) és a verify:browser-gate futás-sorai' }),
+  'KUKA-505': Object.freeze({ home: 'v3', note: 'a nyelvváltás nyugtájának mércéje a V3 felületén él — a jel az i18n-próba R97-02 helyzete (a nyugta megjelenése és a mondat nyelv-csomag szerinti egyezése) a kötelező kapuban, mellette a proof:bemutato-artifact lap-hiba figyelője' }),
 });
 
 function homeOf(id) { return (GUARD_HOME[id] || null); }

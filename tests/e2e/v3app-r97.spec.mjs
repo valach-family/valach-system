@@ -135,6 +135,21 @@ test('R97-02 — KÉT EMBER egymás után EGY böngészőben: senki nem örökli
     await gotoProfileLang(page);
     await page.getByTestId('lang-select').selectOption(langB);
     await expect(page.locator('html')).toHaveAttribute('lang', langB);
+    /**
+     * ÉS A VÁLTÁS NYUGTÁJA MEG IS JELENIK (R208/F208-01, MÉRT LELET).
+     *
+     * A LELET: a váltás kezelője egy NEM LÉTEZŐ változó-párt hasonlított (`got === wanted`), ezért
+     * minden felületi nyelvváltás `ReferenceError`-ral szakadt meg ÉPP a nyugta kiírása előtt — a
+     * nyelv váltott (azt a lenti `lang` attribútum mérte is), a KIMONDOTT visszajelzés viszont
+     * némán elmaradt, és a választóra sem tért vissza a fókusz. Egyetlen próba sem mérte a nyugtát,
+     * ezért körökön át zöld maradt (`KUKA-012`: a néma elnyelés · `KUKA-215`: a választ MEG KELL
+     * MÉRNI). A mérce a NYELVCSOMAGBÓL jön, nem beégetve (`KUKA-237`).
+     */
+    const nyugta = page.getByTestId('global-notice');
+    await expect(nyugta, 'a nyelvváltás nyugtája megjelenik').toBeVisible();
+    const { dictFor } = await import('../../v3app/public/i18n/dict.mjs');
+    await expect(nyugta, 'és a mondata a KAPOTT nyelv csomagjából jön')
+      .toContainText(String(dictFor(langB).TPL.langSwitched).split('{')[0].trim());
     await logoutUI(page);
 
     // ── ANNA VISSZATÉR: a sajátját kapja — Béla választása nem írta felül.

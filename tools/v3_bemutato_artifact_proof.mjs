@@ -11,14 +11,22 @@
 // egy sima statikus kiszolgálóról — tehát a mérés arról a lapról szól, amit az operátor megnyit.
 //
 // AMIT EZ KIMONDVA NEM BIZONYÍT: nem HTTP- és nem tároló-bizonyíték. A háttér a SZIMULÁLT
-// bemutató-adapter; a szerveres/tárolós tanú a `findings_*` battériákban, a Playwright-láncban és a
-// `proof:demo-walk`-ban áll (KUKA-227: a csonk zöldje nem a határ zöldje). És NEM a `proof:demo-walk`
-// helyettesítője: az a KÉT teljes történetet járja végig a VALÓDI szerveren — ez a csomag
-// MEGNYITHATÓSÁGÁT és a JAVÍTOTT út kattinthatóságát méri, ismétlés nélkül.
+// bemutató-adapter; a szerveres/tárolós tanú a `findings_*` battériákban, a Playwright-láncban
+// (`startServer` + SQLite), a magban és a `docs:kiprobalas-kepek`-ben áll (KUKA-227: a csonk zöldje
+// nem a határ zöldje).
+//
+// ÉS NEM A `proof:demo-walk` HELYETTESÍTŐJE — DE A HATÓKÖRÜK UGYANAZ AZ OSZTÁLY (helyesbítés,
+// R208 §2). Az a lánc a KÉT teljes történetet járja végig 19 lépésen, mindkét méreten — a SAJÁT
+// statikus kiszolgálójáról, UGYANEZZEL a jelölt adapter-csonkkal, a `v3app/public` fájljairól.
+// Elsőre azt írtam ide, hogy „a VALÓDI szerveren": TÉVES volt. Ez a szerszám a CSOMAG
+// megnyithatóságát, a vezetett történetek indulását és a JAVÍTOTT út kattinthatóságát méri — és
+// MEGMÉRI, hogy a csomag fájljai BÁJTRA azonosak a repó forrásával, mert ez köti a két mérést össze:
+// a teljes 19 lépéses végigjárást a `proof:demo-walk` adja, ugyanazokon a bájtokon.
 //
 // Kilépési kód: 0 = minden állítás zöld · 1 = MÉRT hiba.
 import { chromium } from '@playwright/test';
 import { readFileSync, readdirSync, statSync, createReadStream } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -60,6 +68,25 @@ if (!manifestPath) {
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 const BUNDLE = join(ROOT, manifest.bundle_dir);
 console.log(`  csomag:    ${manifest.bundle_dir}  (${manifest.files.length} fájl)`);
+/**
+ * A CSOMAG BÁJTRA AZONOS A REPÓ FORRÁSÁVAL — ÉS EZ NEM FORMALITÁS (R208 §3).
+ *
+ * Ez az állítás KÖTI ÖSSZE a két mérést: a KÉT teljes történet 19-19 lépéses végigjárását a
+ * `proof:demo-walk` méri a `v3app/public` fájljain, ez a szerszám pedig a CSOMAGOT nyitja meg. Ha a
+ * csomag bájtra ugyanaz, akkor a végigjárás bizonyítéka a csomagra is áll; ha nem, akkor a két
+ * mérés KÉT KÜLÖN dologról szól, és azt nem szabad összemosni (KUKA-122 · KUKA-216).
+ */
+{
+  const eltero = [];
+  for (const f of manifest.files) {
+    let sha = null;
+    try { sha = `${createHash('sha256').update(readFileSync(join(ROOT, f.source))).digest('hex')}`; } catch { sha = '(nem olvasható)'; }
+    if (sha !== f.sha256) eltero.push(`${f.published} ← ${f.source}`);
+  }
+  A(eltero.length === 0, 'a csomag MINDEN fájlja BÁJTRA azonos a repó forrásával (sha256)',
+    eltero.length ? `ELTÉR: ${eltero.join(' · ')}` : `${manifest.files.length} fájl`);
+  console.log(lines.splice(0).join('\n'));
+}
 console.log(`  manifeszt: ${manifestPath.replace(`${ROOT}/`, '')}`);
 console.log(`  háttér:    ${manifest.background}`);
 
@@ -118,6 +145,87 @@ try {
     // (2) A SZIMULÁLT HÁTTÉR LÁTHATÓAN JELÖLT (a SPEC §3 kikötése).
     A(await T('demo-marker').isVisible() && String(await txt('demo-bar-title')).length > 0,
       'a lap LÁTHATÓAN kimondja, hogy ez bemutató (szimulált háttér)', `${await txt('demo-bar-title')} · ${await txt('demo-bar-lead')}`);
+
+    /**
+     * (3) A NYELVCSOMAGOK TÉNYLEG BETÖLTŐDTEK — ÉS NEM CSAK AZ ALAPNYELV (R208 §3).
+     *
+     * A modul-gráf betöltését már az bizonyítja, hogy a lap feláll (egy hiányzó nyelvcsomag a
+     * `dict.mjs` importján elakadna). De a SPEC a nyelvcsomagok betöltését NEVEZETTEN kéri, ezért
+     * MEGMÉRJÜK a váltást is: a profil-oldalon angolra váltunk, és azt kérjük, hogy a fejléc-sáv
+     * szövege az ANGOL csomagból jöjjön — majd visszaváltunk. A mérce a csomagból jön, nem beégetve
+     * (KUKA-237).
+     */
+    const EN = dictFor('en');
+    // A PROFIL-OLDAL A FELHASZNÁLÓ ÚTJÁN NYÍLIK MEG: a céges nézet BAL MENÜJÉBEN nincs „Saját
+    // profil" — a lenyíló profilmenüből érhető el (mérve: a `nav-profile` ezen a képernyőn nincs).
+    await T('profile').locator('summary').click();
+    await T('profile-menu-profile').click();
+    await T('lang-select').waitFor({ state: 'visible', timeout: 15_000 });
+    await T('lang-select').selectOption('en');
+    await page.waitForFunction((kell) => {
+      const el = document.querySelector('[data-testid="demo-bar-lead"]');
+      return el && (el.textContent || '').trim() === kell;
+    }, EN.UI.demoBarLead, { timeout: 15_000 }).catch(() => {});
+    A((await txt('demo-bar-lead')) === EN.UI.demoBarLead,
+      'az ANGOL nyelvcsomag is betöltődött és élesben vált', `„${await txt('demo-bar-lead')}"`);
+    await T('lang-select').selectOption('hu');
+    await page.waitForFunction((kell) => {
+      const el = document.querySelector('[data-testid="demo-bar-lead"]');
+      return el && (el.textContent || '').trim() === kell;
+    }, D.UI.demoBarLead, { timeout: 15_000 }).catch(() => {});
+    A((await txt('demo-bar-lead')) === D.UI.demoBarLead, 'és a visszaváltás is él (magyar)', `„${await txt('demo-bar-lead')}"`);
+
+    /**
+     * (4) A KÉT VEZETETT TÖRTÉNET INDULÁSA ÉS VEZETETT HALADÁSA (R208 §3).
+     *
+     * MIT MÉR, ÉS MIT NEM — KIMONDVA. A bemutató SOHA nem végzi el a felhasználó helyett az üzleti
+     * műveletet (TUR-01 `never_clicks`), tehát a „Tovább" egy FELADATHOZ KÖTÖTT lépésen NEM léphet
+     * tovább: ott a buborék VÁR, és ezt KI IS MONDJA (KUKA-228). Ez a szerszám ezért azt méri, hogy
+     * a történet INDUL, a vezetés HALAD, amíg haladhat, és ahol megáll, ott NEVEZETTEN áll meg — a
+     * KÉT TÖRTÉNET MINDEN LÉPÉSÉNEK végigjárása (19-19 lépés, mindkét méreten, valódi kattintásokkal)
+     * a `proof:demo-walk` lánc dolga, UGYANEZEKEN a bájtokon (lásd a fenti sha256-sort).
+     */
+    const tortenet = async (btn, cim) => {
+      await T(btn).click();
+      await T('tour-step-title').waitFor({ state: 'visible', timeout: 20_000 });
+      const indulo = await txt('tour-progress');
+      A(Boolean(indulo) && /\s1\/\d+$/.test(indulo), `a(z) „${cim}" történet INDUL`, String(indulo));
+      A(String(await txt('tour-step-title')).length > 0, 'és a lépés szövege a nyelvcsomagból jön', `„${await txt('tour-step-title')}"`);
+      // VEZETETT HALADÁS: legfeljebb három „Tovább", és minden lépés UTÁN megmérjük, mi látszik.
+      let halad = 0; let varakozik = null;
+      for (let i = 0; i < 3; i += 1) {
+        const elotte = await txt('tour-progress');
+        await T('tour-next').click();
+        const utana = await txt('tour-progress');
+        if (utana !== elotte) { halad += 1; continue; }
+        varakozik = await page.evaluate(() => {
+          const p = document.querySelector('[data-testid="tour-pending"]');
+          const b = document.querySelector('[data-testid="tour-blocked"]');
+          return { pending: p ? p.getAttribute('data-why') : null, blocked: b ? (b.textContent || '').trim().slice(0, 60) : null };
+        });
+        break;
+      }
+      A(halad > 0 || Boolean(varakozik && (varakozik.pending || varakozik.blocked)),
+        'a vezetés HALAD, vagy NEVEZETTEN kimondja, mire vár',
+        `előre lépett: ${halad} · ${varakozik ? JSON.stringify(varakozik) : 'nincs megállás'}`);
+      // ÉS A FELADATHOZ KÖTÖTT LÉPÉS NEM LESZ „ELVÉGEZVE" magától.
+      const feladat = await page.evaluate(() => [...document.querySelectorAll('[data-testid="tour-steps"] li')]
+        .filter((x) => x.getAttribute('data-state') === 'done').length);
+      A(feladat <= 3, 'a bemutató nem végzett el üzleti műveletet helyettünk', `elvégzett lépés: ${feladat}`);
+      // KILÉPÉS: a záró lap ELSZÁMOL (a tutor szabálya), majd bezárjuk.
+      await T('tour-exit').click();
+      await T('tour-summary').waitFor({ state: 'visible', timeout: 10_000 });
+      const el = await page.evaluate(() => {
+        const sm = document.querySelector('[data-testid="tour-summary"]');
+        const f = document.querySelector('[data-testid="tour-finished"]');
+        return sm ? { done: Number(sm.getAttribute('data-done')), skipped: Number(sm.getAttribute('data-skipped')),
+          pending: Number(sm.getAttribute('data-pending')), whole: f && f.getAttribute('data-whole') } : null;
+      });
+      A(Boolean(el) && el.skipped > 0 && el.whole === 'false',
+        `a(z) „${cim}" kilépése ELSZÁMOL (az átugrott lépés nem „elvégezve")`,
+        el ? `elvégezve ${el.done} · átugorva ${el.skipped} · hátravan ${el.pending}` : 'nincs összegzés');
+      await T('tour-close').click();
+    };
 
     // (3) A VEZETÉS VALÓDI VEZÉRLŐT JELÖL, ÉS VÁR — NEM KATTINT HELYETTÜNK (TUR-01 · KUKA-228).
     await T('demo-story-invite-revoke').click();
@@ -235,6 +343,24 @@ try {
     A(String(vissza.ertesito || '').includes(D.UI.inviteAcceptedLead),
       'a szerver által igazolt műveletet nem tagadjuk le: a siker a saját emberéhez ér', String(vissza.ertesito || '').slice(0, 90));
     A(String(vissza.fiokLista || '').includes('Minta Műhely'), 'a csatlakozott fiók ott áll a választóban', String(vissza.fiokLista || '').replace(/\s+/g, ' ').slice(0, 90));
+
+    /**
+     * (8) A MÁSODIK VEZETETT TÖRTÉNET — A MEGHÍVÓ-ÚT UTÁN, ÉS EZ SORREND, NEM ÍZLÉS.
+     *
+     * A két történet KÜLÖN kezdőállapotból indul (az egyikben Bélának FÜGGŐ meghívója van, a
+     * másikban MEGLÉVŐ tagsága), ezért a bemutató-lap a történet-váltáskor újraveti az állapotot. Ha
+     * a második történetet ELŐBB indítanánk, a meghívó-út alól tűnne el a függő meghívó. A tiszta
+     * címre is visszatérünk: a meghívó hivatkozása (`?invite=…`) különben újratöltéskor megint a
+     * meghívó-képernyőt nyitná (ugyanaz a MÉRT lelet, amiért a bemutató-lap `switchViewer`-e is a
+     * `pathname`-re tér vissza).
+     */
+    await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => {
+      const x = document.querySelector('[data-testid="header-subject"]');
+      return x && /@/.test(x.textContent || '');
+    }, null, { timeout: 20_000 }).catch(() => {});
+    await tortenet('demo-story-reentry', '2 · Munkatárs visszatérése');
+
     A(hibak.length === 0, 'a teljes bejárás alatt NEM volt JavaScript-hiba', hibak.join(' | ') || 'nincs');
 
     console.log(lines.splice(0).join('\n'));

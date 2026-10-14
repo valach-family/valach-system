@@ -13,8 +13,14 @@
 //
 // AMIT A CSOMAG KIMONDVA NEM: nem HTTP- és nem tároló-bizonyíték. A háttere a SZIMULÁLT
 // bemutató-adapter (`demo-adapter.mjs`), minden adat szintetikus, és ezt a lap LÁTHATÓAN jelzi
-// (`demo-marker` sáv). A valódi szerveres/tárolós tanú a `findings_*` battériákban, a Playwright-
-// láncban és a `proof:demo-walk`-ban áll (KUKA-220 · KUKA-227: a csonk zöldje nem a határ zöldje).
+// (`demo-marker` sáv). A valódi szerveres/tárolós tanú a `findings_*` battériákban, a
+// Playwright-láncban (`tests/e2e/global-setup.mjs` → `startServer` + SQLite), a magban
+// (`v3ref/run.mjs`) és a `docs:kiprobalas-kepek`-ben áll (az indítja a valódi `v3app/server.mjs`-t
+// eldobható tárolóval) — KUKA-220 · KUKA-227: a csonk zöldje nem a határ zöldje.
+//
+// HELYESBÍTÉS (R208 §2): a fenti felsorolás elsőre a `proof:demo-walk`-ot nevezte meg HTTP-/tároló-
+// tanúként. TÉVES: az is statikus fájlkiszolgálót és ugyanezt a jelölt csonkot használja — a
+// BEMUTATÓ-felület élő tanúja, azonos hatókör-osztályban ezzel a csomaggal.
 //
 // A FÁJL-LISTA NEM KÉZI: az IMPORT-GRÁFBÓL jön (a lap `src`/`href` hivatkozásaitól indulva,
 // tranzitívan). Ez a lényeg: ha a felület HOLNAP új modult importál, és a csomagból kimarad, az

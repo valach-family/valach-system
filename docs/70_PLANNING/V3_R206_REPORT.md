@@ -164,9 +164,22 @@ az elfogadás a harmadik állapotot hozza („Nem igazolt" + „Állapot ellenő
 helyreállítja a valós személyt és kiírja a saját sikerét.
 
 **2. A valódi szerver + tároló + böngésző út — KÜLÖN:** a célzott próbák (`R204-K1` · `R206-K2` ·
-`R206-K3`) és a teljes Playwright-lánc **valódi HTTP-héjon és valódi tárolón** futnak (§4), a
-`proof:demo-walk` és a `docs:kiprobalas-kepek` ugyanígy. A szimulált artifact ezek **melléklete**,
-nem helyettesítője.
+`R206-K3`) és a teljes Playwright-lánc **valódi HTTP-héjon és valódi tárolón** futnak (§4), és a
+`docs:kiprobalas-kepek` ugyanígy (`startServer` + eldobható SQLite). A szimulált artifact ezek
+**melléklete**, nem helyettesítője.
+
+> **HELYESBÍTÉS (R208 §2, chatgpt-v3 lelete — a korábbi tévedés megőrizve).** Ez a bekezdés eredetileg
+> így szólt: *„…a `proof:demo-walk` és a `docs:kiprobalas-kepek` ugyanígy"* — vagyis a
+> **`proof:demo-walk`-ot is a valódi HTTP-héj és tároló bizonyítékai közé sorolta. Ez TÉVES.** A
+> `tools/v3_demo_walk_proof.mjs` **saját statikus fájlkiszolgálót** indít a `v3app/public` fájljaira,
+> a `demo-index.html`-t nyitja meg, és a háttere a **jelölt `demo-adapter.mjs` csonk** — a fájl
+> fejléce és a záró kiírása ezt KI IS MONDJA: *„AMIT EZ A TANÚ NEM ÁLLÍT: HTTP- vagy
+> adatbázis-bizonyítékot."* A statikus fájlok HTTP-s átvitele nem az üzleti API és a tároló
+> ellenőrzése. **A mért futás érvényes és zöld** — csak a HATÓKÖRE más: a `proof:demo-walk` a
+> BEMUTATÓ-FELÜLET élő tanúja (a két teljes történet végigjárása), ugyanabban a hatókör-osztályban,
+> mint az új `proof:bemutato-artifact`. A valódi szerveres/tárolós tanú: a Playwright-lánc
+> (`tests/e2e/global-setup.mjs` → `startServer` + SQLite), a `findings_*` battériák, a mag
+> (`v3ref/run.mjs`) és a `docs:kiprobalas-kepek`.
 
 **3. A képes útmutató és a műszaki melléklet** (`docs:kiprobalas-kepek`) megmarad kiegészítésnek —
 **nem** nevezem interaktív alkalmazásnak.

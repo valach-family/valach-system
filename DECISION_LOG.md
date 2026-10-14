@@ -16,6 +16,32 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3270 — A VISSZAJELZÉST IS MÉRJÜK, NEM CSAK A KÖVETKEZMÉNYT (R208)
+
+> **Hatály:** V3 — a próba-alkalmazás felülete (`v3app/public/app.js`, a nyelvváltás kezelője) és az
+> i18n-próba lapja. **A mag (`v3ref/`) nem változott. Nyelvcsomag-tartalom nem változott.**
+
+**Dátum:** 2026-10-14 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 R208 · **KUKA-505**
+
+**A DÖNTÉS.** A felületi nyelvváltás nyugtájának mércéje egy NEM LÉTEZŐ változó-páron állt
+(`got === wanted`), ezért **minden** felületi nyelvváltás `ReferenceError`-ral szakadt meg a nyugta
+kiírása ELŐTT: a nyelv váltott, a kimondott visszajelzés és a fókusz-visszatérés viszont némán
+elmaradt (az R195 óta). Mostantól a mérce a KÉRT (`wanted`) és a KAPOTT (`code`) kód összevetése —
+mindkettő létező, mért érték —, tehát a „nem bekapcsolt nyelvet kértem" eset is **kimondottan**
+figyelmeztetés, nem néma siker.
+
+**ÉS A MÉRÉS AZ, AMI EDDIG HIÁNYZOTT.** Három próba is váltott nyelvet a felületen, de mind csak a
+KÖVETKEZMÉNYT mérte (`lang` attribútum, feliratok) — a nyugtát egyik sem, a kivétel pedig a kezelő
+után keletkezik, tehát a látható állapot rendben volt. Az i18n-próba (`R97-02`) ezért mostantól
+megméri a nyugta megjelenését és azt, hogy a mondata a KAPOTT nyelv csomagjából jön. **Visszacsúszási
+ellenpróba mérve:** a régi sorral a próba PIROS.
+
+**Hol derült ki:** az R208 §3 szerinti átadási bejárás bővítésén (a nyelvcsomagok éles váltása), a
+lap-hiba figyelőn — mind a két képernyő-szélességen. **Amit ez NEM állít:** nyelvcsomag-tartalom nem
+változott, és a nyelvváltás üzleti következménye (ország, adózási rend, pénznem) továbbra sem létezik.
+
+---
+
 ## D-VS-3269 — AZ INTERAKTÍV ÁTADÁS A VALÓDI FELÜLETI FORRÁSBÓL ÁLL, ÉS MÉRT LÁNC (R206)
 
 > **Hatály:** V3 — a bemutató-lap és a bemutató-adapter (`v3app/public/`), két új szerszám
@@ -33,7 +59,13 @@ csomag hiánya NEVEZETT hiba (ez a `KUKA-504` osztálya ezen a szerszámon).
 
 **2. A HÁTTÉR SZIMULÁLT, ÉS EZT A LAP LÁTHATÓAN KIMONDJA.** Minden adat szintetikus, titok nincs, és
 a csomag nem HTTP- és nem tároló-bizonyíték (`KUKA-227`). A valódi szerveres/tárolós tanú változatlanul
-a `findings_*` battériákban, a Playwright-láncban és a `proof:demo-walk`-ban áll.
+a `findings_*` battériákban, a Playwright-láncban és a `docs:kiprobalas-kepek`-ben áll.
+
+> **HELYESBÍTÉS (R208 §2, chatgpt-v3 lelete).** A sor eredetileg a `proof:demo-walk`-ot nevezte meg a
+> `docs:kiprobalas-kepek` helyett. **Tévesen:** a `proof:demo-walk` statikus fájlkiszolgálót indít és a
+> jelölt `demo-adapter.mjs` csonkot használja (a fájl fejléce és záró sora ezt kimondja), tehát a
+> BEMUTATÓ-felület élő tanúja — nem HTTP-/tároló-tanú. A mért futásai érvényesek; csak a hatókör
+> megnevezése volt rossz. A döntés tartalma (a csomag mire jó és mire nem) ettől nem változik.
 
 **3. A JAVÍTÁS KIPRÓBÁLHATÓ, NEM CSAK LEÍRVA.** Az R206 javítása hiba-úton látszik, ezért a
 bemutató-lap EGY kapcsolót ad: a következő állapot-ellenőrzés elveszik (a VALÓDI hálózati hiba

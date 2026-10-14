@@ -18791,6 +18791,60 @@ Object.freeze({
         reason: 'a fixen beírt hívás visszatérésével a lista megint csak dokumentálna' }),
     ]),
   }),
+  Object.freeze({
+    id: 'KUKA-505',
+    date: '2026-10-14',
+    title: 'A NYUGTA MÉRCÉJE NEM LÉTEZŐ VÁLTOZÓKAT HASONLÍTOTT — ÉS A NÉMA HIBA KÖRÖKÖN ÁT ZÖLD MARADT',
+    what: 'A felületi nyelvváltás kezelője a nyugta hangját egy NEM LÉTEZŐ változó-párból döntötte '
+      + 'el: `notice(tpl(\'langSwitched\', …), got === wanted ? \'ok\' : \'warn\')`. Sem a `got`, sem a '
+      + '`wanted` nem volt deklarálva abban a hatókörben (a meglévő értékek: `code` és '
+      + '`e.target.value`). MÉRVE (böngészőben, az R208 átadási bejárásán): MINDEN felületi '
+      + 'nyelvváltás `ReferenceError: got is not defined`-dal szakadt meg — pontosan a nyugta '
+      + 'kiírása ELŐTT. A nyelv VÁLTOTT (a `lang` attribútum, a feliratok és a tudás-index is), de a '
+      + 'KIMONDOTT visszajelzés némán elmaradt, és a választóra sem tért vissza a fókusz. A hiba az '
+      + 'R195 óta (2026-10-11) élt a termékben.',
+    why_wrong: 'A sor FÖLÖTT a saját megjegyzésem ezt ígérte: „A KÉRT ÉS A KAPOTT NYELV KÜLÖNBSÉGE '
+      + 'KIMONDVA — néma elnyelés nincs (KUKA-012)" — és épp ez a sor nyelte el némán a saját '
+      + 'üzenetét (`KUKA-050`: a szöveg a valóságot követi). Hogy mégis ZÖLD maradt körökön át, az a '
+      + 'MÉRÉS hibája: három próba is váltott nyelvet a felületen (`r93` · `r97` · a névtelen '
+      + 'választón továbbiak), de MIND csak a KÖVETKEZMÉNYT mérte (a `lang` attribútumot és a '
+      + 'feliratokat), a NYUGTÁT egyik sem — a kivétel pedig a kezelő UTÁN keletkezik, tehát a lap '
+      + 'látható állapota rendben volt. Ez a `KUKA-215` alakja a visszajelzésen (a választ MEG KELL '
+      + 'MÉRNI) és a `KUKA-220` szelleme: a nem mért nem „nem történt meg".',
+    replaced_by: 'a mérce LÉTEZŐ, MÉRT értékeken áll: a KÉRT kód saját nevet kap (`wanted = '
+      + 'e.target.value`), a KAPOTT a feloldóból jön (`code = useLang(decision)`), és a nyugta '
+      + 'hangját a kettő összevetése dönti el — így a „nem bekapcsolt nyelvet kértem" eset is '
+      + 'kimondottan FIGYELMEZTETÉS, nem néma siker',
+    replacement: 'ÉS A GÉPI JEL ODA KERÜLT, AHOL A SZABÁLY ÉL: az i18n-próba saját lapja (`R97-02`) '
+      + 'mostantól MEGMÉRI, hogy a váltás nyugtája MEGJELENIK, és hogy a mondata a KAPOTT nyelv '
+      + 'csomagjából jön (nem beégetve — `KUKA-237`). Visszacsúszási ellenpróba MÉRVE: a régi sorral '
+      + 'a próba PIROS („a nyelvváltás nyugtája megjelenik").',
+    decision: 'D-VS-3270',
+    found_by: 'a SAJÁT mérésem (Claude-v3, R208 §3) — nem forrás-olvasásból: az átadási csomag '
+      + 'bejárását bővítettem a nyelvcsomagok ÉLES váltására (ezt az R208 SPEC §3 kérte), és a '
+      + 'bejáró lap-hiba figyelője („a teljes bejárás alatt NEM volt JavaScript-hiba") NEVEZETTEN '
+      + 'pirosra vált: `got is not defined`, mind a két képernyő-szélességen',
+    lesson: 'AMIT A PRÓBA NEM OLVAS EL, AZT A FELHASZNÁLÓ OLVASSA EL HELYETTÜNK — ÜRESEN. Egy '
+      + 'nyugta, egy nevezett indok vagy egy fókusz-visszatérés nem „kozmetika": ha nincs ráállított '
+      + 'mérés, akkor a hozzá vezető kivétel is láthatatlan. A megkülönböztető kérdés: a próbám a '
+      + 'KÖVETKEZMÉNYT méri (ami esetleg a hiba ELŐTT már megtörtént), vagy a VÁLASZT is? És ha egy '
+      + 'lap-hiba figyelő pirosra vált, az nem a mérő zaja — az a lelet.',
+    guard_note: 'gépi jel: `tests/e2e/v3app-r97.spec.mjs` (`R97-02`) — a nyugta megjelenése és a '
+      + 'mondat nyelv-csomag szerinti egyezése, a kötelező böngésző-kapuban futva; mellette a '
+      + '`proof:bemutato-artifact` lap-hiba figyelője (a bejárás alatt EGY JavaScript-hiba sem) és a '
+      + '`verify:kuka` KUK02/KUK03.',
+    home: 'v3',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']), pattern: "code === wanted",
+        why: 'a nyugta mércéje LÉTEZŐ, mért értékeken áll' }),
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r97.spec.mjs']),
+        pattern: 'a nyelvváltás nyugtája megjelenik', why: 'a VÁLASZT is mérjük, nem csak a következményt' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']), pattern: "got === wanted",
+        reason: 'a nem létező változó-pár visszatérésével minden nyelvváltás némán kivétellel szakadna meg' }),
+    ]),
+  }),
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

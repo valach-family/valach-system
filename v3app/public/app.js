@@ -3302,7 +3302,11 @@ import { inviteNextKey } from './inviteText.mjs';
       // UGYANAZ AZ EGY SZABÁLY, mint a visszaállításnál (F95-01): a döntés a modulé, a mentés a
       // döntés következménye — nem három helyen kitalált mező-név. A tároló hibája nem állítja meg
       // a váltást (privát ablak · letiltott tároló): a nyelv váltódik, csak nem marad meg.
-      const decision = decideLang({ asked: e.target.value, askedSource: 'choice' });
+      // A KÉRT nyelv SAJÁT nevén (`wanted`): a nyugta mércéje ettől a MÉRT értéktől függ, nem egy
+      // nem létező mezőtől. A feloldó eldobja, ami nincs bekapcsolva — ezért a KÉRT és a KAPOTT
+      // kód eltérhet, és épp ezt kell kimondani (R208/F208-01 · KUKA-245).
+      const wanted = String(e.target.value || '');
+      const decision = decideLang({ asked: wanted, askedSource: 'choice' });
       const code = useLang(decision);
       /**
        * A GENERÁCIÓ MINDEN VÁLTÁSNÁL NŐ (F93-02) — akkor is, ha a nyelv ugyanoda ér vissza. A
@@ -3320,7 +3324,7 @@ import { inviteNextKey } from './inviteText.mjs';
       if (state.help.open) renderHelp();
       retextTour();
       // A KÉRT ÉS A KAPOTT NYELV KÜLÖNBSÉGE KIMONDVA — néma elnyelés nincs (KUKA-012).
-      notice(tpl('langSwitched', { nyelv: currentEndonym() }), got === wanted ? 'ok' : 'warn');
+      notice(tpl('langSwitched', { nyelv: currentEndonym() }), code === wanted ? 'ok' : 'warn');
       const again = byTest(d.testid);
       if (again && typeof again.focus === 'function') again.focus();
       return;
