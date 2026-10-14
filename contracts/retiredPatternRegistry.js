@@ -18526,6 +18526,57 @@ Object.freeze({
     ],
     forbidden: [],
   }),
+  Object.freeze({
+    id: 'KUKA-500',
+    date: '2026-10-14',
+    title: 'AZ ATADASI BEMUTATO ESZKOZE EGYETLEN KAPUBAN SEM VOLT — es nemán elcsuszott a termektol',
+    what: 'A `tools/v3_kiprobalas_kepek.mjs` allitja elo azt, amit az operator TENYLEGESEN megnyit: a '
+      + 'valodi szerveres, vegigkattinthato utat allapot-kepekkel, asztali ES 390 px-es meretben, '
+      + 'halozat nelkul megnyithato onallo lapban. MERVE (R204): az eszkoz a 11. kepnel 30 masodperc '
+      + 'utan KIVETELLEL allt meg, mert egy olyan horgonyra kattintott '
+      + '(`member-scope-select-<alany>` + `member-scope-<alany>`), ami a termekben MAR NEM LETEZIK — '
+      + 'a ket nev EGYETLEN elofordulasa maga az eszkoz volt. Utana a 17. lepes egy REGI mondatot '
+      + 'kereset (`/fiokot valtottal|Megnyitva/`), miközben a nyelvcsomag mast mond. Tehat az atadasi '
+      + 'bizonyitek EGYALTALAN NEM keszult el — es ezt egyetlen kor sem vette eszre.',
+    why_wrong: 'Az eszkoz nem volt benne SEMMILYEN gepi kapuban: sem a sopres, sem a bongeszo-kapu nem '
+      + 'futtatta. A nem mert eszkoz nem ,,ismeretlen allapotu", hanem ZOLDNEK LATSZIK (KUKA-051) — a '
+      + 'kor jelentese nyugodtan allithatta, hogy a lancok zoldek, mert amelyik lanc nem fut, az nem is '
+      + 'tud pirosra valtani. A kar pedig pont a SZALLITASON keletkezett: amit a cimzett nem tud '
+      + 'megnyitni, azt nem szallitottuk le (KUKA-079), es az operator epp ezt a lapot nyitja meg. '
+      + 'Ezen felul az eszkoz a sajat mercejet BEGEPELVE hordozta (egy mondat-minta), tehat a '
+      + 'nyelvcsomag valtozasa ellene fordult (KUKA-237).',
+    replaced_by: 'a ket elavult elvaras a MAI termek-alakra javitva (`member-scope-grant-<alany>-<adatkor>` '
+      + '— ugyanaz, amit a probak hivnak), a 17. lepes merceje pedig a NYELVCSOMAGBOL jon (`TPL`), nem '
+      + 'begepelt mintabol',
+    replacement: 'ES A LENYEG: az eszkoz BEKERULT a kotelezo bongeszo-kapu lanc-listajaba '
+      + '(`tools/vs_verify_browser_gate.mjs`), tehat egy kovetkezo felulet-valtozas utan NEM tud nemán '
+      + 'elcsuszni — a kapu a parancs alakjat is meri, nem csak futtat (,,a kapu nem mer mast csendben").',
+    decision: 'D-VS-3264',
+    found_by: 'a SAJAT merésem (Claude-v3), az R204 §4 atadasi bemutatojanak eloallitasa kozben — nem '
+      + 'forras-olvasasbol: az eszkozt LEFUTTATTAM, es a kivetel mondta meg',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_browser_gate.mjs']),
+        pattern: "docs:kiprobalas-kepek",
+        why: 'az atadasi bemutato eszkoze a kotelezo kapu lanc-listajaban all — ha kiveszik, ez a minta nem talal' }),
+      Object.freeze({ paths: Object.freeze(['tools/v3_kiprobalas_kepek.mjs']),
+        pattern: "member-scope-grant-\\$\\{belaId\\}-keszlet",
+        why: 'az eszkoz a MAI horgonyt hivja; a regi alak visszateresekor ez a minta nem talal' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/v3_kiprobalas_kepek.mjs']),
+        pattern: 'member-scope-select-',
+        why: 'a termekben nem letezo horgony — a visszateresenel az atadasi bemutato ujra kivetellel allna meg' }),
+    ]),
+    lesson: 'AMI A SZALLITAST ALLITJA ELO, AZ IS MERT LANC — kulonben a termek tovabblep, es a '
+      + 'szallitas NEMAN elmarad. A legmegtevesztobb fajta: minden MAS lanc zold, a jelentes zoldet ir, '
+      + 'es epp az a lap nem keszul el, amit a cimzett megnyitna. A megkulonbozteto kerdes konkret: '
+      + '**melyik kapu valt pirosra, ha ez az eszkoz holnap eltorik?** Ha a valasz ,,egyik sem", akkor '
+      + 'az eszkoz nem bizonyitek, hanem remeny. Es a merce se legyen begepelve az eszkozbe: a feliratot '
+      + 'a nyelvcsomag adja, kulonben a sajat szovegunk valtozasa buktatja meg a kesz terméket (KUKA-237).',
+    guard_note: 'gepi jel: `npm run verify:browser-gate` — a lanc-lista mostantol a `docs:kiprobalas-kepek`-et '
+      + 'is tartalmazza, a kapu a parancs ALAKJAT is meri, es a lanc nem-nulla kilepese PIROS. Mellette '
+      + '`verify:kuka` KUK02 (a regi horgony tiltva) + KUK03 (a mai horgony es a kapu-bejegyzes megleterol).',
+  }),
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

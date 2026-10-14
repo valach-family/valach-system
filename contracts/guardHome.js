@@ -554,6 +554,7 @@ const GUARD_HOME = Object.freeze({
   'KUKA-482': Object.freeze({ home: 'v3', note: 'a három mód és a három kilépési kód a V3 szerszám-könyvtárában él — a jel a verify:external-series EXS14, VALÓDI gyermek-folyamattal mérve (állapotlekérdezés 0 · kapu 3 · üres könyvtár is 3)' }),
   'KUKA-483': Object.freeze({ home: 'v3', note: 'az EXS14 belső futásának elkülönítése a V3 szerszám-könyvtárában él — a jel maga a tüzelési mintázat: a tíz visszacsúsztatásos ellenpróba PONTOSAN egy-egy őrt pirosít' }),
   'KUKA-176': Object.freeze({ home: 'v3', note: 'a verdikt-szerződés és a hibás-alak ág a V3 szerszám-könyvtárában él — a jel a verify:sweep-verdict SWV07, ellenpárokkal és VALÓDI gyermek-folyamattal' }),
+  'KUKA-500': Object.freeze({ home: 'v3', note: 'az atadasi bemutato eszkoze es a kotelezo bongeszo-kapu lanc-listaja is EBBEN a repoban el — a jel a verify:browser-gate, mellette a verify:kuka tilto es pozitiv mintai' }),
 });
 
 function homeOf(id) { return (GUARD_HOME[id] || null); }

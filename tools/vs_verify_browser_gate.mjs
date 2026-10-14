@@ -59,6 +59,16 @@ const CHAINS = [
   { script: 'test:e2e', expect: 'playwright test', kind: 'playwright' },
   { script: 'proof:core-ux', expect: 'playwright test', kind: 'playwright' },
   { script: 'proof:demo-walk', expect: 'node tools/v3_demo_walk_proof.mjs', kind: 'node' },
+  // R204 — AZ ATADASI BEMUTATO IS A KAPUBA KERUL (KUKA-500).
+  //
+  // MIERT. Ez az eszkoz allitja elo a VALODI szerveres, vegigkattinthato utat kepekkel (asztali
+  // ES 390 px) — az operator ezt nyitja meg. Egyetlen gepi kapu sem futtatta, ezert amikor a
+  // termek felulete tovabblepett, az eszkoz elvarasai NEMAN elcsusztak: egy mar nem letezo
+  // horgonyra kattintott, es egy regi mondatot kereset. Merve: a 11. kepnel 30 masodperc utan
+  // kivetellel allt meg — tehat az atadasi bizonyitek EGYALTALAN NEM keszult el, miközben
+  // minden mas lanc zold volt. A nem mert eszkoz nem ,,ismeretlen allapotu", hanem zoldnek
+  // latszik (KUKA-051), es a szallitas resze az, amit a cimzett meg tud nyitni (KUKA-079).
+  { script: 'docs:kiprobalas-kepek', expect: 'node tools/v3_kiprobalas_kepek.mjs', kind: 'node' },
 ];
 for (const c of CHAINS) {
   const cmd = String((pkg.scripts || {})[c.script] || '');

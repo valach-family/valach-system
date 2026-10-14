@@ -16,6 +16,53 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3264 — A FRISSÍTÉS KIMONDJA, ALKALMAZTA-E A SZERVER IGAZSÁGÁT (R204)
+
+> **Hatály:** V3 — a próba-alkalmazás felülete (`v3app/public/`), a nyelvcsomagok, az átadási
+> bemutató eszköze és a kötelező böngésző-kapu lánc-listája. **A mag (`v3ref/`) nem változott: 0 fájl.**
+> **V2-módosítás nem történt, merge és telepítés nem történt.**
+
+**Dátum:** 2026-10-14 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 R204 · **KUKA-500**
+
+**1. A DÖNTÉS: a frissítés verdiktet ad, és aki a `state.me`-ből dönt, annak előbb ezt kell
+megkérdeznie.** A `refreshMe`-nek két korai kilépése van (`seq`-eltérés · elérhetetlen kiszolgáló), és
+mindkettő úgy tért vissza, hogy a `state.me` a RÉGI emberé maradt — a hívó viszont ezt nem tudta
+megkülönböztetni a sikeres frissítéstől. **MÉRVE** (vezérelt böngészőpróba, `R204-K1`): a beváltás
+válaszát visszatartva, közben MÁS ember belépve és EGY olvasó kérést elvesztve a lap **Dórának** írta
+ki, hogy *„Elfogadtad a meghívást. Csatlakoztál ehhez a fiókhoz: Személyes fiók"* — egy műveletre,
+amit nem ő végzett —, a fejlécben pedig CARL címe állt. Ez pontosan az a hiba, amit az R112 a
+`KUKA-204` kapujával akart kizárni: **a kapu megvolt, a BEMENETE volt hamis.**
+
+**2. ÉS EGY HARMADIK ÁLLAPOT A FEJLÉCEN, mert a kettő nem elég.** Nem igazolható kontextusban a régi
+név megtartása nem óvatosság, hanem hamis állítás — a „nincs belépve" szintén az volna. A fejléc
+ezért `Nem igazolt` / `Not confirmed` / `Nicht bestätigt` (mindhárom bekapcsolt nyelven), és a
+frissítés törli, amint újra alkalmazott igazsága van (`KUKA-012`: az üres és az elérhetetlen nem
+ugyanaz). A nézetet igazolás nélkül **nem** rajzoljuk át.
+
+**3. A SAJÁT ÜGYEK: állapotpontosítás, nem megvalósítás.** A lap szövege üres listát állított, a GYIK
+viszont azt, hogy a KÉPESSÉG nem létezik (`KUKA-050`). A lap mostantól a „még nem elérhető" állapotot
+mondja ki, mindhárom nyelven. **A lefedési követelményt nem töröltem, nem neveztem át teljesítettnek
+és nem pótoltam szimulált ügyekkel** — a `verify:lefedes` változatlanul PIROS (1 örökölt hiány).
+
+**4. AZ ÁTADÁSI BEMUTATÓ ESZKÖZE BEKERÜL A KÖTELEZŐ KAPUBA (KUKA-500).** A `docs:kiprobalas-kepek`
+állítja elő azt, amit az operátor megnyit (18 képernyő, asztali ÉS 390 px, hálózat nélkül) — és
+egyetlen gépi kapu sem futtatta. Ezért két elvárása NÉMÁN elcsúszott a terméktől, és az átadási
+bizonyíték **egyáltalán nem készült el**, miközben minden más lánc zöld volt. Javítva (a mai horgony
+és a nyelvcsomagból vett mérce), és a lánc bekerült a `verify:browser-gate` lista[j]ába.
+
+**5. R176-K3 — NYITOTT, mechanizmus nélkül.** A legutóbbi nyom az R191 §3 (60 perc / 20 eset,
+reprodukció nem történt, a fő gyanút mérés zárta ki, a 390 px 3/3 zöld). A SPEC szabálya szerint
+**feltételezett javítást nem építettem.** A kötelező kapuban az `R176-K3` a 155 helyzet része volt és
+zöld — ez nem zárja le a tételt, csak annyit állít, amennyit mér.
+
+**GÉPI VÉGEREDMÉNY.** **Kötelező böngésző-kapu: PASS** — `test:e2e + proof:core-ux` ZÖLD (626 s),
+**155 helyzet · 0 bukott · 0 ingadozó · 0 kihagyott · mind a 27 próbafájl mérve**, `proof:demo-walk`
+ZÖLD (482 s), chromium 141 elindult · `verify:i18n` **49/49 + 6/6 ellenpróba** · `verify:tutor`
+**94/94 + 14/14** · `verify:kuka` **1252/1252** · `app:selfcheck` **57/57** · `verify:lefedes`
+**ZÖLD=17 · PIROS=1** (örökölt) · `R204-K1` ZÖLD, **és a javítás visszavételével PIROS**.
+
+---
+
 ## D-VS-3263 — A MAI ELFOGADÁSI PROFIL ÉS A TÖRTÉNETI DIAGNOSZTIKA GÉPI ELVÁLASZTÁSA (PRF-01, R202)
 
 Az R201-ben kértem szakmai döntést, és a **chatgpt-v3 az R202 §0-ban meghozta**: a mai elfogadási
