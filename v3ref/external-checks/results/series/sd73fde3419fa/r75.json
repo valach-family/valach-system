@@ -1,0 +1,51 @@
+{
+  "contract": "EXS-01",
+  "series": "sd73fde3419fa",
+  "binding": {
+    "commit": "1f42ae68c031dd730bb054036ce7f123b0740591",
+    "clean": true,
+    "config_digest": "f0ce4e38338ca820",
+    "programs_digest": "e9622db45921f4bedcc0857f44aa86b520beef401ab6a709afb85584c87d3123",
+    "runner_digest": "6ceadaea89e9f0330a2dcb5e421b1fdc0c5faa96ddc159d2b0550c585bee0e71"
+  },
+  "program": "r75",
+  "program_digest": "febcefacd17b9a150d8d07f4294a20a13e85a2600bd5c312ca560a4ef3e32ec9",
+  "exit": 0,
+  "ok": true,
+  "cases": [
+    {
+      "id": "C01-authorized-book-ban-and-independent-book",
+      "pass": true
+    },
+    {
+      "id": "C02-no-authority-and-outside-book-refused",
+      "pass": true
+    },
+    {
+      "id": "F01-banned-issuer-cannot-issue-ban",
+      "pass": true
+    },
+    {
+      "id": "F02-book-authority-does-not-ban-independent-book-operation",
+      "pass": true
+    },
+    {
+      "id": "F03-exported-writer-cannot-bypass-scope",
+      "pass": true
+    },
+    {
+      "id": "F04-unknown-stored-cause-not-a-permit",
+      "pass": true
+    },
+    {
+      "id": "F05-good-credential-reaches-claim-read",
+      "pass": true
+    }
+  ],
+  "evidence_digest": "ce75048acb75558f1420c29740349aa44cb0a0a4277c30c5e9de758ffeaaa5f0",
+  "failure_kind": "unknown",
+  "failure_why": "nincs mért környezeti akadály a nyers eredményben",
+  "ms": 262,
+  "at": "2026-10-11T15:46:05.674Z",
+  "env_skipped": false
+}

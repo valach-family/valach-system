@@ -1,0 +1,44 @@
+{
+  "contract": "EXS-01",
+  "series": "s0b1af9a4b62d",
+  "binding": {
+    "commit": "ec2d2a6e46cbfe75cee4d842e306a8f4ba5f186d",
+    "clean": true,
+    "config_digest": "f0ce4e38338ca820",
+    "programs_digest": "e9622db45921f4bedcc0857f44aa86b520beef401ab6a709afb85584c87d3123",
+    "runner_digest": "a171f91d7ca49e8737c1b2e2b3d8fed344f38bb8ae45bf9fe8b28ee29960b10d"
+  },
+  "programs": [
+    "r16core",
+    "r92authz",
+    "r88core",
+    "r85core",
+    "r77",
+    "r75",
+    "r69",
+    "r67",
+    "r61",
+    "r83core",
+    "r81core",
+    "r79core",
+    "r79",
+    "r59a",
+    "r57a",
+    "r59",
+    "r57",
+    "r55",
+    "r53"
+  ],
+  "config": {
+    "battery_units": 64,
+    "unit_plan": [
+      64,
+      253
+    ],
+    "unit_budget_ms": 12000,
+    "external_cap_ms": 15000,
+    "node": "v22.22.0"
+  },
+  "recorded_by": "run-all.mjs",
+  "recorded_at": "2026-10-11T15:26:40.577Z"
+}

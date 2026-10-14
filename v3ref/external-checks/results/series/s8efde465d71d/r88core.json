@@ -1,0 +1,46 @@
+{
+  "contract": "EXS-01",
+  "series": "s8efde465d71d",
+  "binding": {
+    "bundle_digest": "9e80eefd305960738a2ddbd7c221789b419eaacdf8a9c247336255ecb5a38822",
+    "programs_digest": "e9622db45921f4bedcc0857f44aa86b520beef401ab6a709afb85584c87d3123",
+    "runner_digest": "e859b6cdaca6034936332536476e46ae78e8081d3405987efa5c82fc96243b77",
+    "config_digest": "f0ce4e38338ca820",
+    "clean": true
+  },
+  "provenance": {
+    "commit": "a2060778131c0c42a0d5e59bc9ddad9540d072c9"
+  },
+  "program": "r88core",
+  "program_digest": "cc34182b78a350c98f23c62b41d214162c8ea7b9d1ff20614da6bdeb09d0b7a6",
+  "exit": 0,
+  "ok": true,
+  "cases": [
+    {
+      "id": "P01-same-book-basis",
+      "pass": true
+    },
+    {
+      "id": "F01-foreign-book-basis",
+      "pass": true
+    },
+    {
+      "id": "P02-successful-grant-is-paired",
+      "pass": true
+    },
+    {
+      "id": "F02-rejected-grant-leaves-no-event",
+      "pass": true
+    },
+    {
+      "id": "P03-outer-transaction-rolls-back",
+      "pass": true
+    }
+  ],
+  "evidence_digest": "e49f2cc75cdc22f7f4d8ee004c53129265a0640ae760523c6841b32158cfb2c6",
+  "failure_kind": "unknown",
+  "failure_why": "nincs mért környezeti akadály a nyers eredményben",
+  "ms": 275,
+  "at": "2026-10-11T16:21:29.788Z",
+  "env_skipped": false
+}

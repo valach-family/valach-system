@@ -59,7 +59,57 @@ try {
   await call('POST', '/api/workspaces', { name: 'Minta Műhely Kft.', plan: 'pro',
     business: { jurisdiction: 'HU', tax_id: '62345676-2-42' } });
 
-  const st = await call('GET', '/api/assistant/status?lang=hu');
+  /**
+   * ÉS A TÖRTÉNETEK INDULÓ ADATA IS KELL (R176 · `KUKA-417` · `KUKA-421`).
+   *
+   * A két átívelő végigvezetés felkínálása ma az INDULÓ ADATHOZ kötött: a visszavonás egy FÜGGŐ
+   * meghívást kér, a visszatérés egy HATÁLYOS másik tagot. A pillanatkép tehát csak akkor születhet
+   * meg, ha a fixtúra MINDKETTŐT előállítja — különben a lenti `hiany` ellenőrzés (helyesen) elakad.
+   * Cili meghívása FÜGGŐ marad, Dóra elfogadja: így a két tény egymástól független marad.
+   */
+  const anna = cookie;
+  await call('POST', '/api/invites', { email: 'cili@demo.vs', role: 'user', scope: 'keszlet', lang: 'hu' });
+  const meghD = await call('POST', '/api/invites', { email: 'dora@demo.vs', role: 'user', scope: 'keszlet', lang: 'hu' });
+  const jegy = meghD.body && meghD.body.token;
+  if (!jegy) throw new Error('a második meghívó jegye nem jött meg — a mérés elakadt');
+  cookie = null;                                           // ÚJ munkamenet: Dóra a saját fiókjával
+  await call('POST', '/api/register', { email: 'dora@demo.vs', password: 'dora-titok-1' });
+  const dMails = (await call('GET', '/dev/mailbox')).body.mails || [];
+  const dm = dMails.find((x) => x.to === 'dora@demo.vs' && /meg/i.test(x.subject || ''));
+  if (!dm) throw new Error('Dóra megerősítő levele nem jött meg — a mérés elakadt');
+  const du = new URL(dm.link);
+  await call('GET', du.pathname + du.search);
+  await call('POST', '/api/login', { email: 'dora@demo.vs', password: 'dora-titok-1' });
+  const bevaltas = await call('POST', '/api/invites/redeem', { token: jegy });
+  if (!bevaltas.body || bevaltas.body.ok !== true) throw new Error(`Dóra beváltása nem sikerült (${bevaltas.status})`);
+
+  /**
+   * ÉS CILINEK FIÓKJA IS VAN — A MEGHÍVÓJA VISZONT FÜGGŐ MARAD (R186 §2 · `KUKA-447`).
+   *
+   * MIÉRT KELL. A visszavonás-története a MEGHÍVOTT belépésével folytatódik (a `s6` lépés az ő
+   * nézetére vált), és az R186 §2 óta a személyváltás a VÁRT résztvevőt kívánja meg. A kiszolgáló
+   * ezért csak olyan függő meghívót fogad el induló adatként, aminek a címzettje AZONOSÍTHATÓ —
+   * különben a történet olyan utat állítana, ami nincs. MÉRVE: Cili fiókja nélkül a `/api/assistant/
+   * status` NEM kínálja fel a `tour.inviteRevoke`-ot, és ez az eszköz (helyesen) elakad.
+   *
+   * A MEGHÍVÓT NEM VÁLTJUK BE: Cili fiókja létezik, az ajánlata FÜGGŐ marad — pontosan ez a
+   * történet induló adata. Ugyanaz a lecke NYOLCADSZOR: a felkínálás a VÉGIGVIHETŐSÉG állítása
+   * (`KUKA-417` · `421` · `429` · `430` · `431` · `437` · `442` · `447`).
+   */
+  cookie = null;                                           // ÚJ munkamenet: Cili a saját fiókjával
+  await call('POST', '/api/register', { email: 'cili@demo.vs', password: 'cili-titok-1' });
+  const cMails = (await call('GET', '/dev/mailbox')).body.mails || [];
+  const cm = cMails.find((x) => x.to === 'cili@demo.vs' && /meg/i.test(x.subject || ''));
+  if (!cm) throw new Error('Cili megerősítő levele nem jött meg — a mérés elakadt');
+  const cu = new URL(cm.link);
+  await call('GET', cu.pathname + cu.search);
+  cookie = anna;                                           // vissza a fiókkezelő munkamenetére
+
+  // A FELÜLET MEGNEVEZÉSE (R164/3). A csomag a BEMUTATÓ LAPJÁHOZ készül (`demo-index.html`), és a
+  // szereplő-váltó végigvezetéseket a kiszolgáló ahhoz a felülethez köti — a vezérlő létét a lap
+  // FÁJLJÁBÓL méri, nem ebből a megnevezésből. Ha a váltó horgony kiesne a bemutató lapjáról, a
+  // lenti `hiany` ellenőrzés nevezetten elakad: a csomag nem születik meg hamis listával.
+  const st = await call('GET', '/api/assistant/status?lang=hu&surface=demo');
   const kn = await call('GET', '/api/assistant/knowledge?lang=hu');
   if (!st.body || st.body.ok !== true) throw new Error(`a segéd állapota nem jött meg (${st.status})`);
   if (!kn.body || kn.body.ok !== true) throw new Error(`a tudás-index nem jött meg (${kn.status})`);
@@ -69,7 +119,39 @@ try {
   const hiany = kell.filter((id) => !tours.some((t) => t.id === id));
   if (hiany.length) throw new Error(`a bemutató-kötött végigvezetések hiányoznak a válaszból: ${hiany.join(', ')} — a VS_DEMO kapu vagy a definíció nem áll`);
 
-  const payload = `${JSON.stringify({ status: st.body, knowledge: kn.body }, null, 1)}\n`;
+  /**
+   * A VILÁGHOZ KÖTÖTT AZONOSÍTÓK NEM KERÜLNEK A CSOMAGBA (R186 §5 · `KUKA-453`).
+   *
+   * A csomag a VALÓDI szerver válasz-ALAKJÁT viszi (`KUKA-016`), a benne álló azonosítók viszont
+   * ennek az ELDOBHATÓ mérő-világnak az azonosítói: az alany-azonosítók minden rögzítésnél MÁSOK
+   * (mérve, két egymás utáni rögzítés: `served_subject_id` `sub_ee1e03aa…` → `sub_979081…`), a
+   * meghívó jelölője pedig egy VÉLETLEN tokenből képzett lenyomat. Ennek két mért következménye van:
+   *
+   *   1. A `--check` ÍGÉRETE HAMIS VOLT: „megmondja, elavult-e" — de MINDEN futásnál ELAVULT-at
+   *      mondott, akkor is, ha a forrás nem változott. Egy jel, ami mindig pirosat ad, nem jel
+   *      (`KUKA-050`: a szöveg kövesse a valóságot).
+   *   2. Az R186 §2 óta a csomag a történet CÉL-KÖTÉSÉT is viszi (`story.ref` · `story.actor`).
+   *      Változatlanul kiszolgálva az egy NEM LÉTEZŐ célra szólna a bemutató saját világában, és a
+   *      történet fail-closed kapui megállítanák a bemutatót (`KUKA-453`).
+   *
+   * Ezért a négy világ-kötött mező KIMONDOTTAN `null`: mindegyiket a bemutató-adapter adja meg a
+   * SAJÁT állapotából (`v3app/public/demo-adapter.mjs` — a `served()` és a `storyKotes()`), és egy
+   * esetleges visszacsúszásnál a `null` FAIL-CLOSED — egy másik világ HIHETŐ azonosítója nem az.
+   * A `served_book_id` NEM ilyen: két rögzítés között változatlan, tehát marad.
+   */
+  const vilagtalan = (b) => ({ ...b, served_book_id: null, served_subject_id: null });
+  const kotesNelkul = (lista) => (Array.isArray(lista) ? lista : [])
+    .map((t) => (t && t.story ? { ...t, story: { ...t.story, ref: null, actor: null } } : t));
+  const statusCsomag = {
+    ...vilagtalan(st.body),
+    tours: kotesNelkul(tours),
+    // A MÁSODIK LISTA IS VISZI A KÖTÉST, ÉS EZT MÉRTEM: az első alakom csak a `tours`-t
+    // semlegesítette, és két egymás utáni rögzítés diffje mutatta meg, hogy a `resumable_tours`
+    // UGYANAZOKAT a jelölőket hordozza (a szerver mindkettőt ugyanazzal a feloldóval állítja elő).
+    // Ugyanez a könyv-azonosítóra is igaz volt: a `served_book_id` is rögzítésenként más.
+    resumable_tours: kotesNelkul(st.body.resumable_tours),
+  };
+  const payload = `${JSON.stringify({ status: statusCsomag, knowledge: vilagtalan(kn.body) }, null, 1)}\n`;
   if (CHECK) {
     const mai = existsSync(OUT) ? readFileSync(OUT, 'utf8') : '';
     if (mai === payload) { console.log('A bemutató tudás-csomagja NAPRAKÉSZ.'); process.exit(0); }

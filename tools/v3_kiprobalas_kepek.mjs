@@ -27,6 +27,11 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { startServer } from '../v3app/server.mjs';
+// R204: A MONDAT EGY HELYROL JON, NEM BEGEPELVE. A 17. lepes elvart szovegeet eddig egy, az
+// eszkozbe irt minta (`/fiokot valtottal|Megnyitva/`) mondta meg — a nyelvcsomag kozben mast
+// mond, es az eszkoz ezert kivetellel allt meg a KESZ terméken. A mercet innentol a csomag adja
+// (KUKA-237: a proba se egessen be feliratot · KUKA-003: egy fogalom, egy otthon).
+import { dictFor } from '../v3app/public/i18n/dict.mjs';
 
 const require = createRequire(import.meta.url);
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -272,13 +277,19 @@ try {
   });
 
   await anna.getByTestId(`member-open-${belaId}`).click();
-  await anna.getByTestId(`member-scope-select-${belaId}`).selectOption('keszlet');
-  await anna.getByTestId(`member-scope-${belaId}`).click();
+  // R204 — ELAVULT HORGONY JAVITVA. Ez az eszkoz a REGI panel-alakot kattintotta (egy
+  // `member-scope-select-<alany>` legordulot + egy `member-scope-<alany>` gombot), ami a
+  // termekben MA NEM LETEZIK — merve: a ket horgony EGYETLEN elofordulasa ebben a fajlban
+  // volt, mar a valtozatlan fejen is. Ezert az atadasi bemutato a 11. kepnel 30 masodperc
+  // utan kivetellel allt meg, es KEPI bizonyitek nem keszult. A mai panel ADATKORONKENT ad
+  // gombot (`member-scope-grant-<alany>-<adatkor>`) — ugyanazt hivjuk, amit a probak hivnak
+  // (`tests/e2e/helpers.mjs` grantScopeUI), tehat a ket ut nem tud elcsuszni (KUKA-207 · KUKA-239).
+  await anna.getByTestId(`member-scope-grant-${belaId}-keszlet`).click();
   await anna.getByTestId('members-result').waitFor();
   const jogSzoveg = (await anna.getByTestId('members-result').textContent()) || '';
   mert(/mostantól megtekintheti a készletadatokat/.test(jogSzoveg), `a 12. lépés mondata nem nevezi meg a tárgyat: „${jogSzoveg}"`);
   await shot(anna, '12. A készletadatok megtekintésének engedélyezése', {
-    mit: 'Kattintson a felhasználó sorában a „Hozzáférés" gombra, válassza ki az adatkört, és engedélyezze.',
+    mit: 'Kattintson a felhasználó sorában a „Hozzáférés" gombra, majd a kívánt adatkör mellett az engedélyezésre.',
     siker: 'A visszajelzés megnevezi, KI és MIT tekinthet meg mostantól, a táblázat sora pedig „Megtekintheti"-re vált.',
     muszaki: 'DLG-01 · scope_grant sor (granter = a bejelentkezett kezelő) · KTX-03: a gomb a SAJÁT nézetének alanyát és könyvét viszi',
   });
@@ -365,8 +376,12 @@ try {
   const fejlec = (await anna.getByTestId('header-workspace').textContent()) || '';
   const mondat = (await anna.getByTestId('global-notice').textContent()) || '';
   const panelMaradt = await anna.getByTestId('invite-email').count();
-  mert(/Személyes fiók/.test(fejlec) && /fiókot váltottál|Megnyitva/.test(mondat) && panelMaradt === 0,
-    `a 17. lépés nem az együtt mozduló képet mutatja — fejléc: „${fejlec}" · mondat: „${mondat}" · nyitott panel: ${panelMaradt}`);
+  // AZ ELVART MONDAT A NYELVCSOMAGBOL: ugyanaz a sablon, amit a lap is hasznal (`TPL`).
+  const D17 = dictFor('hu');
+  const elvartMondat = String(D17.TPL.accountSwitchedElsewhere).replace('{nev}', D17.STATE.personalAccount);
+  mert(fejlec.includes(D17.STATE.personalAccount) && mondat.includes(elvartMondat) && panelMaradt === 0,
+    `a 17. lépés nem az együtt mozduló képet mutatja — fejléc: „${fejlec}" · mondat: „${mondat}" `
+    + `· elvárt mondat: „${elvartMondat}" · nyitott panel: ${panelMaradt}`);
   await shot(anna, '17. Másik böngészőfülön fiókot váltottak', {
     mit: 'Hagyjon nyitva egy félbehagyott űrlapot (például a meghívásét), nyisson egy MÁSIK fület ugyanabban a böngészőben, ott váltson másik fiókra, majd térjen vissza az első fülre, és nyomja meg a gombot.',
     siker: 'Az első fül nem mutat kevert képet: a fejléc, a menü és az adat EGYÜTT mozdul, a lap kimondja, hogy időközben másik fiókra váltott, és a régi űrlap BEZÁRUL. A beírt szöveg NEM megy át az új fiókba, és a gomb másodszor sem ír a másik fiók nevében.',

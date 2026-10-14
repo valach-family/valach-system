@@ -41,7 +41,22 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
-import { batteryUnits } from './batteryUnits.mjs';
+import { batteryUnits, unitPlan, UNIT_BUDGET_MS, EXTERNAL_CAP_MS } from './batteryUnits.mjs';
+// A SOROZAT-FŐKÖNYV (EXS-01, R194 §2): a programonként folytatható, forráshoz kötött mérés. A
+// döntése TISZTA FÜGGVÉNY, hogy a kapu próbából is hívható legyen (KUKA-207).
+import {
+  configDigest, seriesId, makeRecord, makeAnchor, anchorProblems,
+  bindingMismatch, evidenceDigest, BINDING_ANCHOR_FILE,
+} from './seriesLedger.mjs';
+import { MUTATIONS } from '../mutations.mjs';
+// A KÖTÉS MÉRÉSE KÜLÖN OTTHONBAN (R196 §1 · KUKA-003): az ÖSSZESÍTŐ is UGYANEZT hívja, hogy a
+// frissesség-ellenőrzés ne két, egymástól elcsúszó példányon dőljön el.
+import { measureSource, liveBinding } from './seriesBinding.mjs';
+// AZ ELFOGADÁSI PROFIL OTTHONA (PRF-01 · R202 §1) — a futtató, a kapu és a söprés UGYANEZT hívja.
+import {
+  HISTORICAL_PROFILE, resolveProfile, profileProgramRows, profileCaseKeys,
+  measureProfileFiles, profileDigest, profileProblems, profileLine,
+} from './acceptanceProfile.mjs';
 // A PROGRAM-REGISZTER ÉS AZ ESET-SZEMLE KÜLÖN MODULBAN ÁLL (EXT-02, R59/F02), hogy a verifier
 // HÍVHASSA ugyanazt a döntést, amit a futtató használ — ne a forrás szövegét olvassa (KUKA-009).
 import {
@@ -68,45 +83,59 @@ const only = flag('--only');
 const keep = argv.includes('--keep');
 const OUT = resolve(flag('--out') || join(HERE, 'results'));
 
-if (only && !PROGRAMS.some((p) => p.id === only)) {
-  // KUKA-064: a nemleges válasz ne legyen zsákutca — a választható halmaz jöjjön vele.
-  console.error(`ismeretlen program: "${only}" — választható: ${PROGRAMS.map((p) => p.id).join(' · ')}`);
+/**
+ * AZ ELFOGADÁSI PROFIL — EXPLICIT VÁLASZTÁS, A RÉGI ÚT VÁLTOZATLAN (PRF-01 · R202 §1).
+ *
+ * `--profile <név>` nélkül a futtató a TÖRTÉNETI, 19-programos szerződés szerint fut: ez a külső
+ * programok és a korábbi körök útja, és a SPEC kimondja, hogy változatlanul kell maradnia — a CLI,
+ * a `--only r57/r59` és az eredményalak is. A MAI elfogadási profilt KÉZZEL kell kérni
+ * (`--profile today-17`), mert a mérce megválasztása nem lehet néma alapérték.
+ *
+ * Ami a két utat GÉPILEG elválasztja: a profil azonosítója és tartalmi lenyomata bekerül a sorozat
+ * KÖTÉSÉBE, tehát más profil → más sorozat. Nem a jóindulat választ (`KUKA-121`).
+ */
+const PROFILE_NAME = flag('--profile') || HISTORICAL_PROFILE;
+const profileResolved = resolveProfile(PROFILE_NAME);
+if (!profileResolved.ok) {
+  console.error(`PROFIL: ${profileResolved.why}`);
+  console.error('  a mai elfogadási profil:  node v3ref/external-checks/run-all.mjs --profile today-17');
+  console.error('  a történeti szerződés:    node v3ref/external-checks/run-all.mjs   (változatlan, profil nélkül)');
   process.exit(2);
 }
-const selected = only ? PROGRAMS.filter((p) => p.id === only) : PROGRAMS;
-
-// ── A FORRÁS-ÁLLAPOT MÉRÉSE ─────────────────────────────────────────────────────────────────────
-// A `commit` a programoknak továbbadott ÁLLÍTÁS. Itt derül ki, igaz-e: ha a lemásolt forrást érintő
-// nem-könyvelt változás áll a munkamásolatban, a bemondott commit MÁS forrásra vonatkozna.
-function measureSource() {
-  const git = (...a) => spawnSync('git', ['-C', ROOT, ...a], { encoding: 'utf8' });
-  const head = git('rev-parse', 'HEAD');
-  if (head.status !== 0) {
-    return {
-      commit: 'unknown',
-      clean: null,
-      dirty_files: [],
-      note: 'ez a könyvtár nem git-munkamásolat (vagy a git nem elérhető) — a commit BEMONDATLAN marad',
-    };
+const PROFILE = profileResolved.profile;
+const PROFILE_FILES = measureProfileFiles(HERE, PROFILE, PROGRAMS);
+const PROFILE_DIGEST = profileDigest({ profile: PROFILE, programs: PROGRAMS, fileDigests: PROFILE_FILES });
+{
+  // A PROFIL SAJÁT KAPUJA A MÉRÉS ELŐTT: egy elcsúszott profilból nem lesz bizonyíték.
+  const pp = profileProblems({ profile: PROFILE, programs: PROGRAMS, fileDigests: PROFILE_FILES });
+  if (pp.length) {
+    console.error(`A PROFIL NEM ÉRVÉNYES (${PROFILE.id}) — ${pp.length} lelet:`);
+    for (const x of pp) console.error(`  · ${x}`);
+    process.exit(2);
   }
-  const sha = head.stdout.trim();
-  const st = git('status', '--porcelain', '--', 'v3ref');
-  // A generált kimenetek nem tartoznak a MÉRT forráshoz: a results/ és a mutációs eredmény-fájl
-  // piszkossága nem teszi mássá a lemásolt kódot.
-  const ignore = ['v3ref/external-checks/results/', 'v3ref/v3ref-mutation-result.json', 'v3ref/units/'];
-  const dirty = (st.status === 0 ? st.stdout.split('\n') : [])
-    .map((l) => l.trim()).filter(Boolean)
-    .map((l) => l.replace(/^\S+\s+/, ''))
-    .filter((f) => !ignore.some((i) => f.startsWith(i)));
-  return {
-    commit: dirty.length ? `${sha}+uncommitted` : sha,
-    clean: dirty.length === 0,
-    dirty_files: dirty,
-    note: dirty.length
-      ? 'a lemásolt forráson nem-könyvelt változás áll — a bemondott commit ezért jelölt'
-      : 'a lemásolt forrás a könyvelt állapoton áll',
-  };
 }
+/** A PROFIL ELVÁRT PROGRAM-KÉSZLETE — a manifeszt sorai, a profil szerint szűrve. */
+const PROFILE_PROGRAMS = profileProgramRows(PROFILE, PROGRAMS).filter(Boolean);
+
+if (only && !PROFILE_PROGRAMS.some((p) => p.id === only)) {
+  // KUKA-064: a nemleges válasz ne legyen zsákutca — a választható halmaz jöjjön vele.
+  // ÉS A PROFIL IS: ha a program LÉTEZIK, de nem AKTÍV ebben a profilban, azt kimondjuk, nem
+  // „ismeretlen program"-nak nevezzük (`KUKA-002`: a kettő nem ugyanaz).
+  const letezik = PROGRAMS.some((p) => p.id === only);
+  if (letezik) {
+    console.error(`a(z) "${only}" program LÉTEZIK a regiszterben, de a(z) ${PROFILE.id} profilban NEM AKTÍV.`);
+    const sub = (PROFILE.substitutions || []).find((x) => x.from === only);
+    if (sub) console.error(`  a helyettesítője ebben a profilban: ${sub.to} (döntés: ${sub.decision.join(' · ')})`);
+    console.error(`  a történeti futtatásához: node v3ref/external-checks/run-all.mjs --only ${only}   (profil nélkül)`);
+  } else {
+    console.error(`ismeretlen program: "${only}" — választható: ${PROFILE_PROGRAMS.map((p) => p.id).join(' · ')}`);
+  }
+  process.exit(2);
+}
+const selected = only ? PROFILE_PROGRAMS.filter((p) => p.id === only) : PROFILE_PROGRAMS;
+
+// A FORRÁS-ÁLLAPOT MÉRÉSE a `seriesBinding.mjs`-ben él (R196 §1): a futtató ÉS az összesítő
+// ugyanazt a szabályt hívja, nem két példányt (KUKA-003 · KUKA-029).
 
 // ── A KÖRNYEZET ÖSSZERAKÁSA ─────────────────────────────────────────────────────────────────────
 // A programok mellett `source/v3ref/…`, `source-manifest.json` és `evidence/` kell — ezt eddig kézzel
@@ -134,7 +163,7 @@ function stage(src) {
   // bejegyzés egy BURKOLÓRA mutat, és a változatlan próba a `companions` listán áll — a másolat
   // enélkül némán hiányos volna, és a program „nem futott végig" jelzéssel bukna el egy olyan
   // okból, aminek semmi köze a méréshez (KUKA-049).
-  for (const p of PROGRAMS) {
+  for (const p of PROFILE_PROGRAMS) {
     for (const f of [p.file, ...(p.companions || [])]) cpSync(join(HERE, f), join(dir, f));
   }
   return dir;
@@ -156,7 +185,7 @@ function parseJson(text) {
 const casesOf = (v) => (Array.isArray(v) ? v : (v && Array.isArray(v.cases) ? v.cases : null));
 
 // ── Futtatás ────────────────────────────────────────────────────────────────────────────────────
-const src = measureSource();
+const src = measureSource(ROOT);
 const dir = stage(src);
 mkdirSync(OUT, { recursive: true });
 
@@ -169,6 +198,22 @@ for (const f of src.dirty_files) console.log(`                  · ${f}`);
 console.log(`  munkakönyvtár:  ${dir}`);
 console.log(`  gépi eredmény:  ${OUT}`);
 console.log(`  node:           ${process.version}`);
+/**
+ * A MÉRCE LÁTSZÓDJON — A PROFIL A FEJLÉCBEN (R202 §1).
+ *
+ * A SPEC kimondja: *„a záró elfogadási kimenet nevezze a profilt, az elvárt és mért program-/esetkészletet"*.
+ * Ha a mérce nem látszik a kimeneten, akkor a kimenetet olvasó ember nem tudja, MIHEZ mértünk — és
+ * épp ez volt az R200-as lelet osztálya (`KUKA-121`).
+ */
+console.log(`  ${profileLine({ profile: PROFILE, programs: PROGRAMS, fileDigests: PROFILE_FILES })}`);
+if ((PROFILE.substitutions || []).length) {
+  for (const sub of PROFILE.substitutions) {
+    console.log(`                  ${sub.from} → ${sub.to} · döntés: ${sub.decision.join(' · ')}`);
+    console.log(`                  a helyettesített ${sub.from} TÖRTÉNETI/DIAGNOSZTIKAI program marad — a bukása NEM PASS`);
+  }
+} else {
+  console.log('                  (ez a TÖRTÉNETI szerződés: az eredeti r57/r59 is aktív, a bukásaik LÁTHATÓK)');
+}
 console.log('');
 
 // A LENYOMAT A TÉNYLEGES FÁJLBÓL (EXT-03). A manifeszt a KAPCSOLATOT deklarálja, a SZÁMOT itt
@@ -178,6 +223,86 @@ const digestOf = (file) => {
   if (!existsSync(path)) return null;
   return createHash('sha256').update(readFileSync(path)).digest('hex');
 };
+
+/**
+ * A KÖTÉS-HORGONY A SOROZAT INDÍTÁSAKOR (EXS-01 · R196 §1) — ÉS EZ A LÉNYEG: A MÉRÉS ELŐTT.
+ *
+ * MIÉRT KELLETT IDE HOZNI. Az R195-ös alak a kötést a futás UTÁN, a rekordok mellé írta — tehát a
+ * VÁRT érték ugyanabból a futásból keletkezett, amit igazolni kellett volna. A chatgpt-v3 MÉRTE,
+ * mit jelent ez: egy piszkos forrású, kitalált lenyomatú, EGYÖNTETŰ készlet „teljes bizonyítékot"
+ * kapott, mert nem volt mihez mérni (`KUKA-121`: a bizonyíték a saját állítását igazolta vissza).
+ *
+ * A HORGONY EZÉRT A MÉRÉS ELŐTT, KÜLÖN FÁJLBA kerül: `results/series/<sorozat>/binding.json`. Ez a
+ * MEGBÍZHATÓ FUTTATÓ által rögzített ELVÁRT kötés, és az összesítő EHHEZ mér — nem a rekordok
+ * egyöntetűségéhez. Ugyanabba a sorozatba eső későbbi `--only` futás ugyanezt a horgonyt találja
+ * (a sorozatazonosító a kötésből SZÁRMAZIK, tehát a könyvtár és a kötés együtt jár), és a sorozat
+ * INDULÁSI idejét NEM írja át — a horgony a sorozat születését rögzíti, nem az utolsó futást.
+ *
+ * ÉS HA A LEMEZEN ÁLLÓ HORGONY MÁST MOND: az NEVEZETT HIBA, nem néma felülírás (`KUKA-050`). Ez
+ * konzisztencia-ellenőrzés, nem védelem egy minden fájlhoz hozzáférő író ellen (R196 §1).
+ */
+const seriesConfig = {
+  battery_units: batteryUnits(),
+  unit_plan: unitPlan({ startUnits: batteryUnits(), mutationCount: MUTATIONS.length }),
+  unit_budget_ms: UNIT_BUDGET_MS,
+  external_cap_ms: EXTERNAL_CAP_MS,
+  node: process.version,
+};
+// A KÖTÉST A MEGOSZTOTT MÉRŐ ADJA — ugyanaz, amit az összesítő is hív (R196 §1). A FUTTATÓ-lenyomat
+// a NEVEZETT fájl-listából jön (`RUNNER_FILES`), mert a futtató ma már nem egy fájl: a kapu
+// (`seriesLedger.mjs`) és a kötés-mérő (`seriesBinding.mjs`) is dönt a mérés eredményéről.
+const seriesLive = liveBinding({
+  root: ROOT, here: HERE, configDigest: configDigest(seriesConfig),
+  // A PROFIL A KÖTÉS RÉSZE (R202 §1): más profil → más sorozat.
+  profileId: PROFILE.id, profileDigest: PROFILE_DIGEST,
+});
+const seriesBinding = seriesLive.binding;
+// A SZÁRMAZÁS külön: melyik könyvelt állapot írta. A sorozat AZONOSSÁGA a mért forrás TARTALMA,
+// nem ez — különben a sorozat a saját bizonyítéka commitolását sem élné túl (R196 §1, mérve).
+const seriesProvenance = seriesLive.provenance;
+const SERIES = seriesId(seriesBinding);
+const seriesDir = join(OUT, 'series', SERIES);
+const anchorPath = join(seriesDir, BINDING_ANCHOR_FILE);
+{
+  const fresh = makeAnchor({
+    binding: seriesBinding,
+    provenance: seriesProvenance,
+    // AZ ELVÁRT KÉSZLET A TELJES MANIFESZT, NEM A MOSTANI `--only` VÁLASZTÁS: a részfutás nem
+    // szűkítheti le azt, amihez a teljességet mérjük (KUKA-206).
+    // AZ ELVÁRT KÉSZLET A PROFILBÓL JÖN, NEM A TELJES REGISZTERBŐL (R202 §1).
+    programs: PROFILE_PROGRAMS.map((p) => p.id),
+    config: seriesConfig,
+    recorded_by: 'run-all.mjs',
+  });
+  const own = anchorProblems(fresh);
+  if (own.length) {
+    // A FUTTATÓ NEM ÍR OLYAN HORGONYT, AMIT A SAJÁT KAPUJA ELUTASÍT (KUKA-129: a nyugta is igazat
+    // mond). Piszkos forráson a sorozat NEM indul — a részfutás nem lesz bizonyítékká attól, hogy
+    // lefutott. A mérés magára a futásra ettől nem áll le: a legacy index és a programok mennek.
+    console.log('  SOROZAT:        NEM INDUL — a kötés-horgony a SAJÁT kapuján elesik:');
+    for (const w of own) console.log(`                  · ${w}`);
+    console.log('                  a sorozat-rekordok ezért NEM íródnak ki (R196 §1).');
+  } else {
+    // A könyvtár CSAK akkor jön létre, ha a horgony megáll — különben egy ÜRES sorozat-könyvtár
+    // fantom-sorozatként jelenne meg az összesítőben (KUKA-041: a dísz-pipa elve).
+    mkdirSync(seriesDir, { recursive: true });
+    if (existsSync(anchorPath)) {
+      let prev = null;
+      try { prev = JSON.parse(readFileSync(anchorPath, 'utf8')); } catch { prev = null; }
+      const mm = prev ? bindingMismatch(prev.binding, seriesBinding) : ['a lemezen álló horgony OLVASHATATLAN'];
+      if (mm.length) {
+        console.error(`  SOROZAT-HIBA:   a lemezen álló horgony MÁST mond, mint a most mért kötés: ${mm.join(' · ')}`);
+        console.error('                  ugyanaz a sorozat-könyvtár NEM tartozhat két kötéshez (EXS-01) — a futás megszakad.');
+        process.exit(2);
+      }
+      console.log(`  SOROZAT:        ${SERIES} — a horgony MEGVAN (${prev.recorded_at}), a sorozat FOLYTATÓDIK`);
+    } else {
+      writeFileSync(anchorPath, `${JSON.stringify(fresh, null, 2)}\n`);
+      console.log(`  SOROZAT:        ${SERIES} — ÚJ kötés-horgony rögzítve (${fresh.recorded_at})`);
+    }
+  }
+}
+const seriesAnchorOk = anchorProblems(makeAnchor({ binding: seriesBinding, provenance: seriesProvenance, programs: PROFILE_PROGRAMS.map((p) => p.id) })).length === 0;
 
 const summary = [];
 for (const p of selected) {
@@ -213,8 +338,50 @@ for (const p of selected) {
   // gyermek-korlát fölé nőttek (mérve: 14 033 … 14 905 ms, az E02/E03 időtúllépésbe futott). A
   // deklarált, MÉRT darabszámot (`batteryUnits.mjs`) ezért a futtató adja át a környezetben; a
   // program a saját `VS_BATTERY_UNITS` olvasóján veszi, a kézi felülírás továbbra is lehetséges.
+  /**
+   * A PROGRAM-KERET A MÉRT KÖLTSÉGHEZ IGAZODIK (R164/3 — SAJÁT LELET, MÉRVE).
+   *
+   * A LELET. A keret 600 000 ms volt, és ez EGY feltevésen állt: hogy egy program legfeljebb egyszer
+   * futtatja végig a mutációs battériát, és az belefér tíz percbe. MÉRVE az R164-ben: a battéria 253
+   * mutációra és 69 mag-próbára nőtt, és a 15 000 ms-os KÜLSŐ egység-korlát betartásához 40 egység
+   * kell (egység 11 960 ms) — egy TELJES battéria-pass így ~8 perc, mert minden egység újra felállítja
+   * a próba-környezetet. Az a két program, amelyik KÉT battéria-passzt futtat (`r81core` · `r83core`),
+   * ezért a kereten HALT MEG: `kilépés null · 600 107 ms`, részletes eredmény nélkül — vagyis a lánc
+   * IDŐ-okból mondott eltérést egy olyan programra, aminek a TARTALMÁRÓL semmit nem mért.
+   *
+   * A KÉT KORLÁT EGYMÁSNAK FESZÜL, ÉS EZT KI KELL MONDANI: a külső fél EGYSÉG-korlátja (15 000 ms)
+   * finomabb darabolást kér, a finomabb darabolás viszont NÖVELI a teljes időt (egységenkénti
+   * indulási költség). A helyes feloldás nem az egység-korlát lazítása (az a külső fél szava,
+   * KUKA-091), hanem a SAJÁT keretünk igazítása a MÉRT költséghez — nevezetten, nem csendben.
+   *
+   * AMIT EZ NEM ÁLLÍT: nem „gyorsabb lett". A lánc EZÉRT hosszú, és ezért nem fut a söprésben
+   * (KUKA-307). A mért keret: két battéria-pass (~16 perc) + a programok saját munkája.
+   */
+  /**
+   * A KERET AZ R186 §3 ÁLTAL ENGEDÉLYEZETT PLAFONON ÁLL — ÉS KIMONDOTTAN NEM EZ VOLT A BAJ.
+   *
+   * AZ R186 §3 ENGEDÉLYE: *„konkrétan engedélyezek legfeljebb 120 percet programonként a meglévő
+   * futtatón, kizárólag szervezési keretként. Ez plafon, nem futásidő-becslés."* Ezért 120 perc.
+   *
+   * ÉS AMIT A MÉRÉS KIMONDOTT, MIELŐTT EZT A SZÁMOT HOZZÁNYÚLTAM (ez a §3 lényege): a lánc öt
+   * `spawnSync … ETIMEDOUT`-ja NEM a keretből és NEM a gép gyengeségéből jött, hanem a SAJÁT
+   * darabolásunkból. A deklarált 40-es bontás egysége ezen a gépen 13 271 ms-ot kért — a
+   * `mutate.mjs` saját 12 000 ms-os költségvetése FÖLÖTT —, ezért az `adaptiveUnitPlan` minden
+   * hívónál finomított, és a finomítás a TELJES battériát futtatja újra: 40 → 80 → 160 egység,
+   * összesen ~41 perc. A bontás mért-jóra állítása után (`batteryUnits.mjs`: 64 egység, 9 728 ms)
+   * az `r57a` a VÁLTOZATLAN, 30 perces kereten **9/9 eset zölddel, 21,1 perc alatt** lefutott.
+   *
+   * A KERET EMELÉSE TEHÁT NEM A JAVÍTÁS, HANEM TARTALÉK a KÉT battéria-passzt futtató programoknak
+   * (`r81core` · `r83core`): egy passz MÉRVE 10,4 perc (64 egység), kettő 21 perc, és efölé jön a
+   * program saját munkája. A plafon azért a megengedett maximum, mert egy ALACSONYABB keret csak
+   * újabb vak, tartalom nélküli időtúllépést termelne — amit a §3 nevezetten tilt.
+   *
+   * AMIT EZ NEM LAZÍT: a külső fél 15 000 ms-os EGYSÉG-korlátja és a `mutate.mjs` 12 000 ms-os saját
+   * költségvetése VÁLTOZATLAN (`KUKA-091`), és egyetlen program szövegéhez sem nyúltunk (`KUKA-054`).
+   */
+  const PROGRAM_BUDGET_MS = 7_200_000;
   const q = spawnSync(process.execPath, [join(dir, p.file)], {
-    cwd: dir, encoding: 'utf8', timeout: 600_000, maxBuffer: 64 * 1024 * 1024,
+    cwd: dir, encoding: 'utf8', timeout: PROGRAM_BUDGET_MS, maxBuffer: 64 * 1024 * 1024,
     env: { ...process.env, VS_BATTERY_UNITS: String(batteryUnits()) },
   });
   const ms = Date.now() - t0;
@@ -275,6 +442,8 @@ for (const p of selected) {
     expected_cases: [...p.cases], expected_from: p.cases_source,
     evidence_file: p.evidence, evidence_present: artifact.present, evidence_pin: artifact.pin,
     total: cases ? cases.length : null,
+    // A SOROZAT-REKORD az ESET-EREDMÉNYT is hordozza (R194 §2), nem csak a darabszámot.
+    case_rows: (cases || []).map((c) => ({ id: String((c && c.id) ?? ''), pass: Boolean(c && c.pass === true) })),
     present: audit.present, missing: audit.missing, unknown: audit.unknown,
     duplicate: audit.duplicate, failed: audit.failed,
     problems: audit.problems,
@@ -318,7 +487,9 @@ for (const p of selected) {
   }
   console.log(`            mit mér:   ${p.what}`);
   console.log(`            elvárt:    ${p.cases.length} eset (${p.cases.join(' · ')}) — forrás: ${p.cases_source}`);
-  console.log(`            eredmény:  ${cases ? `${audit.present.length - audit.failed.length}/${p.cases.length} eset zöld` : 'NINCS részletes eredmény'}`
+  // A ZÖLD SZÁM A SZEMLÉBŐL JÖN, NEM ITT SZÜLETIK KIVONÁSSAL (R186 §3 · `KUKA-003` · `KUKA-009`):
+  // a korábbi `present - failed` a HIÁNYZÓ esetet kétszer számolta be (lásd az `auditCases` fejét).
+  console.log(`            eredmény:  ${cases ? `${audit.green.length}/${p.cases.length} eset zöld` : 'NINCS részletes eredmény'}`
     + ` · részletes fájl: ${artifact.present ? `megvan (kötés: ${artifact.pin ? `${artifact.pin.slice(0, 12)}…` : 'NINCS'})` : 'HIÁNYZIK'}`
     + ` · kilépés ${q.status} · ${ms} ms`);
   for (const w of audit.problems) console.log(`            ELTÉRÉS:   ${w}`);
@@ -330,7 +501,9 @@ for (const p of selected) {
 // A HATÓKÖR KIMONDVA (R59/F02). A `--only` legitim, de a RÉSZLEGES futás soha nem a lánc teljes
 // bizonyítéka — és ezt a GÉPI kimenetnek is hordoznia kell, nem csak a képernyőnek (KUKA-104: két
 // csatorna, két igazság). Aki a JSON-t olvassa, a `scope`-ból tudja meg, mit ér a zöld.
-const scope = runScope(selected.map((p) => p.id), PROGRAMS.map((p) => p.id));
+// A HATÓKÖR A PROFIL ELVÁRT KÉSZLETÉHEZ MÉRVE (R202 §1): a részleges futás így a PROFILHOZ képest
+// részleges, nem a teljes regiszterhez — különben a 17-programos profil mindig „hiányosnak" látszana.
+const scope = runScope(selected.map((p) => p.id), PROFILE_PROGRAMS.map((p) => p.id));
 
 // ── A KÖRNYEZETI KIHAGYÁS — NEVEZETTEN, ÉS CSAK ÉLŐ HELYETTESSEL (R81 §5) ───────────────────────
 //
@@ -390,6 +563,78 @@ const all = {
 };
 const indexPath = join(OUT, 'external-checks-result.json');
 writeFileSync(indexPath, `${JSON.stringify(all, null, 2)}\n`);
+
+/**
+ * A SOROZAT-FŐKÖNYV ÍRÁSA (EXS-01, R194 §2) — A LEGKISEBB SZÜKSÉGES KIEGÉSZÍTÉS.
+ *
+ * MIÉRT NEM A FENTI INDEX ELÉG. Azt a fájlt a KÜLSŐ FÉL programjai olvassák név szerint (`r59` ·
+ * `r59a` · `r61` · `r83_runner`), tehát a nevéhez és alakjához nem nyúlunk (`KUKA-054`) — viszont
+ * minden futás FELÜLÍRJA, így két `--only` futás eredménye nem adódik össze, és a korábbi TELJES
+ * bizonyíték is elvész. MÉRVE: ma az index `scope: full` · `verdict.ok: true`-t ír egy 2026-10-09-i,
+ * PISZKOS forrásról, miközben a mellette álló per-program fájlok NÉGY különböző forrásból valók.
+ *
+ * EZÉRT A SOROZAT MELLÉ KERÜL: minden program a SAJÁT rekordját kapja, a kötéssel együtt, és az
+ * összesítést a `verifySeries` végzi — a részfutás tehát MEGMARAD és FOLYTATHATÓ, de teljes
+ * verdiktet csak a teljes, ellenőrzött készlet adhat.
+ */
+// A KÖTÉS ÉS A HORGONY MÁR A SOROZAT INDÍTÁSAKOR rögzült (fentebb, a program-ciklus ELŐTT) — itt
+// már csak a per-program rekordok íródnak ki, UGYANAHHOZ a kötéshez. És ha a horgony a saját
+// kapuján elesett (piszkos forrás, kitalált lenyomat), rekord SEM keletkezik: a részfutás nem lesz
+// bizonyítékká attól, hogy lefutott (R196 §1).
+if (!seriesAnchorOk) {
+  console.log('  SOROZAT:        rekord NEM íródott — a kötés-horgony a saját kapuján elesett (lásd fentebb).');
+} else {
+/**
+ * A RÉSZLETES BIZONYÍTÉK A SOROZAT SAJÁT KÖNYVTÁRÁBA IS BEKERÜL — ÉS EZT MÉRÉS KÉNYSZERÍTETTE KI.
+ *
+ * A LELET (R196, SAJÁT, valódi adaton). A per-program bizonyíték-fájl neve FIX
+ * (`results/<program>_<bizonyíték>.json`), tehát MINDEN futás FELÜLÍRJA. A sorozat viszont
+ * PROGRAMONKÉNT FOLYTATHATÓ: ha ma lefut az `r61`, holnap az `r83core`, akkor a holnapi futás
+ * ugyanabba a könyvtárba ír — és az `r61` rekordjában álló lenyomat már NEM a lemezen álló fájlra
+ * illeszkedik. MÉRVE: a mai `--only r61` futás után az előző sorozat `r61` rekordja azonnal
+ * `ervenytelen_rekord` lett („a részletes bizonyíték MÁS: a rekord 40c90d388cb7…-t állít, a lemezen
+ * álló fájl ÚJRASZÁMOLVA 635e227004b5…").
+ *
+ * EZ NEM AZ ŐR HIBÁJA — AZ ŐR IGAZAT MONDOTT: az a bizonyíték tényleg eltűnt. A hiba a TÁROLÁSBAN
+ * volt: a folytathatóságot ígértük, a bizonyítékot pedig MEGOSZTOTT, FELÜLÍRT helyen tartottuk.
+ * Egy ígéret, amit a tárolás nem bír el, nem ígéret (`KUKA-050`).
+ *
+ * EZÉRT A SOROZAT SAJÁT PÉLDÁNYT KAP (`series/<sorozat>/evidence/<program>.json`), és a rekord
+ * lenyomata EBBŐL készül — a `results/` alatti példány marad, mert a KÜLSŐ fél programjai azt
+ * olvassák név szerint (`KUKA-054`). Így a sorozat ÖNHORDÓ: egy későbbi futás nem semmisíti meg a
+ * korábbi programok bizonyítékát.
+ */
+const seriesEvidenceDir = join(seriesDir, 'evidence');
+mkdirSync(seriesEvidenceDir, { recursive: true });
+for (const s2 of summary) {
+  if (!s2.saved) continue;
+  s2.series_evidence = join(seriesEvidenceDir, `${s2.id}.json`);
+  cpSync(s2.saved, s2.series_evidence);
+}
+for (const s2 of summary) {
+  const rec = makeRecord({
+    binding: seriesBinding,
+    provenance: seriesProvenance,
+    program: { id: s2.id, digest: s2.program_digest },
+    exit: Number.isInteger(s2.exit) ? s2.exit : -1,
+    // A KIHAGYÁS NEM ZÖLD (KUKA-089 · KUKA-122): a rekord `ok`-ja a VALÓDI zöldre igaz, a nevezett
+    // környezeti kihagyás külön mezőben áll, és az összesítő is külön számolja.
+    ok: s2.ok === true,
+    cases: s2.case_rows || [],
+    // A LENYOMAT A MEGOSZTOTT OTTHONBÓL: az összesítő UGYANEZZEL a függvénnyel számolja újra a
+    // lemezen álló fájlból, tehát a két oldal nem csúszhat el (KUKA-003 · R196 §1).
+    // A LENYOMAT A SOROZAT SAJÁT PÉLDÁNYÁBÓL (lásd a `seriesEvidence` jegyzetét alább).
+    evidence_digest: s2.series_evidence ? evidenceDigest(readFileSync(s2.series_evidence)) : '',
+    failure: { kind: s2.failure_kind, why: s2.failure_why },
+    ms: s2.ms,
+  });
+  rec.env_skipped = s2.env_skipped === true;
+  writeFileSync(join(seriesDir, `${s2.id}.json`), `${JSON.stringify(rec, null, 2)}\n`);
+}
+console.log(`  SOROZAT:        ${SERIES}  (${summary.length} rekord írva ide: ${seriesDir})`);
+console.log(`  kötés-horgony:  ${anchorPath}`);
+console.log('  a sorozat összesítése:  npm run verify:external-series -- --aggregate');
+}
 
 if (keep) console.log(`  a munkakönyvtár MEGMARADT: ${dir}`);
 else rmSync(dir, { recursive: true, force: true });

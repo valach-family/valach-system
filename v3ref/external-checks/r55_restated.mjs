@@ -59,6 +59,7 @@ import { openStore, clockFrom } from './source/v3ref/store.mjs';
 import { redeemInvite } from './source/v3ref/invite.mjs';
 import { recordAuthorityBasis } from './source/v3ref/authorityBasis.mjs';
 import { issueInviteUnderBasis, INVITE_ISSUE_OPERATION } from './source/v3ref/basisLimit.mjs';
+import { DECLARED_UNITS } from './batteryUnits.mjs';
 import { MUTATIONS } from './source/v3ref/mutations.mjs';
 import { indexDigest, contractDigest, normsDigest } from './source/v3ref/norms.mjs';
 
@@ -111,7 +112,18 @@ function runCopy(patch, file) {
       writeFileSync(p, next);
     }
     const q = spawnSync(process.execPath, [join(dir, 'v3ref/run.mjs'), '--json', '--executed-by=Claude-AUX', `--source-commit=${PIN}`],
-      { cwd: dir, encoding: 'utf8', timeout: 15000 });
+      /**
+       * A KERET A MÉRT KÖLTSÉGHEZ, ÉS A PUFFER IS KIMONDOTT (R164/3 — SAJÁT LELET).
+       *
+       * A 15 000 ms a KÜLSŐ fél programjainak bejelentett korlátja — ez a fájl viszont a MI
+       * újrafogalmazásunk, és itt a mag-próbák EGY futása a mérce. MÉRVE: a mutált forráson
+       * `run.mjs --json` 4 085 ms és 380 174 bájt kimenet. A korlát azért volt veszélyes, mert
+       * TERHELT gépen (párhuzamos böngészős lánc mellett) a 4 s a 15 s fölé csúszhat, és akkor a
+       * gyermek kilépése `null` lesz — a program pedig NEM a rendszerről, hanem a saját keretéről
+       * mond eltérést (KUKA-121 osztálya: ami a kész állapot előtt mér, nem a kész állapotot méri;
+       * KUKA-216: a verdikt nem mutathat a mérés hatókörén túl).
+       */
+      { cwd: dir, encoding: 'utf8', timeout: 180_000, maxBuffer: 32 * 1024 * 1024 });
     let data = null;
     try { data = JSON.parse(q.stdout); } catch { /* jelentjük */ }
     return { exit: q.status, data, stderr: (q.stderr || '').trim().split('\n').slice(0, 3).join(' | ') };
@@ -214,13 +226,20 @@ add('N04-restated', 'Az M32 futása nem buktatja az A-REV-N1b állítást; az M4
     // „falszifikálta" sor MEG SEM SZÜLETIK — a próba nem a rendszeren bukott el, hanem a hívás
     // alakján. A darabszám a tool SAJÁT szabályából jön (egység-méret 24), tehát a battéria
     // növekedésével magától finomodik; az ELLENŐRZÖTT ÁLLÍTÁS VÁLTOZATLAN.
-    const batteryUnits = Math.max(6, Math.ceil(MUTATIONS.length / 24));
+    // A DARABSZÁM A KÖZÖS OTTHONBÓL (R164/3 — KUKA-129 · KUKA-045). A helyi `ceil(mutáció/24)`
+    // formula egy MÁSODIK, rejtett feltevést hordozott: hogy a mutáció költsége állandó. Nem az —
+    // a mag-próbák száma is nő. A deklarált, MÉRT bontás egy helyen áll (`batteryUnits.mjs`), és a
+    // futtató a környezetben is átadja (`VS_BATTERY_UNITS`), tehát a kézi felülírás megmarad.
+    const batteryUnits = (() => {
+      const v = Number(process.env.VS_BATTERY_UNITS);
+      return Number.isInteger(v) && v >= 1 && v <= 256 ? v : DECLARED_UNITS;
+    })();
     const batteryArgs = [];
     for (let i = 1; i <= batteryUnits; i += 1) batteryArgs.push(`--unit=${i}/${batteryUnits}`);
     batteryArgs.push('--merge');
     const batteryRuns = batteryArgs.map((arg) => spawnSync(
       process.execPath, [join(root, 'source/v3ref/mutate.mjs'), arg],
-      { cwd: join(root, 'source'), encoding: 'utf8', timeout: 60000, maxBuffer: 32 * 1024 * 1024 }));
+      { cwd: join(root, 'source'), encoding: 'utf8', timeout: 120_000, maxBuffer: 32 * 1024 * 1024 }));
     const battery = { stdout: batteryRuns.map((r) => r.stdout || '').join('\n') };
     const line = (battery.stdout || '').split('\n').find((l) => l.includes('REV-N1b') && l.includes('falszifikálta'));
     return {

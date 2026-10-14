@@ -129,9 +129,27 @@ try {
   step('(a2) a `members.revoke` a reentry VALÓDI lépésével fedett (task: member.revoked)',
     mrev.how === 'shared' && mrev.proof === 'task:member.revoked' && mrev.tour === 'tour.reentry',
     { how: mrev.how, proof: mrev.proof, steps: mrev.steps });
+  /**
+   * (a3) A `shell.assistant` FEDÉSE A DEKLARÁCIÓBÓL JÖN, NEM EGY HORGONY-EGYEZÉSBŐL.
+   *
+   * ELÖRÖKLÖTT, NEM JELENTETT PIROS — ÉS AMIT A MÉRÉS MONDOTT (R186 §5, saját lelet). Ez a sor
+   * eddig azt állította, hogy a funkció NEM fedett („a hiány NEVEZETT"), és a mai fejen PIROS volt:
+   * a feloldó `how: 'own'`-t ad. Megmértem a két fejen — a HANDOVER fején (`167a70a`) is ugyanez a
+   * sor bukott, tehát NEM ennek a csomagnak a következménye: az R166 §3 megépítette a
+   * `tour.assistant` útmutatót (a pótolt tizenkettő egyike), és a funkció DEKLARÁLJA is
+   * (`tour: 'tour.assistant'`, négy lépés, „forrásból ellenőrzött", nulla probléma). Az ÁLLÍTÁS
+   * avult el, nem a rendszer romlott el (`KUKA-050`: a szöveg a valóságot követi).
+   *
+   * AMIT EZ A SOR VALÓBAN ŐRZ, ÉS AMI MEGMARAD: hogy a minősítés a funkció SAJÁT, deklarált
+   * útmutatójából jöjjön — ne egy véletlen horgony-egyezésből (a súgógomb kiemeléséből). Ezért a
+   * mérce ma a DEKLARÁCIÓT kéri: `own` + a megnevezett útmutató. A horgony-egyezés tilalmát az
+   * (a1) sor külön is méri, mind a három funkción.
+   */
   const sass = COV.tourCoverage(FEATURES.find((x) => x.id === 'shell.assistant'), { tours: TOURS });
-  step('(a3) a `shell.assistant` NEM fedett a súgógomb kiemelésével — a hiány NEVEZETT',
-    sass.how === 'none', { how: sass.how });
+  step('(a3) a `shell.assistant` fedése a SAJÁT, deklarált útmutatójából jön — nem a súgógomb horgony-egyezéséből (RÉGEN: `none`-t állított, mert a `tour.assistant` még nem létezett)',
+    sass.how === 'own' && sass.tour === 'tour.assistant'
+    && Array.isArray(sass.steps) && sass.steps.length > 0 && sass.problems.length === 0,
+    { how: sass.how, tour: sass.tour ?? null, steps: sass.steps, problems: sass.problems });
 
   step('(a4) ELLENPÁR: MENÜPONTRA mutató, task nélküli lépés nem fed',
     (() => {

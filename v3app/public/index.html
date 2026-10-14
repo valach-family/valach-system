@@ -33,6 +33,15 @@
       <div class="menu" data-testid="ws-list"></div>
     </details>
 
+    <!-- R206/F206-01 — A NEM IGAZOLT KONTEXTUS MŰKÖDŐ FOLYTATÁSÁNAK HELYE. Ha a lap nem tudta
+         igazolni, KI ül a gépnél, a fiókválasztó és a profil elrejtőzik (a régi személyt nem
+         állítjuk aktuálisnak), és ITT, ugyanazon a helyen jelenik meg az állapot-ellenőrzés.
+         A GOMBOT A LAP RAJZOLJA (`renderHeader`), ahogy a fiókválasztó és a profilmenü tartalmát
+         is: a vázban se szöveg, se vezérlő nem áll (SZO-01 · I18N-01), és így a művelet a
+         felületi FORRÁSBAN is megtalálható — a lefedési mérés népessége a `data-action`-okat
+         ebből gyűjti (KUKA-207: amit próba nem tud MEGHÍVNI, azt bizalomból hisszük). -->
+    <span class="ctxslot" data-testid="ctx-recheck-slot"></span>
+
     <span class="spacer"></span>
     <span class="sr-only" data-testid="header-acting-as">—</span>
     <span class="sr-only" data-testid="channel-proven">—</span>

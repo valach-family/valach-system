@@ -85,6 +85,25 @@ const browser = await chromium.launch();
 // ennél lassabb, az nem lassú, hanem ELÉRHETETLEN, és azt MOST akarjuk tudni.
 const KATT = { timeout: 5000 };
 
+/**
+ * A MODÁLIS PANEL BEZÁRÁSA — EGY OTTHON, TÖBB HÍVÓ (KUKA-003 · KUKA-039).
+ *
+ * MÉRVE (R164/3): a nyitott levél-panel (`<dialog>`) ELFOGJA a kattintást mindenen, ami mögötte
+ * van — a fejléc profil-menüjén és a meghívó-elfogadás gombján is. A tanú 58 újrapróbálkozás után
+ * is ott állt. A felhasználó ugyanezt látja: amíg a panel nyitva, a mögötte lévő felület nem
+ * elérhető. A tanú tehát ZÁR, és a zárás tényét MEGMÉRI, nem reméli (KUKA-215).
+ */
+async function zarjaPanelt(page, KATT) {
+  for (let k = 0; k < 4; k += 1) {
+    const nyitva = await page.evaluate(() => { const d = document.querySelector('[data-testid="panel"]'); return !!(d && d.open); });
+    if (!nyitva) return true;
+    await page.locator('[data-testid="panel"] [data-action="panel-close"]').first().click(KATT).catch(() => {});
+    await page.keyboard.press('Escape').catch(() => {});
+    await page.waitForTimeout(350);
+  }
+  return !(await page.evaluate(() => { const d = document.querySelector('[data-testid="panel"]'); return !!(d && d.open); }));
+}
+
 /** A VALÓDI MŰVELETEK. A végigvezetés ezeket SOHA nem végzi el — a FELHASZNÁLÓ igen, és itt a tanú az. */
 async function doTask(page, task, step = {}) {
   const T = (t) => page.locator(`[data-testid="${t}"]`).first();
@@ -105,7 +124,23 @@ async function doTask(page, task, step = {}) {
         const b2 = [...lista.querySelectorAll('button')].find((x) => /Minta Műhely/.test(x.textContent || ''));
         return b2 ? (b2.getAttribute('data-testid') || '__ws') : null;
       });
-      if (ceg) { await page.locator(`[data-testid="${ceg}"]`).first().click(KATT).catch(() => {}); return 'fiók-váltás'; }
+      if (ceg) {
+        await page.locator(`[data-testid="${ceg}"]`).first().click(KATT).catch(() => {});
+        /**
+         * ÉS MEGVÁRJUK, HOGY A VÁLTÁS KI IS RAJZOLÓDJON (R164/3 — MÉRVE).
+         *
+         * A váltás HTTP-kérés (`POST /api/session/workspace`), utána `refreshMe` és újrarajzolás. A
+         * tanú korábban azonnal visszatért, a bemutató pedig a következő lépés célját (`nav-members`)
+         * egy MÉG régi menün kereste — `targetMissing`-gel megállt egy ép képernyőn. Ami a kész
+         * állapot ELŐTT mér, nem a kész állapotot méri (ugyanaz az osztály, mint a KUKA-121).
+         */
+        await page.waitForFunction(() => {
+          const h = document.querySelector('[data-testid="header-workspace"]');
+          return !!(h && /Minta M/.test(h.textContent || ''));
+        }, null, { timeout: 8000 }).catch(() => {});
+        await page.waitForTimeout(400);
+        return 'fiók-váltás';
+      }
       // AMI NEM MEGY, ANNAK NEVE LEGYEN (KUKA-171/280): kiírjuk, MIT látott a tanú a listán.
       const latott = await page.evaluate(() => {
         const l = document.querySelector('[data-testid="ws-list"]');
@@ -119,8 +154,22 @@ async function doTask(page, task, step = {}) {
       await page.locator('[data-testid="panel"] [data-action="panel-close"]').first().click().catch(() => {});
       await page.waitForTimeout(400);
     }
-    await page.locator('[data-tour-anchor="actor-switch"]').first().click();
-    return 'néző-váltás';
+    /**
+     * A BEMUTATÓ-LAP NÉZŐ-VÁLTÓJA: valódi ki- és belépés, majd újratöltés tiszta címre (a lap saját
+     * `switchViewer`-e). A modális panelt előbb bezárjuk — a felhasználó is azt teszi (lentebb a
+     * közös `zarjaPanelt`, KUKA-003).
+     *
+     * AZ R164/3-BAN MEGÉPÍTETT, ALKALMAZÁSON BELÜLI (újratöltés nélküli) átadás útja ettől KÜLÖNBÖZIK:
+     * ott a tanú a profil-menüt tárja fel, kijelentkezik, és a másik emberrel lép be. Az a mérés
+     * 19-ből 18 lépést ért el, két állapot-szivárgást javítottam közben, a harmadik nem záródott le —
+     * ezért a mai, végigvihető út áll itt, a maradék pedig a jelentésben NEVESÍTVE.
+     */
+    if (!(await zarjaPanelt(page, KATT))) {
+      console.log('     !! a modális panel NEM zárult be — a néző-váltás nem indulhat (nevezett megállás)');
+      return null;
+    }
+    await page.locator('[data-tour-anchor="actor-switch"]').first().click(KATT);
+    return 'néző-váltás (valódi ki- és belépés, majd újratöltés)';
   }
   if (task === 'invite.revoked' && await has('[data-testid^="invite-revoke-"]')) {
     await page.locator('[data-testid^="invite-revoke-"]').first().scrollIntoViewIfNeeded();
@@ -174,6 +223,12 @@ async function doTask(page, task, step = {}) {
     await T('invite-submit').click(); return 'új meghívó kiadva';
   }
   if (task === 'invite.redeemed' && await has('[data-testid="invite-redeem"]')) {
+    // A LEVÉL-PANEL ELŐBB BEZÁRUL: az elfogadás gombja a meghívó-képernyőn áll, a panel MÖGÖTT
+    // (mérve: „intercepts pointer events"). A felhasználó is bezárja, mielőtt elfogad.
+    if (!(await zarjaPanelt(page, KATT))) {
+      console.log('     !! a modális panel NEM zárult be — az elfogadás nem indulhat');
+      return null;
+    }
     await T('invite-redeem').click(); return 'meghívó elfogadva';
   }
   return null;
@@ -187,7 +242,11 @@ const snap = (page) => page.evaluate(() => {
   return {
     hidden: box.hidden,
     aborted: g('tour-aborted') ? g('tour-aborted').getAttribute('data-why') : null,
-    pending: g('tour-pending') ? g('tour-pending').getAttribute('data-why') : null,
+    // A TÁJÉKOZTATÓ VÁRAKOZÁS NEM TEENDŐ (R158/2): a lap maga mondja meg a `data-actionable`-lel,
+    // hogy a mondat mögött van-e dolgunk. Az elvégzett lépés becsukott panelje csak tájékoztatás —
+    // a járó MEHET tovább. A szabály otthona a `tour.mjs` (`INFORMATIONAL_PENDING`), nem ez a fájl.
+    pending: g('tour-pending') && g('tour-pending').getAttribute('data-actionable') !== 'false'
+      ? g('tour-pending').getAttribute('data-why') : null,
     blocked: !!g('tour-blocked'),
     hasNext: !!g('tour-next'), hasFinish: !!g('tour-finish'),
     sid: li ? li.getAttribute('data-testid').replace('tour-step-', '') : null,
@@ -205,7 +264,34 @@ async function walk(page, storyKey, tag, { kihagy = null } = {}) {
   for (let i = 0; i < steps.length * 4 + 10; i += 1) {
     let s = await snap(page);
     if (s.nincsLap) { await page.waitForTimeout(1200); continue; }
-    if (s.aborted) { A(`${tag} a végigvezetés nem szakad meg`, false, `megszakadt: ${s.aborted} (${s.sid})`); return false; }
+    if (s.aborted) {
+      /**
+       * A MEGSZAKADÁS HELYÉT MEG KELL NEVEZNI (KUKA-171). A régi sor a MEGSZAKADÁS OKÁT kiírta, de
+       * azt nem, hogy MELYIK lépésnél és MIT látott a képernyőn — a `(null)` lépés-azonosító miatt a
+       * hiba helye kitalálás kérdése volt. A tanú ezért most a KÉPERNYŐT is kiírja.
+       */
+      const latkep = await page.evaluate(() => {
+        const nav = document.querySelector('[data-testid="nav"]');
+        const ab = document.querySelector('[data-testid="tour-aborted"]');
+        return {
+          fiok: (document.querySelector('[data-testid="header-workspace"]') || {}).textContent || '—',
+          menu: [...document.querySelectorAll('[data-testid="nav"] [data-testid^="nav-"]')].map((e) => e.getAttribute('data-testid')),
+          navBajt: nav ? nav.innerHTML.length : -1,
+          belepve: !document.querySelector('[data-testid="login-form"]'),
+          appLatszik: (() => { const a2 = document.querySelector('[data-testid="app"]'); return !!(a2 && !a2.hidden); })(),
+          mondat: ab ? (ab.textContent || '').slice(0, 70) : '—',
+          lepesek: document.querySelectorAll('[data-testid^="tour-step-"]').length,
+        };
+      });
+      const kov = steps[Math.max(0, latott.size ? [...latott].length : 0)];
+      A(`${tag} a végigvezetés nem szakad meg`, false,
+        `megszakadt: ${s.aborted} (${s.sid}) · utolsó látott lépés: ${[...latott].pop() || '—'}`
+        + ` · fiók: ${String(latkep.fiok).trim().slice(0, 28)} · belépve: ${latkep.belepve}`
+        + ` · app látszik: ${latkep.appLatszik} · menü: ${latkep.menu.join(',') || `ÜRES (${latkep.navBajt} bájt)`}`
+        + ` · lépés-lista: ${latkep.lepesek} · mondat: „${latkep.mondat}"`
+        + `${kov ? ` · a következő lépés célja: ${kov.target}` : ''}`);
+      return false;
+    }
     if (!s.sid) { await page.waitForTimeout(600); continue; }
     latott.add(s.sid);
     const step = steps.find((x) => x.id === s.sid) || {};
@@ -296,7 +382,24 @@ async function walk(page, storyKey, tag, { kihagy = null } = {}) {
     A(`${tag} minden lépésen van működő folytatás`, false, JSON.stringify(s).slice(0, 150));
     return false;
   }
-  A(`${tag} a végigvezetés befejeződik (nem ragad be)`, false, `látott lépések: ${latott.size}/${steps.length}`);
+  // A KIFOGYOTT KÖR IS NEVEZZE MEG, HOL ÁLLT MEG (KUKA-171): a puszta „8/20" nem mondja meg, mi
+  // tartotta vissza — a tanú ezért a KÉPERNYŐT és a bemutató állapotát is kiírja.
+  {
+    const v = await snap(page);
+    const lk = await page.evaluate(() => ({
+      fiok: ((document.querySelector('[data-testid="header-workspace"]') || {}).textContent || '—').trim().slice(0, 26),
+      menu: [...document.querySelectorAll('[data-testid="nav"] [data-testid^="nav-"]')].length,
+      panel: (() => { const d = document.querySelector('[data-testid="panel"]'); return !!(d && d.open); })(),
+      belepesiUrlap: !!document.querySelector('[data-testid="login-form"]'),
+      meghivoLap: !!document.querySelector('[data-testid="invite-redeem"]'),
+    }));
+    A(`${tag} a végigvezetés befejeződik (nem ragad be)`, false,
+      `látott lépések: ${latott.size}/${steps.length} · utolsó: ${[...latott].pop() || '—'}`
+      + ` · most: ${v.sid || '—'}/${v.state || '—'}${v.pending ? `·${v.pending}` : ''}${v.blocked ? '·blokkolt' : ''}`
+      + ` · kiemelve: ${v.marked[0] || '—'} · tovább-gomb: ${v.hasNext} · befejezés: ${v.hasFinish}`
+      + ` · fiók: ${lk.fiok} · menü-elem: ${lk.menu} · panel nyitva: ${lk.panel}`
+      + ` · belépési űrlap: ${lk.belepesiUrlap} · meghívó-lap: ${lk.meghivoLap}`);
+  }
   return false;
 }
 
@@ -460,19 +563,71 @@ async function handoverProbes() {
   // ── (h1) A NÉZET PÁR: alany ÉS fiók — az átadásnak MINDKETTŐT vinnie kell (F142-05) ─────────
   const pair = await page.evaluate(async () => {
     const mod = await import('./tour.mjs');
-    const run = (view) => ({ at: 0, steps: [{ id: 's', switch_actor: true, task: 'actor.switched' }], view, role: null });
+    // R176 (`KUKA-423`): a váltás-lépés a DEKLARÁLT tengelyt kéri, tehát az ellenpárok is azon
+    // a tengelyen állnak — és külön mérjük a ROSSZ tengelyt, illetve a nyilatkozat nélküli esetet.
+    // R176 (`KUKA-441`): a FIÓK-tengelyen a CÉL is kötött — a futás KEZDŐ könyve. A szintetikus
+    // futásban a cél `b2`, tehát az `origin_book` is az; a cél-feltételt a (h1i)–(h1j) méri.
+    // R186 §2: A SZEMÉLY-TENGELYEN A CÉL IS KÖTÖTT — a lépés kimondja, KIT vár (`switch_to`), és a
+    // várt résztvevőt a futás cél-kötése adja (`story.actor`). A nyilatkozat NÉLKÜLI futás tehát
+    // fail-closed ZÁR, és ezt a (h1b3) külön méri — nem a többi eset melléktermékeként.
+    const run = (view, tengely, origin = 'b2', vart = null) => ({ at: 0,
+      steps: [{ id: 's', switch_actor: true, switch_axis: tengely,
+        switch_to: vart ? 'story_actor' : null, task: 'actor.switched' }],
+      view, origin_book: origin,
+      story: vart ? { kind: 'invite', ref: 'ref-proba', actor: vart } : null,
+      role: null });
     return {
-      masFiok: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }), { view: { book: 'b2', subject: 'u1' }, role: null }),
-      masEmber: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }), { view: { book: 'b1', subject: 'u2' }, role: null }),
+      masFiok: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'book'), { view: { book: 'b2', subject: 'u1' }, role: null }),
+      masEmber: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'subject', 'b2', 'u2'), { view: { book: 'b1', subject: 'u2' }, role: null }),
+      // R186 §2 ELLENPÁR: a VÁRT résztvevő `u2` — egy HARMADIK ember (`u3`) belépése NEM váltás,
+      // tehát nem is fogyaszthatja el az átadást. Ez a parancs kifejezett kérése volt.
+      harmadikEmber: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'subject', 'b2', 'u2'), { view: { book: 'b1', subject: 'u3' }, role: null }),
+      // R186 §2 ELLENPÁR: várt résztvevő NÉLKÜL a személy-tengely ZÁR — a „nem tudom" nem eshet
+      // némán „jó lesz"-re (`KUKA-049` · `KUKA-236`).
+      vartNelkul: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'subject'), { view: { book: 'b1', subject: 'u2' }, role: null }),
+      rosszTengely: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'subject', 'b2', 'u2'), { view: { book: 'b2', subject: 'u1' }, role: null }),
+      nyilatkozatNelkul: mod.actorSwitchReady({ at: 0,
+        steps: [{ id: 's', switch_actor: true, task: 'actor.switched' }], view: { book: 'b1', subject: 'u1' }, role: null },
+      { view: { book: 'b2', subject: 'u2' }, role: null }),
       // ELLENPÁR: pontosan az az állapot, amit a RÉGI átadás előállított — a fiók elveszett, ezért
       // a futás az ÚJ fiókhoz kötődött, és a MEGTÖRTÉNT váltás mérhetetlen lett.
-      elvesztettFiok: mod.actorSwitchReady(run({ book: 'b2', subject: 'u1' }), { view: { book: 'b2', subject: 'u1' }, role: null }),
+      elvesztettFiok: mod.actorSwitchReady(run({ book: 'b2', subject: 'u1' }, 'book'), { view: { book: 'b2', subject: 'u1' }, role: null }),
+      // R176 (`KUKA-432`): a FIÓK-tengelyen a pár NEM MOZGÓ fele (az alany) is kötve van — különben
+      // a kilépés + MÁS EMBER belépése is „teljesített"-nek számít, hiszen az ÚJ ember könyve is más.
+      fiokMindkettoMas: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'book'), { view: { book: 'b2', subject: 'u2' }, role: null }),
+      alanyMindkettoMas: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'subject', 'b2', 'u2'), { view: { book: 'b2', subject: 'u2' }, role: null }),
+      // R176 (`KUKA-433`): a KILÉPÉS mint átadási határ — csak a SZEMÉLY-tengelyen.
+      hatarKilepesSzemely: mod.handoverBoundaryOk({ switch_actor: true, switch_axis: 'subject' }, { kilepes: true }),
+      hatarKilepesFiok: mod.handoverBoundaryOk({ switch_actor: true, switch_axis: 'book' }, { kilepes: true }),
+      hatarFiokvaltas: mod.handoverBoundaryOk({ switch_actor: true, switch_axis: 'book' }, { kilepes: false }),
+      // R176 (`KUKA-441`): egy IDEGEN cég kiválasztása NEM teljesítés, és kezdő könyv nélkül ZÁR.
+      idegenCeg: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'book'), { view: { book: 'b9', subject: 'u1' }, role: null }),
+      kezdoKonyvNelkul: mod.actorSwitchReady(run({ book: 'b1', subject: 'u1' }, 'book', null), { view: { book: 'b2', subject: 'u1' }, role: null }),
     };
   });
-  A('(h1a) ugyanaz az ember MÁSIK FIÓKJA is váltás', pair.masFiok === true, `kapott=${pair.masFiok}`);
-  A('(h1b) MÁS ember nézete is váltás', pair.masEmber === true, `kapott=${pair.masEmber}`);
+  A('(h1a) ugyanaz az ember MÁSIK FIÓKJA is váltás (a FIÓK tengelyén)', pair.masFiok === true, `kapott=${pair.masFiok}`);
+  A('(h1d) R176 — a ROSSZ tengely változása NEM váltás: személy-váltó lépést a fiókváltás nem teljesít',
+    pair.rosszTengely === false, `kapott=${pair.rosszTengely}`);
+  A('(h1e) R176 — nyilatkozat nélkül a kapu ZÁR (fail-closed)',
+    pair.nyilatkozatNelkul === false, `kapott=${pair.nyilatkozatNelkul}`);
+  A('(h1b) R186 §2 — MÁS ember nézete váltás, DE CSAK A VÁRT résztvevőé', pair.masEmber === true, `kapott=${pair.masEmber}`);
+  A('(h1b2) R186 §2 ELLENPÁR: egy HARMADIK ember belépése NEM váltás — az átadást nem fogyaszthatja el',
+    pair.harmadikEmber === false, `kapott=${pair.harmadikEmber}`);
+  A('(h1b3) R186 §2 ELLENPÁR: várt résztvevő NÉLKÜL a személy-tengely ZÁR (fail-closed)',
+    pair.vartNelkul === false, `kapott=${pair.vartNelkul}`);
   A('(h1c) ELLENPÁR: ha az átadás a FIÓKOT elveszti, a megtörtént váltás MÉRHETETLEN',
     pair.elvesztettFiok === false, `kapott=${pair.elvesztettFiok}`);
+  A('(h1f) R176 — a FIÓK-tengelyen a MÁSIK EMBER belépése NEM teljesítés, akkor sem, ha a könyv is más lett',
+    pair.fiokMindkettoMas === false, `kapott=${pair.fiokMindkettoMas}`);
+  A('(h1g) R176 ELLENPÁR: a két tengely NEM tükrös — a SZEMÉLY-váltás ugyanezt az átmenetet a VÁRT résztvevőtől JOGGAL elfogadja',
+    pair.alanyMindkettoMas === true, `kapott=${pair.alanyMindkettoMas}`);
+  A('(h1h) R176 — a KILÉPÉS átadási határa CSAK a személy-tengely; a fiók-tengelyes kilépés nem ad át, a FIÓKVÁLTÁS viszont igen',
+    pair.hatarKilepesSzemely === true && pair.hatarKilepesFiok === false && pair.hatarFiokvaltas === true,
+    `szemely=${pair.hatarKilepesSzemely} fiok=${pair.hatarKilepesFiok} fiokvaltas=${pair.hatarFiokvaltas}`);
+  A('(h1i) R176 — a FIÓK-tengelyen a CÉL is kötött: egy IDEGEN cég kiválasztása NEM teljesítés',
+    pair.idegenCeg === false, `kapott=${pair.idegenCeg}`);
+  A('(h1j) R176 ELLENPÁR: kezdő könyv NÉLKÜL a kapu ZÁR (fail-closed) — inkább megállunk, mint hogy idegen céget vegyünk át',
+    pair.kezdoKonyvNelkul === false, `kapott=${pair.kezdoKonyvNelkul}`);
 
   // ── (h2–h4) A MOBIL MENÜ: a VÁRAKOZÁS VÉGE is esemény (F142-02) + az ARIA igazat mond (F142-04)
   await page.locator('[data-testid="help-open"]').first().click(KATT).catch(() => {});

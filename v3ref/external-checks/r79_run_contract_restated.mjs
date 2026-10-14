@@ -26,7 +26,7 @@ import { readFileSync, writeFileSync, cpSync, mkdtempSync, rmSync, readdirSync, 
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
-import { batteryUnits, unitArgs } from './batteryUnits.mjs';
+import { batteryUnits, unitArgs, adaptiveUnitPlan, UNIT_BUDGET_MS } from './batteryUnits.mjs';
 
 const root = import.meta.dirname;
 
@@ -68,18 +68,49 @@ const resultOf = (dir) => JSON.parse(readFileSync(join(dir, 'v3ref', 'v3ref-muta
 
 // U04 — POZITÍV ELLENPÁR ELŐSZÖR: az érintetlen darabolt futás TELJES és TISZTA, és MINDEN egység
 // belefér a külső korlátba. Ez a program alapja: ha ez nem áll, a többi eset semmit nem mond.
+/**
+ * A DARABSZÁM ITT IS MÉRÉSBŐL JÖN, NEM A DEKLARÁLT ÉRTÉKBŐL (R164/3 — KUKA-045 negyedszer).
+ *
+ * A LELET, SAJÁT, a záró kapu előtti átolvasáson: a `batteryUnits()` deklarált értéke KÉZZEL tartott
+ * szám, és a battéria 253 mutációra nőtt. A 40-es bontáson MÉRVE az egységek faliórája 9 621 … 13 567
+ * ms — tehát több egység a `mutate.mjs` SAJÁT 12 000 ms-os költségvetése FÖLÖTT van, és az
+ * összefűzött eredmény `portable: false`-t ad. Ez az U04-es POZITÍV ELLENPÁRT pirosra vinné egy ÉP
+ * rendszeren — pontosan az a hiba, amit ez a fájl fejkommentje már kétszer leírt.
+ *
+ * A SZABÁLY, AMI A SZÁM HELYÉRE LÉP: U04 azt állítja, hogy az ÉRINTETLEN darabolt futás TELJES és
+ * TISZTA, és MINDEN egység belefér a költségvetésbe — a szerződés tárgya tehát a darabolhatóság, NEM
+ * egy konkrét darabszám. Ezért a futás a KÖZÖS adaptív tervet használja (`adaptiveUnitPlan`,
+ * ugyanaz, amit az ADAPTÁLT külső programok): ha egy egység nem fér bele, FINOMABBRA osztunk, a
+ * költségvetés pedig NEM tágul (KUKA-091). A terv naplója és a VÉGSŐ darabszám a jegyzőkönyvben áll —
+ * tehát ha a finomítás kellett, azt KIMONDJUK, nem elhallgatjuk (KUKA-093).
+ */
 add('U04', 'Untouched chunked run: every unit fits the external cap and the merge is complete and clean.', () => copy((dir) => {
-  const us = UNIT_ARGS.map((a) => run(dir, [a]));
+  const terv = adaptiveUnitPlan({
+    startUnits: UNITS,
+    spawnUnits: (n) => {
+      // A SZELET-FÁJLOK ELŐZŐ KÍSÉRLETBŐL NEM MARADHATNAK OTT: más felosztás, más bizonyíték.
+      rmSync(join(dir, 'v3ref', 'units'), { recursive: true, force: true });
+      const runs = unitArgs(n).map((a) => {
+        const r = run(dir, [a]);
+        return { arg: a, exit: r.exit, timed_out: r.timed_out, stdout: r.stdout, stderr: r.stderr };
+      });
+      const elso = runs.find((r) => r.exit !== 0);
+      return { timedOut: runs.some((r) => r.timed_out), exit: elso ? (elso.exit ?? 2) : 0, runs };
+    },
+  });
+  const us = terv.result.runs;
   const m = run(dir, ['--merge']);
   const result = resultOf(dir);
   return {
-    pass: us.every((u) => u.exit === 0 && !u.timed_out) && m.exit === 0
+    pass: terv.fitted === true && us.every((u) => u.exit === 0 && !u.timed_out) && m.exit === 0
       && result.run_state === 'complete' && result.clean === true && result.portable === true
       && result.coverage.missing.length === 0 && result.coverage.duplicated.length === 0
       && result.coverage.seen === result.coverage.expected,
     units: unitsOf(dir),
     unit_exits: us.map((u) => u.exit), merge_exit: m.exit,
-    unit_walls: result.units.map((u) => u.wall_ms), cap_ms: CAP_MS,
+    unit_walls: result.units.map((u) => u.wall_ms), cap_ms: CAP_MS, unit_budget_ms: UNIT_BUDGET_MS,
+    // A DARABSZÁM ÉS A FINOMÍTÁS ÚTJA KIMONDVA — a deklarált érték csak a KEZDŐPONT volt.
+    units_declared: UNITS, units_final: terv.units, plan_attempts: terv.attempts, plan_log: terv.log,
     run_state: result.run_state, clean: result.clean, portable: result.portable, coverage: result.coverage,
   };
 }));

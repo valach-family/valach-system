@@ -369,7 +369,28 @@ export function banReaches(ban, request) {
 // @returns {{banned:boolean, reason:string, ...}}
 export function banEffectiveAt({ store, subjectId, nowIso, request }) {
   const now = instantMs(nowIso);
-  if (!now.ok) return Object.freeze({ banned: false, reason: `clock_${now.reason}` });
+  // ── A KÉRÉS ÓRÁJA IS A VÉDŐ IRÁNYBA DŐL (R158/3 — SAJÁT AUDIT-LELET, MÉRVE) ─────────────────────
+  //
+  // A LELET. A fenti bekezdés kimondja: „a tiltás VÉDŐ intézkedés, tehát az eldönthetetlen óra nem
+  // oldhatja fel" — és a SOR-szintű órákat (`banned_at`, `lifted_at`) a feloldó valóban óvatosan
+  // kezeli (`ban_start_undecidable` · `ban_lift_undecidable`, mindkettő `banned: true`). A KÉRÉS
+  // órája viszont kimaradt: `banned: false`. Ugyanaz a szabály két helyen, az egyik ág kimaradt —
+  // pontosan az a hiba-osztály, amire a KUKA-039 figyelmeztet.
+  //
+  // MÉRVE (a javítás ELŐTT): egy bírósági végzéssel alany-szélesen tiltott személy az ÚJBÓLI BELÉPÉS
+  // kapujában `reentry_admissible`-t kapott, ha a kérés „most"-ja `undefined`, üres vagy nem
+  // kanonikus volt — és a döntés `checked` listája közben FELSOROLTA a `suspension`+`ban` lépést,
+  // tehát a nyom azt állította, hogy a kapuk lefutottak (KUKA-129: a nyugtának is igazat kell
+  // mondania). A HTTP-határról ez ma nem elérhető (a `nowIso` a kiszolgáló órájából jön), de a
+  // feloldó NYILVÁNOS, és minden új hívó ezt a rést kapná örökségbe (KUKA-227).
+  if (!now.ok) {
+    return Object.freeze({
+      banned: true, decidable: false, reason: `clock_${now.reason}`,
+      message: 'a kérés „most"-ja nem értelmezhető, ezért nem dönthető el, hatályos-e a tiltás. '
+        + 'A tiltás VÉDŐ intézkedés: az eldönthetetlen óra nem oldhatja fel, ezért a hozzáférés '
+        + 'zárva marad. A hívó adjon át kanonikus ISO-időpontot.',
+    });
+  }
 
   const rows = store.all('SELECT * FROM subject_ban WHERE subject_id = ? ORDER BY id', subjectId);
   for (const row of rows) {

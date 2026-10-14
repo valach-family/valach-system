@@ -635,15 +635,287 @@ export function rememberIntent({ store, sessionId, token, clock }) {
   // triggert is tüzelne. A `pending_intent` táblán MÉRVE nincs trigger (a séma egyetlen triggere
   // sem erre a táblára szól), ezért a két alak itt azonos hatású, az `ON CONFLICT … DO UPDATE`
   // viszont MINDKÉT motoron fut, és nem függ a törlés-mellékhatástól.
+  //
+  // AZ IDŐBÉLYEG KANONIKUS UTC ALAKBAN MEGY A TÁBLÁBA (F158-20, külső review, Codex, P2).
+  //
+  // A LELET: a korábbi alak az óra kimenetét SZÓ SZERINT tárolta. Egy eltolásos alak
+  // (`2026-10-06T01:00:00+02:00`) ugyanazt a PILLANATOT jelenti, mint a `…T23:00:00.000Z` — a
+  // halmazos takarítás viszont SZÖVEGESEN vetette össze a `Z`-s határokkal, és a friss sort
+  // JÖVŐBELINEK minősítette. MÉRVE ugyanazzal az órával: a sor azonnal ELTŰNT (adatvesztés).
+  // Ezért a tároláskor EGY alak van: UTC, `toISOString()`. A nem értelmezhető óra NEVEZETTEN
+  // elakad — nem tárolunk olyan időbélyeget, amit magunk sem tudunk megítélni (KUKA-020 · KUKA-238).
+  if (!clock || typeof clock.now !== 'function') {
+    throw new Error('rememberIntent: `clock` kötelező — a függő szándék kora nem opcionális (D-VS-3161)');
+  }
+  const szuletett = Date.parse(clock.now());
+  if (!Number.isFinite(szuletett)) {
+    throw new Error('rememberIntent: az óra nem értelmezhető időpontot adott — a függő szándékot nem tároljuk megítélhetetlen korral (D-VS-3161)');
+  }
   store.run(`INSERT INTO pending_intent (session_id, invite_token, created_at) VALUES (?,?,?)
              ON CONFLICT (session_id) DO UPDATE SET invite_token = excluded.invite_token,
                                                     created_at   = excluded.created_at`,
-    sessionId, token, clock.now());
+    sessionId, token, new Date(szuletett).toISOString());
 }
 
-export function resumeIntent({ store, sessionId }) {
-  const row = store.get('SELECT invite_token FROM pending_intent WHERE session_id = ?', sessionId);
-  return row ? row.invite_token : null;
+/**
+ * A FÜGGŐ SZÁNDÉK ÉLETTARTAMA (K03 · D-VS-3141 — a D-VS-3007 nevezett függőjének lezárása).
+ *
+ * MI VOLT A HIÁNY, KIMONDVA: a `pending_intent` sor IDŐBEN korlátlan volt. A `resumeIntent` nem
+ * nézett lejáratot, tehát egy belépés előtti folytatás ÉVEKKEL később is „visszatért" volna egy
+ * meghívóhoz — miközben maga a meghívó 7 nap után lejár. A tábla a tárral EGYÜTT korlátos volt
+ * (KUKA-300), időben viszont nem (D-VS-3007 nevezett függője, az R42 óta nyitott maradék).
+ *
+ * A VÁLASZTOTT ÉRTÉK ÉS AZ OKA: 24 óra. A függő szándék egy FOLYTATÁS, nem a meghívó maga: a
+ * felhasználó épp belép vagy regisztrál, és a rendszer visszaviszi a meghíváshoz. Ez a művelet
+ * percek-órák kérdése; a 24 óra ugyanaz a nagyságrend, mint a megerősítő hivatkozás élettartama,
+ * és biztosan RÖVIDEBB a meghívó 7 napjánál — tehát a folytatás nem élheti túl azt, amire mutat.
+ *
+ * ÉS EZ EGY PLAFON, NEM A TÉNYLEGES ÉLETTARTAM (F158-17, külső review, Codex, P2). A sor EGYETLEN
+ * kulcsa a munkamenet; ha az kiesik, a sor elérhetetlen, és a takarítás törli. A ténylegesen
+ * kiszolgálható türelmi időt ezért az `intentTtlMs` adja meg — lentebb, kimondva.
+ */
+export const PENDING_INTENT_TTL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * A FOLYTATÁS NEM ÉLHETI TÚL A KULCSÁT (F158-17, külső review, Codex, P2 · D-VS-3157).
+ *
+ * A LELET, ÉS MIÉRT A SZÖVEGRŐL SZÓL. A `pending_intent` sort KIZÁRÓLAG a munkamenet azonosítója
+ * találja meg, a munkamenet pedig 12 óra tétlenség után kiesik — és a kiesés a hozzá kötött sort is
+ * TÖRLI (`onEvicted`). A kimondott 24 óra tehát a MÁSODIK 12 órában elvileg sem teljesülhetett: aki
+ * 13 óra múlva tért vissza, annak a belépése folytatás NÉLKÜL sikerült, miközben a kódban és a
+ * szerződésben is „24 óra" állt. Ez a `KUKA-050` osztálya: a szöveg a valóság előtt járt.
+ *
+ * MIÉRT A RÖVIDÍTÉS, ÉS NEM A MUNKAMENET MEGHOSSZABBÍTÁSA. A reviewer mindkét irányt felajánlotta.
+ * A munkamenet életének megnyújtása azt jelentené, hogy egy NÉVTELEN látogató (a `pending_intent`
+ * sort belépés ELŐTT is létre tudja hozni) kétszer annyi ideig foglal szerver-oldali helyet — pont
+ * azt a felületet növelve, amit a KUKA-300/302/329 szűkített —, és a tétlenségi söprésnek a tárolót
+ * is kérdeznie kellene munkamenetenként (KUKA-290: a védelem költsége nem nőhet azzal, amit védünk).
+ * A rövidítés viszont semmibe nem kerül, és IGAZZÁ teszi a kimondott szabályt.
+ *
+ * MIÉRT FELOLDÓ, ÉS NEM EGY ÁTÍRT ÁLLANDÓ: két szám egy szabályt ad, tehát EGY helyen dőljön el
+ * (KUKA-003 · KUKA-039). A tétlenségi korlát a kiszolgálóban állítható (`VS_APP_SESSION_IDLE_MS`),
+ * tehát egy kézzel beírt „12 óra" a következő átállításnál MEGINT hazudna (KUKA-045).
+ *
+ * A HIÁNYZÓ BEMENET NEVEZETTEN ELAKAD (KUKA-238): ha a tétlenségi korlát elhagyható lenne, egy hívó
+ * NÉMÁN visszakapná a 24 órát — vagyis pont a most javított hibát.
+ */
+export function intentTtlMs({ sessionIdleMs, ceilingMs = PENDING_INTENT_TTL_MS } = {}) {
+  const plafon = Number(ceilingMs);
+  const tetlen = Number(sessionIdleMs);
+  if (!Number.isFinite(plafon) || plafon <= 0) {
+    throw new Error('intentTtlMs: a kimondott plafon pozitív szám legyen (D-VS-3157)');
+  }
+  if (!Number.isFinite(tetlen) || tetlen <= 0) {
+    throw new Error('intentTtlMs: a munkamenet tétlenségi korlátja KÖTELEZŐ — a folytatás élettartama ebből származik (D-VS-3157)');
+  }
+  return Math.min(plafon, tetlen);
+}
+
+/**
+ * A LEJÁRATOT AZ OLVASÁS IS ÉRVÉNYESÍTI (KUKA-296): a takarítás amortizált, tehát egy lejárt sor
+ * KÖZBEN is olvasható lenne — ezért a `resumeIntent` maga is kapu, és a lejárt sort el is dobja.
+ *
+ * AZ ÓRA KÖTELEZŐ, ÉS EZ SZÁNDÉKOS (KUKA-238): ha elhagyható lenne, egy óra nélküli hívó NÉMÁN
+ * kikapcsolná a lejáratot — pontosan az a fajta tartalék-ág, ami a hibát elrejti. Óra nélkül
+ * NEVEZETT hiba jön, nem „nincs lejárat".
+ */
+export function resumeIntent({ store, sessionId, clock, ttlMs = PENDING_INTENT_TTL_MS }) {
+  if (!clock || typeof clock.now !== 'function') {
+    throw new Error('resumeIntent: `clock` kötelező — a függő szándék lejárata nem opcionális (D-VS-3141)');
+  }
+  const row = store.get('SELECT invite_token, created_at FROM pending_intent WHERE session_id = ?', sessionId);
+  if (!row) return null;
+  // ── A NEM ÉRTELMEZHETŐ IDŐBÉLYEG NEM „NEM JÁRT LE" (F158-04, külső review, Codex, P2) ───────────
+  //
+  // A LELET, ÉS MIÉRT FÁJ. Az első alakom `Number.isFinite(kor) && kor > ttlMs`-t írt: ha a tárolt
+  // `created_at` vagy az óra értelmezhetetlen, a `kor` NaN lesz, az őr NEM tüzel, és a szándék
+  // FOLYTATÓDIK — időkorlát nélkül, örökre. A `created_at` oszlop puszta `TEXT NOT NULL`, tehát egy
+  // import vagy sérülés pont ezt hozza. Ez PONTOSAN az a hiba-osztály, amit ugyanebben a körben
+  // KUKA-337-ként magam vezettem ki a tiltás feloldójából („a védő szabály MINDEN órájára érvényes,
+  // nem csak a tárolt soréra") — és a következő függvényben megismételtem. A tanulság kimondása
+  // tehát nem védelem; a jelnek a KÓDON kell állnia (KUKA-303 rokona).
+  //
+  // A VÁLASZ: a nem értelmezhető idő LEJÁRTNAK számít. A folytatás elmarad, a sor törlődik — mert
+  // egy olyan szándékról, aminek a korát nem tudjuk, nem állíthatjuk, hogy még friss (KUKA-020).
+  const most = Date.parse(clock.now());
+  const szuletett = Date.parse(row.created_at);
+  const kor = most - szuletett;
+  // A JÖVŐBELI IDŐBÉLYEG SEM „FRISS" (F158-13, külső review, Codex, P2). A LELET: a NaN-ág javítása
+  // után egy 2099-es `created_at` NEGATÍV kort ad — a kor így VÉGES, tehát átment a frissességi
+  // ellenőrzésen, és a szándék a 24 órás türelmi időt megkerülve 2099-ig folytatódott volna
+  // (óra-visszaállítás vagy import). Amiről nem tudjuk, HOGY LEHET a jövőben, arról nem állítjuk,
+  // hogy friss: a negatív kor is LEJÁRT (KUKA-020 · a KUKA-339 tanulságának harmadik fele).
+  if (!Number.isFinite(kor) || kor < 0 || kor > ttlMs) {
+    store.run('DELETE FROM pending_intent WHERE session_id = ?', sessionId);
+    return null;
+  }
+  return row.invite_token;
+}
+
+/**
+ * A FOLYTATÁS KIMONDOTT ELFELEJTÉSE (R166, külső review, Codex, P2).
+ *
+ * A LELET: a `pending_intent` sort eddig CSAK a lejárat, a beváltás és a halmazos takarítás vitte el
+ * — nem volt út, amin a FELHASZNÁLÓ mondhatja ki, hogy elhagyta a meghívót. Az R166 §1
+ * visszalépése ezért csak a BÖNGÉSZŐ állapotát ürítette: a következő belépés a tárolt sort
+ * visszaolvasta (`resumeIntent`), és a látogatót visszavitte arra a meghívóra, amit épp elhagyott.
+ *
+ * MIÉRT A MAGBAN: a sort a mag írja (`rememberIntent`) és a mag olvassa (`resumeIntent`) — a
+ * törlésnek ugyanott az otthona, különben a tábla három házból kapna írást (KUKA-003 · KUKA-018).
+ * A visszatérés KIMONDJA, volt-e sor: a hívó (a munkamenet-tár védett indexe) ebből tudja, hogy
+ * jelentenie kell-e a változást.
+ */
+export function forgetIntent({ store, sessionId }) {
+  const sid = String(sessionId);
+  const volt = store.get('SELECT 1 AS n FROM pending_intent WHERE session_id = ?', sid);
+  store.run('DELETE FROM pending_intent WHERE session_id = ?', sid);
+  return { existed: Boolean(volt) };
+}
+
+/**
+ * A LEJÁRT SOROK TAKARÍTÁSA — EGY utasításban, halmazon (D-VS-3141).
+ *
+ * MIÉRT ÍGY: a hívó ezt AMORTIZÁLTAN futtatja (legfeljebb percenként egyszer), és a törlés EGY
+ * halmaz-utasítás — tehát nem hoz vissza kérésenkénti teljes bejárást és korlátlan memória-növekedést
+ * (ez az R158 kifejezett kikötése, és a KUKA-290/300/306/313 költség-osztálya).
+ */
+export function purgeExpiredIntents({ store, clock, ttlMs = PENDING_INTENT_TTL_MS, maxOddRows = 1000,
+  oddCursor = null }) {
+  if (!clock || typeof clock.now !== 'function') {
+    throw new Error('purgeExpiredIntents: `clock` kötelező (D-VS-3141)');
+  }
+  /**
+   * A HALMAZOS TAKARÍTÁS IS VISZI A ROMLOTT ÉS A JÖVŐBELI SORT (F158-14, külső review, Codex, P2).
+   *
+   * A LELET. Az előző alak csak `created_at < hatar`-t törölt — ez a MAI, kanonikus ISO-sorokra igaz,
+   * de egy `created_at = 'bogus'` ÁRVA sor (import vagy sérülés, és a munkamenete már nincs) soha nem
+   * illeszkedik rá, mert a szöveges összehasonlítás szerint nem kisebb; és mivel a munkamenet nincs,
+   * a `resumeIntent` sem hívódik meg rá soha. A sor tehát ÖRÖKRE a táblában maradt. Ezt a REPORT-ban
+   * nevezett hiányként ki is mondtam — a reviewer joggal kérte, hogy ne hiány legyen, hanem javítás.
+   *
+   * A HÁROM ESET EGY UTASÍTÁSBAN, és mindhárom TÁROLÓ-FÜGGETLEN SQL-lel (`node:sqlite` és PostgreSQL
+   * egyaránt): a türelmi időn túli · a JÖVŐBELI (óra-visszaállítás, import) · és a NEM KANONIKUS
+   * alakú (`LIKE '____-__-__T%'` nem illeszkedik). A `_` egyetlen karakter mindkét tárolóban.
+   */
+  const mostMs = Date.parse(clock.now());
+  if (!Number.isFinite(mostMs)) {
+    throw new Error('purgeExpiredIntents: az óra nem értelmezhető időpontot adott — a takarítás nem találgat (D-VS-3161)');
+  }
+  const hatar = new Date(mostMs - ttlMs).toISOString();
+  const most = new Date(mostMs).toISOString();
+  /**
+   * A SZÖVEGES ÖSSZEVETÉS CSAK AZONOS ALAKON ÉRVÉNYES (F158-20, külső review, Codex, P2).
+   *
+   * A LELET: az előző alak MINDEN sort szövegesen vetett össze a `Z`-s határokkal. Egy eltolásos
+   * időbélyeg (`…T01:00:00+02:00`) ugyanazt a pillanatot jelenti, szövegként viszont „nagyobb" —
+   * ezért egy FRISS sor jövőbelinek minősült, és a takarítás TÖRÖLTE. Ugyanaz a hiba-osztály, amit a
+   * `P-INVITE-window` mag-próba a MEGHÍVÓ lejáratára már egyszer kivezetett (szöveg helyett
+   * idő-összehasonlítás) — most a `pending_intent` sorra ismételtem meg.
+   *
+   * A VÁLASZ KÉT LÉPÉS, és a költsége KORLÁTOS (R158 kikötése):
+   *   1. a KANONIKUS (UTC, `…T__:__:__.___Z`) sorokon a szöveges rendezés AZONOS alakot hasonlít,
+   *      tehát érvényes — ez egy halmaz-utasítás, és az írás óta minden SAJÁT sorunk ilyen;
+   *   2. ami NEM kanonikus (import, sérülés, eltolásos alak), azt szövegesen MEGÍTÉLNI SEM lehet:
+   *      ezeket korlátos darabszámban kiolvassuk, és IDŐPILLANATKÉNT ítéljük meg (`Date.parse`) —
+   *      a nem értelmezhető, a lejárt és a jövőbeli megy, a FRISS MARAD. Normál üzemben ez a halmaz
+   *      üres, mert az írás kanonizál; a `LIMIT` arra kell, hogy egy importált tábla se hozzon vissza
+   *      korlátlan bejárást (KUKA-290).
+   */
+  const KANONIKUS = '____-__-__T__:__:__.___Z';
+  const korlat = Number.isSafeInteger(maxOddRows) && maxOddRows > 0 ? maxOddRows : 1000;
+  /**
+   * A KANONIKUS ALAK VIZSGÁLATA BETŰ-ÉRZÉKENY (F158-24, külső review, Codex, P2).
+   *
+   * A LELET: a `node:sqlite` `LIKE`-ja ASCII-ra kis/nagybetű-ÉRZÉKETLEN, a PostgreSQL-é nem. Egy
+   * importált, FRISS és értelmezhető `2026-10-06t12:00:00.000z` sor tehát SQLite-on KANONIKUSNAK
+   * számított, és a szöveges összevetés a kisbetűs `t`-t (0x74) a nagybetűs `T`-nél (0x54) NAGYOBBNAK
+   * látta — vagyis jövőbelinek minősítette, és a sort AZONNAL TÖRÖLTE; PostgreSQL-en ugyanaz a sor az
+   * időpillanat-ágra ment, és megmaradt. A takarítás viselkedése így a TÁROLÓTÓL függött, és a
+   * folytatás CSAK SQLite-on veszett el. MÉRVE: a kisbetűs friss sor eltűnt (`purged: 1`).
+   *
+   * A VÁLASZ: a `T` és a `Z` BÁJTRA egyezzen. A `substr(...) = '...'` összehasonlítás MINDKÉT tárolón
+   * betű-érzékeny (a `=` a szöveges oszlopon bináris összevetés), tehát ez hordozható — a `LIKE` csak
+   * az ALAKOT szűri, a két betűt a `substr` dönti el. Ami így NEM kanonikus, az az időpillanat-ágra
+   * kerül, és `Date.parse` ítéli meg.
+   */
+  const ALAK = 'created_at LIKE ? AND substr(created_at, 11, 1) = ? AND substr(created_at, 24, 1) = ?';
+  const ALAK_ERTEKEK = [KANONIKUS, 'T', 'Z'];
+  const WHERE = `${ALAK} AND (created_at < ? OR created_at > ?)`;
+  const elotte = store.get(`SELECT COUNT(*) AS n FROM pending_intent WHERE ${WHERE}`, ...ALAK_ERTEKEK, hatar, most);
+  store.run(`DELETE FROM pending_intent WHERE ${WHERE}`, ...ALAK_ERTEKEK, hatar, most);
+  const kanonikusTakaritva = elotte ? Number(elotte.n) : 0;
+
+  /**
+   * A KORLÁTOZOTT PÁSZTA NEM ÉHEZTETHETI KI A ROMLOTT SOROKAT (R164, KÜLSŐ REVIEW, Codex, P2).
+   *
+   * A LELET. A nem kanonikus sorok vizsgálatát `LIMIT`-tel korlátoztam (KUKA-290: a védelem költsége
+   * ne nőjön azzal, ami ellen védett) — de SORREND NÉLKÜL. A tároló ilyenkor szabadon adhatja ugyanazt
+   * a köteget: ha a korlátnál több nem kanonikus sor van, és az elsők FRISS, érvényes eltolásos
+   * alakúak (amiket szándékosan MEGTARTUNK), akkor a mögöttük álló romlott vagy LEJÁRT sorokat a
+   * pászta SOHA nem nézi meg. Példa a reviewer szavával: 1000 friss eltolásos időbélyeg után beírt
+   * `created_at='bogus'` sor minden percben érintetlen marad, amíg az élmező maga el nem öregszik.
+   *
+   * A VÁLASZ: SORREND a valószínű lejárat szerint — a `created_at` NÖVEKVŐ sorrendje a legrégebbi
+   * (tehát a legvalószínűbben lejárt) és a NEM ÉRTELMEZHETŐ sorokat hozza előre. A `korlat` megmarad
+   * (a költség nem nő), de a köteg már nem állandó: ami egyszer nem fért be, az a következő pásztán
+   * ELŐRE kerül, amint az előtte állók elfogynak. Az ÉRVÉNYES, friss sorok nem fogyasztják a helyet
+   * tartósan, mert a legrégebbiek vagy kiesnek, vagy — ha érvényesek — a rendezés szerint a végükön
+   * állnak. ÉS A KORLÁT-TELÍTÉS KIMONDOTT: a válasz jelzi, ha a köteg tele volt (`odd_capped`), tehát
+   * a hívó tudja, hogy a mérés RÉSZLEGES (KUKA-093: a kihagyás nem zöld).
+   *
+   * AMIT EZ NEM ÁLLÍT: nem garantál egyetlen pásztán teljes takarítást. Azt állítja, hogy MINDEN
+   * romlott sor VÉGES számú pászta után sorra kerül, és hogy a részlegességet kimondjuk.
+   */
+  /**
+   * ÉS A SORREND ÖNMAGÁBAN NEM AD ELŐREHALADÁST — KURZOR KELL (R164 review, Codex, P2 —
+   * `KUKA-382` · `D-VS-3190`).
+   *
+   * A LELET (a `KUKA-372`-es javításom FELETT). A `created_at` növekvő sorrendje a legrégebbi sorokat
+   * hozza előre — ez jó —, de a köteg ettől még ÁLLANDÓ lehet: egy ÉRVÉNYES, FRISS eltolásos
+   * időbélyeg (`2026-…+02:00`) SZÁMMAL kezdődik, egy romlott érték (`bogus`) viszont BETŰVEL, ami a
+   * szöveges rendezésben MÖGÉ kerül. Ha legalább `maxOddRows` ilyen friss, érvényes sor áll a romlott
+   * sor ELŐTT, akkor minden pászta UGYANAZT a köteget nézi meg és tartja meg — a romlott sor pedig
+   * határtalanul ott marad, miközben friss sorok folyamatosan érkeznek. A rendezés tehát a
+   * KIÉHEZTETÉST nem oldotta meg, csak elmozdította.
+   *
+   * A VÁLASZ: KULCS-KURZOR (`created_at`, `session_id` páron), ami pásztánként TOVÁBBLÉP. Minden
+   * pászta a kurzor UTÁNI sorokkal folytatja; ha a köteg nem lett tele, a pászta a tábla VÉGÉRE ért,
+   * és a kurzor visszaáll az elejére. Így minden nem kanonikus sor VÉGES számú pászta alatt sorra
+   * kerül, akármilyen a rendezése — és a költség továbbra is `maxOddRows` soronként (KUKA-290).
+   *
+   * A PÁR AZÉRT KELL, mert több sor időbélyege LEHET AZONOS: egy csak `created_at > ?` alakú kurzor az
+   * egyezőket ÁTLÉPNÉ, és pont a kihagyás volna a hiba. A `session_id` a tábla kulcsa, tehát a pár
+   * egyedi és teljes rendezést ad. Mindkét tároló érti (`node:sqlite` és PostgreSQL — SQL-02).
+   */
+  const kurzor = oddCursor && typeof oddCursor === 'object'
+    && typeof oddCursor.created_at === 'string' && typeof oddCursor.session_id === 'string'
+    ? oddCursor : null;
+  const KURZOR_SZURO = kurzor ? ' AND (created_at > ? OR (created_at = ? AND session_id > ?))' : '';
+  const KURZOR_ERTEKEK = kurzor ? [kurzor.created_at, kurzor.created_at, kurzor.session_id] : [];
+  const furcsak = store.all(
+    `SELECT session_id, created_at FROM pending_intent WHERE NOT (${ALAK})${KURZOR_SZURO}`
+    + ` ORDER BY created_at ASC, session_id ASC LIMIT ${korlat}`,
+    ...ALAK_ERTEKEK, ...KURZOR_ERTEKEK);
+  const dobando = [];
+  for (const r of furcsak) {
+    const kor = mostMs - Date.parse(r.created_at);
+    if (!Number.isFinite(kor) || kor < 0 || kor > ttlMs) dobando.push(r.session_id);
+  }
+  if (dobando.length) {
+    store.run(`DELETE FROM pending_intent WHERE session_id IN (${dobando.map(() => '?').join(',')})`, ...dobando);
+  }
+  /**
+   * A KÖVETKEZŐ KURZOR. Tele köteg → a LEGUTOLSÓ megnézett sor a kurzor (ott folytatjuk). Nem tele
+   * köteg → a pászta a tábla végére ért, a kurzor visszaáll az elejére (`null`). A hívó ezt
+   * ADJA VISSZA a következő pásztán; aki nem tárolja, az a mai viselkedést kapja (az elejéről indul).
+   */
+  const tele = furcsak.length >= korlat;
+  const utolso = tele ? furcsak[furcsak.length - 1] : null;
+  return { purged: kanonikusTakaritva + dobando.length, before: hatar,
+    odd_rows: furcsak.length, odd_purged: dobando.length,
+    // A KÖTEG TELÍTÉSE KIMONDOTT: ilyenkor a nem kanonikus sorok vizsgálata RÉSZLEGES volt.
+    odd_capped: tele,
+    odd_cursor: utolso ? { created_at: String(utolso.created_at), session_id: String(utolso.session_id) } : null };
 }
 
 // ── A BEVÁLTÁS (K03) ────────────────────────────────────────────────────────────────────────────

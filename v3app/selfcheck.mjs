@@ -49,7 +49,11 @@ try {
 
   // ── ANNA ────────────────────────────────────────────────────────────────────────────────────
   let r = await anna.get('/api/me');
-  step('névtelen munkamenet létezik belépés előtt', r.status === 200 && r.body.subject_id === null && anna.cookie && anna.cookie.startsWith('vs_session='), anna.cookie ? anna.cookie.slice(0, 20) + '…' : null);
+  // AZ IGÉNY SZERINTI MUNKAMENET (SES-04, R158/1): a belépés előtti OLVASÁS kiszolgálódik, de NEM nyit
+  // tárolt munkamenetet és NEM ad sütit — korábban minden süti nélküli kérés nyitott egyet.
+  step('belépés előtti olvasás kiszolgálva, munkamenet és süti NÉLKÜL (igény szerinti munkamenet)',
+    r.status === 200 && r.body.subject_id === null && !anna.cookie,
+    { status: r.status, subject_id: r.body.subject_id, sutit_kapott: Boolean(anna.cookie) });
   step('Cache-Control: no-store minden JSON-válaszon', r.headers.get('cache-control') === 'no-store');
 
   r = await anna.post('/api/register', { email: 'anna@csaladi.hu', password: 'anna-titok-1' });

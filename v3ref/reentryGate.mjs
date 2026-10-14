@@ -84,6 +84,19 @@ export function reentryExclusionsAt({ store, subjectId, bookId, closed, nowIso }
   checked.push('suspension');
   const susp = suspensionEffectiveAt({ store, subjectId, bookId, nowIso });
   if (susp && susp.suspended === true) {
+    // AZ ELDÖNTHETETLEN ÓRA ZÁR, DE A SAJÁT NEVÉN (R158/3 · KUKA-124). A védő feloldó az
+    // értelmezhetetlen „most"-ra `suspended: true`-t ad `decidable: false`-szal — ha ezt
+    // „FEL VAN FÜGGESZTVE"-ként írnánk ki, a válasz olyan tényt állítana, ami nem igaz, és a
+    // valódi hibát (a hívó órája) elrejtené.
+    if (susp.decidable === false) {
+      return frozen({
+        ok: false, reason: 'reentry_undecidable_clock', detail: susp.reason ?? null,
+        message: 'a kérés „most"-ja nem értelmezhető, ezért a védő kapuk (felfüggesztés · tiltás) '
+          + 'hatálya nem dönthető el — a hozzáférés zárva marad, és a hívónak kanonikus '
+          + 'ISO-időpontot kell átadnia',
+        next_step: 'fix_request_clock', checked: frozen([...checked]),
+      });
+    }
     return frozen({
       ok: false, reason: 'reentry_blocked_suspension',
       message: 'ez a tagság FEL VAN FÜGGESZTVE — a felfüggesztés feloldása külön, jogosult eljárás',
@@ -101,6 +114,15 @@ export function reentryExclusionsAt({ store, subjectId, bookId, closed, nowIso }
     store, subjectId, nowIso, request: banRequestFor({ bookId, opClass: 'own_book' }, null),
   });
   if (ban && ban.banned === true) {
+    // UGYANEZ A KÜLÖNBSÉG A TILTÁS-ÁGON IS (KUKA-039: a szabály mindkét helyen igaz).
+    if (ban.decidable === false && String(ban.reason || '').startsWith('clock_')) {
+      return frozen({
+        ok: false, reason: 'reentry_undecidable_clock', detail: ban.reason ?? null,
+        message: 'a kérés „most"-ja nem értelmezhető, ezért a tiltás hatálya nem dönthető el — a '
+          + 'hozzáférés zárva marad, és a hívónak kanonikus ISO-időpontot kell átadnia',
+        next_step: 'fix_request_clock', checked: frozen([...checked]),
+      });
+    }
     return frozen({
       ok: false, reason: 'reentry_blocked_ban',
       message: 'erre a személyre TILTÁS van érvényben — a tiltás feloldása külön, jogosult eljárás',

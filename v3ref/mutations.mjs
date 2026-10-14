@@ -38,10 +38,14 @@ export const MUTATIONS = [
     from: "  return (row.credential === null || row.credential === undefined || row.credential === '')\n    ? 'credential_missing' : 'credential_set';",
     to: "  return 'credential_missing';" },
 
+  // R158/1b ÚJRA-HORGONYOZVA. A lejárat-ellenőrzés bevezetése átírta a visszatérés sorát
+  // (`row ? row.invite_token : null` → korai `if (!row) return null;` + `return row.invite_token;`),
+  // és ezt NEM én vettem észre, hanem a horgony-őr (MUT-02) — pontosan ezért áll ott: egy elcsúszott
+  // horgony MUTÁCIÓ NÉLKÜL hagyja a próbát, és az őrizetlen próba zöldnek LÁTSZIK (KUKA-051).
   { id: 'M3', rule: 'K03', catcher: 'P-K03-intent', expect: 'probe_fail',
     what: 'a függő szándék elvész, tehát a kézi beváltás zsákutcába fut (a mi D-VS-667-es hibánk)',
     file: 'invite.mjs',
-    from: "  return row ? row.invite_token : null;",
+    from: "  return row.invite_token;",
     to: "  return null;" },
 
   // R51: az M4 ÚJRA-HORGONYOZVA. A J1 javítás óta a kiadás védelme KÉTRÉTEGŰ: a tranzakción kívüli
@@ -2356,4 +2360,113 @@ export const MUTATIONS = [
     file: 'invite.mjs',
     from: "  const issuer = inviteGrantAt({ store, invite: inv, clock });\n  if (!issuer.ok) {",
     to: "  const issuer = { ok: true };\n  if (!issuer.ok) {" },
+
+  // R158/1b — A FÜGGŐ SZÁNDÉK LEJÁRATA. A D-VS-3007 nevezett függője volt: a `pending_intent` sor
+  // időben KORLÁTLAN volt, tehát egy évekkel korábbi meghívó a következő belépéskor visszatért volna.
+  // A javításnak KÉT fele van, ezért KÉT mutáció: az OLVASÁS maga kapu (a lejártat nem adja vissza,
+  // és törli), ÉS a takarítás HALMAZON megy. Egy mutáció a másik felét őrizetlenül hagyná (KUKA-039).
+  { id: 'M208', rule: 'K03', catcher: 'P-K03-intent-expiry', expect: 'probe_fail',
+    what: 'R158/1b — AZ OLVASÁS NEM KAPU: a `resumeIntent` lejárat nélkül adja vissza a tokent, tehát egy régi függő szándék a következő belépéskor feléled (az a hiba, amit a D-VS-3007 nevezett függőként hagyott nyitva)',
+    file: 'invite.mjs',
+    from: "  if (!Number.isFinite(kor) || kor < 0 || kor > ttlMs) {\n    store.run('DELETE FROM pending_intent WHERE session_id = ?', sessionId);\n    return null;\n  }",
+    to: "  // LEJÁRAT NÉLKÜL" },
+
+  { id: 'M209', rule: 'K03', catcher: 'P-K03-intent-expiry', expect: 'probe_fail',
+    what: 'R158/1b — A TAKARÍTÁS NEM VISZ SEMMIT: a lejárt sorok a táblában maradnak, tehát a tár korlátlanul nő (a korlátlan memória-növekedés a KUKA-328/330 hiba-osztálya)',
+    file: 'invite.mjs',
+    from: "  store.run(`DELETE FROM pending_intent WHERE ${WHERE}`, ...ALAK_ERTEKEK, hatar, most);",
+    to: "  // A TAKARÍTÁS KIVÉVE (ÚJRA-HORGONYZVA az F158-20-ban, majd az F158-24-ben: az alak-vizsgálat betű-érzékeny lett; az állítás változatlan)" },
+
+  // R158/3 — A VÉDŐ KAPUK IDŐ-IRÁNYA. A rés mindkét feloldóban külön állt, ezért KÉT mutáció rontja
+  // külön-külön (KUKA-039: egy mutáció a másik felét őrizetlenül hagyná), és egy harmadik azt
+  // rontja el, hogy a zárás a SAJÁT nevén megy (KUKA-124).
+  { id: 'M210', rule: 'K09', catcher: 'P-AUTHZ-protective-clock', expect: 'probe_fail',
+    what: 'R158/3 — AZ ELDÖNTHETETLEN KÉRÉS-ÓRA FELOLDJA A TILTÁST: egy bírósági végzéssel alany-szélesen tiltott személy kérése átmegy, ha a „most" hiányzik, üres vagy nem kanonikus (a mi SAJÁT résünk, MÉRVE az R158/3 auditban)',
+    file: 'banScope.mjs',
+    from: "      banned: true, decidable: false, reason: `clock_${now.reason}`,",
+    to: "      banned: false, decidable: true, reason: `clock_${now.reason}`," },
+
+  { id: 'M211', rule: 'K09', catcher: 'P-AUTHZ-protective-clock', expect: 'probe_fail',
+    what: 'R158/3 — UGYANAZ A RÉS A FELFÜGGESZTÉSEN: az eldönthetetlen kérés-óra feloldja a felfüggesztést (a `banScope.mjs` épp ezt a modult nevezi meg az idő-irány forrásaként)',
+    file: 'suspension.mjs',
+    from: "      suspended: true, decidable: false, reason: `clock_${now.reason}`,",
+    to: "      suspended: false, decidable: true, reason: `clock_${now.reason}`," },
+
+  { id: 'M212', rule: 'K09', catcher: 'P-AUTHZ-protective-clock', expect: 'probe_fail',
+    what: 'R158/3 — A ZÁRÁS ROSSZ NÉVEN MEGY: az eldönthetetlen óra miatti elutasítás „FEL VAN FÜGGESZTVE"-ként jelenik meg, tehát a válasz olyan tényt állít, ami nem igaz, és a valódi hibát (a hívó órája) elrejti (KUKA-124)',
+    file: 'reentryGate.mjs',
+    from: "    if (susp.decidable === false) {",
+    to: "    if (false) {" },
+
+  // R158/3 — AZ ÁTVITT KORLÁT ALAKJA. A rés KÉT alakban nyílt (üres lista · nem-tömb/hiányzó mező),
+  // ezért KÉT mutáció rontja külön: az egyik visszateszi az „üres = szabadság" olvasatot, a másik a
+  // nem megállapítható alakot engedi át némán (KUKA-039: egy mutáció a másik felét hagyná őrizetlenül).
+  { id: 'M213', rule: 'K07', catcher: 'P-AUTHZ-parent-limit', expect: 'probe_fail',
+    what: 'R158/3 — AZ ÜRES SZEREP-KORLÁT ISMÉT „NINCS KORLÁT": egy `roles: []` átvitt korláttal a plafon ADMIN továbbadására jogosít (a mi SAJÁT résünk, MÉRVE az R158/3 auditban)',
+    file: 'delegation.mjs',
+    from: "  const roles = delegable.filter((r) => pRoles.includes(r));",
+    to: "  const roles = pRoles.length ? delegable.filter((r) => pRoles.includes(r)) : [...delegable];" },
+
+  { id: 'M214', rule: 'K07', catcher: 'P-AUTHZ-parent-limit', expect: 'probe_fail',
+    what: 'R158/3 — A HIÁNYZÓ VAGY NEM-TÖMB ALAKÚ KORLÁT NÉMÁN ÜRESNEK SZÁMÍT: a sérült sor nem nevezett elutasítást kap, hanem beolvad a rendes útba (KUKA-020: a nem tudást nem oldjuk fel a kedvezőbb irányba)',
+    file: 'delegation.mjs',
+    from: "  const pRoles = Array.isArray(parent.limit && parent.limit.roles) ? parent.limit.roles : null;",
+    to: "  const pRoles = Array.isArray(parent.limit && parent.limit.roles) ? parent.limit.roles : [];" },
+
+  { id: 'M215', rule: 'K03', catcher: 'P-K03-intent-expiry', expect: 'probe_fail',
+    what: 'R158/3 — A NEM ÉRTELMEZHETŐ IDŐBÉLYEG ISMÉT „NEM JÁRT LE": a NaN korú (import vagy sérülés) függő szándék időkorlát nélkül folytatódik (F158-04, külső review, Codex — ugyanaz a hiba-osztály, amit a KUKA-337 ugyanebben a körben vezetett ki a tiltásból)',
+    file: 'invite.mjs',
+    from: "  if (!Number.isFinite(kor) || kor < 0 || kor > ttlMs) {",
+    to: "  if (Number.isFinite(kor) && kor > ttlMs) {" },
+
+  // R158 második review-kör — a KÉT ÚJ ág KÜLÖN rontva (KUKA-039).
+  { id: 'M216', rule: 'K03', catcher: 'P-K03-intent-expiry', expect: 'probe_fail',
+    what: 'R158 — A JÖVŐBELI IDŐBÉLYEG ISMÉT „FRISS": a negatív kor VÉGES, tehát egy 2099-es `created_at` 2099-ig folytatódó szándékot adna, megkerülve a 24 órás türelmi időt (F158-13, külső review, Codex)',
+    file: 'invite.mjs',
+    from: "  if (!Number.isFinite(kor) || kor < 0 || kor > ttlMs) {",
+    to: "  if (!Number.isFinite(kor) || kor > ttlMs) {" },
+
+  { id: 'M217', rule: 'K03', catcher: 'P-K03-intent-expiry', expect: 'probe_fail',
+    what: 'R158 — A HALMAZOS TAKARÍTÁS ISMÉT CSAK A SZÖVEGESEN KISEBB SORT VISZI: az árva, romlott vagy jövőbeli időbélyegű sor örökre a táblában marad, mert a munkamenete nincs, tehát az olvasás sem hívódik meg rá (F158-14, külső review, Codex)',
+    file: 'invite.mjs',
+    from: "  const WHERE = `${ALAK} AND (created_at < ? OR created_at > ?)`;",
+    to: "  const WHERE = `${ALAK} AND (created_at < ? OR (? IS NOT NULL AND 1 = 0))`;" },
+
+  // R158 HARMADIK review-kör — a folytatás élettartama. A KÉT ág KÜLÖN rontva (KUKA-039): a
+  // származtatás maga, és a hiányzó bemenet néma tartaléka.
+  { id: 'M218', rule: 'K03', catcher: 'P-K03-intent-expiry', expect: 'probe_fail',
+    what: 'R158 — A FOLYTATÁS ISMÉT TÚLÉLHETI A KULCSÁT: a türelmi idő a kimondott 24 órás PLAFON lesz, nem a munkamenet tétlenségi korlátjával vett kisebbik — a 12 óra utáni órákra a szerződés olyat ígér, amit a mechanizmus elvileg sem tud teljesíteni (F158-17, külső review, Codex · KUKA-050)',
+    file: 'invite.mjs',
+    from: "  return Math.min(plafon, tetlen);",
+    to: "  return plafon;" },
+
+  { id: 'M219', rule: 'K03', catcher: 'P-K03-intent-expiry', expect: 'probe_fail',
+    what: 'R158 — A HIÁNYZÓ TÉTLENSÉGI KORLÁT NÉMÁN A PLAFONRA ESIK: egy új hívó, aki nem adja át a munkamenet korlátját, visszakapja a 24 órát — vagyis pont a most javított hibát, csak csendben (KUKA-238: a tartalék-ág elrejti a hibás hívást)',
+    file: 'invite.mjs',
+    from: "    throw new Error('intentTtlMs: a munkamenet tétlenségi korlátja KÖTELEZŐ — a folytatás élettartama ebből származik (D-VS-3157)');",
+    to: "    return plafon;" },
+  // R158 NEGYEDIK review-kör — a kanonikus írás és a nem kanonikus sor időpillanat-szerinti megítélése.
+  { id: 'M220', rule: 'K03', catcher: 'P-K03-intent-expiry', expect: 'probe_fail',
+    what: 'R158 — AZ ÍRÁS ISMÉT SZÓ SZERINT TÁROL: egy eltolásos órával (`+02:00`) írt FRISS sort a halmazos takarítás szövegesen jövőbelinek minősít, és TÖRÖL — adatvesztés a saját javításom árán (F158-20, külső review, Codex)',
+    file: 'invite.mjs',
+    from: "    sessionId, token, new Date(szuletett).toISOString());",
+    to: "    sessionId, token, clock.now());" },
+
+  { id: 'M221', rule: 'K03', catcher: 'P-K03-intent-expiry', expect: 'probe_fail',
+    what: 'R158 — A NEM KANONIKUS SOROK MEGÍTÉLÉSE KIESIK: a nem kanonikus alakú ÁRVA sort (import, sérülés) semmi nem viszi el, tehát örökre a táblában marad — a KUKA-347 javításának a veszte (F158-20)',
+    file: 'invite.mjs',
+    from: "    if (!Number.isFinite(kor) || kor < 0 || kor > ttlMs) dobando.push(r.session_id);",
+    to: "    if (false) dobando.push(r.session_id);" },
+
+  { id: 'M222', rule: 'K03', catcher: 'P-K03-intent-expiry', expect: 'probe_fail',
+    what: 'R158 — A NEM KANONIKUS SOR IS SZÖVEGESEN DŐL EL: a jövőbeli ág a nem kanonikus alakra is illeszkedik, tehát egy FRISS, eltolásos sor jövőbelinek minősül és eltűnik (F158-20)',
+    file: 'invite.mjs',
+    from: "  const KANONIKUS = '____-__-__T__:__:__.___Z';",
+    to: "  const KANONIKUS = '____-__-__T%';" },
+  // R158 ÖTÖDIK review-kör — a kanonikus alak BETŰ-érzékenysége (F158-24).
+  { id: 'M223', rule: 'K03', catcher: 'P-K03-intent-expiry', expect: 'probe_fail',
+    what: 'R158 — A KANONIKUS ALAK VIZSGÁLATA ISMÉT BETŰ-ÉRZÉKETLEN: a `node:sqlite` LIKE-ja ASCII-ra kis/nagybetű-érzéketlen, ezért egy FRISS, értelmezhető `…t…z` alakú sor kanonikusnak látszik, és a szöveges összevetés jövőbelinek minősítve TÖRLI — PostgreSQL-en ugyanaz a sor megmaradna, vagyis a takarítás a TÁROLÓTÓL függ (F158-24, külső review, Codex)',
+    file: 'invite.mjs',
+    from: "  const ALAK = 'created_at LIKE ? AND substr(created_at, 11, 1) = ? AND substr(created_at, 24, 1) = ?';",
+    to: "  const ALAK = 'created_at LIKE ? AND ? IS NOT NULL AND ? IS NOT NULL';" },
 ];

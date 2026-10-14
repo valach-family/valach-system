@@ -537,6 +537,64 @@ export function submitCommandWithEffect(args) {
 // A CÍM OPCIONÁLIS. Ha kötelezővé tennénk, a cím nélkül hívó ellenpróbák NEVEZETT DOBÁSRA
 // futnának, és egy valódi lelet FAIL helyett MÉRŐHIBÁVÁ maszkolódna — épp az az alak, amit a
 // saját mérőnk tilt. Nulla mező ⇒ puszta kulcs, de CSAK egyértelmű, MA IS LÁTHATÓ sorra.
+/**
+ * OLVASHATÓ-E AZ EREDMÉNY? — A KÉRDÉS HATÁS NÉLKÜL (R166, KÜLSŐ REVIEW, Codex, P2 · `KUKA-400`).
+ *
+ * MIÉRT KELL. Az R166 §3 javítása a felkínálás kapujához a `readCommandResult`-ot hívta, hogy a
+ * készlet-útmutatót csak az ÉLŐ jog mellett ajánljuk fel. A döntés jó volt, a VÁLASZTOTT FELOLDÓ
+ * nem: a `readCommandResult` SIKERES ága `disclose()`-t hajt végre, tehát egy KIADÁSI LELTÁR-SORT
+ * ír. A súgó megnyitása (`GET /api/assistant/status`, deklaráltan `mutates: false`) így olyan
+ * audit-sort keletkeztetett, ami szerint védett adat KIADÁSRA került — holott a válasz a
+ * készlet-eredményt nem is hordozza. MÉRVE: három súgó-megnyitás három sort írt (`3→5` és tovább).
+ *
+ * MIÉRT ITT, ÉS NEM A HÍVÓNÁL. A kérdés („kiadható-e ennek az embernek ez az eredmény?") UGYANAZ a
+ * két döntés, amit a `readCommandResult` is meghoz: a KÖNYVHÖZ való jog (`releaseAllowed`) és az
+ * EREDMÉNY SAJÁT ADATKÖRE (`resultReleasable`). Ha a próba a hívónál épülne újra, két szabály
+ * keletkezne egy kérdésre (`KUKA-003` · `KUKA-233`), és a következő módosítás az egyiket elfelejtené.
+ * Ezért a két feloldó itt áll egymás mellett, egyazon `at` időponton (`KUKA-124`: amit egy kapu
+ * eldöntött, azt nem mérjük újra egy MÁSIK órán) — csak a HATÁS marad el.
+ *
+ * AMIT EZ NEM ÁLLÍT: ez NEM kiadás. Az eredmény TARTALMÁT nem adja vissza, és nem is szabad
+ * visszaadnia — aki az adatot akarja, az a `readCommandResult`-ot hívja, és akkor a leltár-sor
+ * JOGGAL keletkezik. A nemleges válasz itt is megkülönböztethetetlen („nincs jogod" ↔ „nincs ilyen
+ * eredmény"), mint minden más akadálynál (`KUKA-084`).
+ */
+export function commandResultReadable({ store, idemKey, requester, bookId, actor, clock, externalEvidence, credentials }) {
+  const addressed = bookId !== undefined || actor !== undefined;
+  if (addressed && !(bookId && actor)) {
+    // RÉSZLEGES cím: bekötési hiba, nem valódi „nem" (KUKA-020) — ugyanaz a dobás, mint az olvasónál.
+    throw new Error('commandResultReadable: részleges hatókör-cím — bookId és actor együtt kell');
+  }
+
+  // EGY ÓRAOLVASÁS, mint a kiadásnál: a jelölt-szűrés, a tagsági jog és az adatkör UGYANAZON az
+  // időponton dől el. Két olvasás itt is azt a rést nyitná, amit az R81/F04 bezárt.
+  const at = clock.now();
+  const mayRelease = (book) => releaseAllowed({
+    store, subjectId: requester, bookId: book, nowIso: at, externalEvidence, credentials,
+  });
+
+  let cmd;
+  if (addressed) {
+    cmd = findCommandInScope(store, commandScope({ bookId, actor, idemKey }));
+  } else {
+    const rows = store.all('SELECT * FROM command WHERE idem_key = ?', idemKey);
+    const visible = rows.filter((r) => mayRelease(r.book_id));
+    if (visible.length !== 1) return Object.freeze({ readable: false, basis: 'nincs EGYETLEN látható jelölt' });
+    cmd = visible[0];
+  }
+  if (!cmd) return Object.freeze({ readable: false, basis: 'nincs ilyen eredmény a hatókörben' });
+  if (!mayRelease(cmd.book_id)) return Object.freeze({ readable: false, basis: 'a könyvhöz most nincs kiadási jog' });
+
+  const resolved = JSON.parse(cmd.resolved_json);
+  const releasableScope = resultReleasable({
+    store, subjectId: requester, bookId: cmd.book_id, nowIso: at, knownAt: at,
+    type: cmd.type, typeVersion: cmd.type_version, result: resolved,
+    request: banRequestFor({ bookId: cmd.book_id, opClass: 'own_book' }, credentials),
+  });
+  if (!releasableScope.releasable) return Object.freeze({ readable: false, basis: 'az eredmény adatköre ennek az olvasónak tiltott' });
+  return Object.freeze({ readable: true, basis: 'a könyv-jog és az eredmény adatköre is megengedi' });
+}
+
 export function readCommandResult({ store, idemKey, requester, bookId, actor, clock, externalEvidence, credentials }) {
   const refused = Object.freeze({
     ok: false,

@@ -1,0 +1,60 @@
+{
+  "contract": "EXS-01",
+  "series": "sab2e6a0cc9f5",
+  "binding": {
+    "bundle_digest": "0f9de36606d0298237ba28c76a33a13658330c0b163f1e748140cd2cfe49eefd",
+    "programs_digest": "32669221eb583c73e760f82eb1e1f7d50a5ad7cca77c5774c2210f7343645bc4",
+    "runner_digest": "7f22e546b5a3dcc3a7bafcafddba3852bff2e11a29e49465452628daf9aeaf07",
+    "config_digest": "f0ce4e38338ca820",
+    "profile_id": "today-17",
+    "profile_digest": "1964f62c4f96870b",
+    "clean": true
+  },
+  "provenance": {
+    "commit": "85bb473d58eaa4c6b441c8c93d0659f0eec61fb7"
+  },
+  "program": "r67",
+  "program_digest": "8a42d7f481ee87135386bff944a6f3a31690106578a829d95c05c2b16a8d498f",
+  "exit": 0,
+  "ok": true,
+  "cases": [
+    {
+      "id": "C01-unauthorized-suspension-denied",
+      "pass": true
+    },
+    {
+      "id": "C02-read-neutrality",
+      "pass": true
+    },
+    {
+      "id": "C03-claim-does-not-grant-membership",
+      "pass": true
+    },
+    {
+      "id": "F01-successful-suspension-removes-current-access",
+      "pass": true
+    },
+    {
+      "id": "F02-adjudication-denial-neutrality",
+      "pass": true
+    },
+    {
+      "id": "F03-authorized-reviewer-can-retrieve-submitted-content",
+      "pass": true
+    },
+    {
+      "id": "F04-failed-intake-is-atomic",
+      "pass": true
+    },
+    {
+      "id": "F05-caller-chosen-reference-is-not-a-rate-limit-identity",
+      "pass": true
+    }
+  ],
+  "evidence_digest": "134d58c21f5d0a8444701a4ff58c68cad0126d62de0a248f7bfdeb809fdfa98f",
+  "failure_kind": "unknown",
+  "failure_why": "nincs mért környezeti akadály a nyers eredményben",
+  "ms": 217,
+  "at": "2026-10-13T08:54:36.828Z",
+  "env_skipped": false
+}

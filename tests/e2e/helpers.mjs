@@ -129,7 +129,26 @@ export async function gotoPage(page, name) {
       await d.evaluate((el) => { el.open = false; });
     }
   }
-  await page.getByTestId(`nav-${name}`).click();
+  /**
+   * ÉS KESKENY NÉZETBEN A MENÜ A ☰ MÖGÖTT VAN (R176 §1 — SAJÁT LELET, 390 px-en MÉRVE).
+   *
+   * A LELET. Ez a segéd a menüpontra kattintott, a feltárásról viszont nem tudott: 390 px-en a bal
+   * menü becsukódik, tehát a gomb a lapon OTT VAN (`aria-current="page"`, `class="navitem active"`
+   * — mérve), de NEM LÁTHATÓ, és a kattintás 15 s után lejárt. A többi lap asztali nézetben fut,
+   * ezért a hiány csak a keskeny bejáráson mutatkozott meg.
+   *
+   * A felhasználó útja ugyanez: megnyomja a ☰-t, és ÚGY választ menüpontot. A nyitást ezért IDE
+   * tettem, nem a hívókba — különben minden keskeny lap a saját változatát írná meg (KUKA-003).
+   */
+  const pont = page.getByTestId(`nav-${name}`);
+  if (!(await pont.isVisible().catch(() => false))) {
+    const toggle = page.getByTestId('nav-toggle');
+    if (await toggle.count() && await toggle.isVisible()) {
+      await toggle.click();
+      await pont.waitFor({ state: 'visible', timeout: 5000 });
+    }
+  }
+  await pont.click();
   await expect(page.getByTestId(`nav-${name}`)).toHaveAttribute('aria-current', 'page');
 }
 /**

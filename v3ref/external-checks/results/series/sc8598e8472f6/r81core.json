@@ -1,0 +1,86 @@
+{
+  "contract": "EXS-01",
+  "series": "sc8598e8472f6",
+  "binding": {
+    "bundle_digest": "0f9de36606d0298237ba28c76a33a13658330c0b163f1e748140cd2cfe49eefd",
+    "programs_digest": "e9622db45921f4bedcc0857f44aa86b520beef401ab6a709afb85584c87d3123",
+    "runner_digest": "e859b6cdaca6034936332536476e46ae78e8081d3405987efa5c82fc96243b77",
+    "config_digest": "f0ce4e38338ca820",
+    "clean": true
+  },
+  "provenance": {
+    "commit": "430cb9e5fe42df0f20f6d1d522d89004a7dc977d"
+  },
+  "program": "r81core",
+  "program_digest": "babe84e1a74108f33723c9f6444a7cc8f213b482f7d7f1f872e14e722f5d3c6f",
+  "exit": 0,
+  "ok": true,
+  "cases": [
+    {
+      "id": "core/P01-pure-lines",
+      "pass": true
+    },
+    {
+      "id": "core/P02-second-line-price",
+      "pass": true
+    },
+    {
+      "id": "core/P03-deep-unknown",
+      "pass": true
+    },
+    {
+      "id": "core/P04-nonfinite",
+      "pass": true
+    },
+    {
+      "id": "core/F04-release-time-before",
+      "pass": true
+    },
+    {
+      "id": "core/F04-release-time-after",
+      "pass": true
+    },
+    {
+      "id": "core/F04-release-time-cross",
+      "pass": true
+    },
+    {
+      "id": "merge/P01-genuine",
+      "pass": true
+    },
+    {
+      "id": "merge/P02-missing-unit",
+      "pass": true
+    },
+    {
+      "id": "merge/P03-foreign-digest",
+      "pass": true
+    },
+    {
+      "id": "merge/P04-duplicate-unit",
+      "pass": true
+    },
+    {
+      "id": "merge/F01-empty-results",
+      "pass": true
+    },
+    {
+      "id": "merge/F01-contradictory-verdict",
+      "pass": true
+    },
+    {
+      "id": "merge/F02-empty-required",
+      "pass": true
+    },
+    {
+      "id": "merge/F03-wrong-contract",
+      "pass": true
+    }
+  ],
+  "evidence_digest": "cd3161eb4d2a0c2b5b553da4489be8721a008beb5f723ef156f1e34d055993bb",
+  "failure_kind": "unknown",
+  "failure_why": "nincs mért környezeti akadály a nyers eredményben",
+  "ms": 567476,
+  "at": "2026-10-12T14:39:07.643Z",
+  "env_skipped": false
+}

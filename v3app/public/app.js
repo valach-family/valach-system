@@ -33,7 +33,34 @@ import { inviteNextKey } from './inviteText.mjs';
 
   const state = {
     me: null, page: 'overview', tabs: ['overview'], generation: 0, seq: 0,
+    /**
+     * HÁNYSZOR ALKALMAZTUK A SZERVER IGAZSÁGÁT (R206 — F206-02).
+     *
+     * A `seq` azt számolja, hány frissítés INDULT; ez azt, hány frissítés ALKALMAZOTT. A kettő
+     * NEM ugyanaz, és pontosan ezen a különbségen bukott el a korábbi alak: a `superseded`
+     * eredmény azt jelenti, hogy egy ÚJABB frissítés indult — amelyik akár MÁR alkalmazta is a
+     * mai nézetet. Az elavult hívó ebből nem következtethet bizonytalanságra (KUKA-202: az őr
+     * ott álljon, ahol a kár keletkezik).
+     */
+    appliedSeq: 0,
     ctx: { subject: null, book: null, bookName: null }, noticeSeq: 0, selfInitiated: false, afterCreate: null,
+    // R204: a kontextus NEM IGAZOLHATO — a frissites nem alkalmazta a szerver igazsagat, tehat a
+    // lap NEM allithatja tovabb, hogy KI ul itt. Ez HARMADIK allapot: nem belepve es nem kilepve
+    // (KUKA-012: az ures es az elerhetetlen nem ugyanaz). A frissites torli, amint ujra
+    // alkalmazott igazsaga van.
+    ctxUnconfirmed: false,
+    /**
+     * A FELFÜGGESZTETT MŰVELET, AMI MÉG VÁLASZRA VÁR (R206 — F206-01).
+     *
+     * A szerver MÁR igazolta a műveletet (a tagság létrejött), csak azt nem tudjuk, KI ül most a
+     * gépnél. A sikert tehát nem dobjuk el — az hamis tagadás volna (a SPEC §2: „az ismert,
+     * szerveren már sikeres műveletet ne mondd sikertelennek") —, de nem is adjuk át: itt áll a
+     * művelet ALANYA és KÖNYVE, és az állapot tisztázásakor EGY helyen derül ki, kinek szól
+     * (`resolveCtxPending` — KUKA-204 · KUKA-208: a kontextus PÁR).
+     */
+    ctxPending: null,
+    /** Fut-e eppen az allapot-ellenorzes (a gomb ilyenkor dolgozik — nincs parhuzamos kor). */
+    ctxRechecking: false,
     // A PANELEK TARTALMA ÁLLAPOT, NEM CSAK DOM — és a LEKÉRÉS NÉZETENKÉNT EGYSZER indul magától.
     // MÉRT LELET (R81, a saját böngésző-próbámon): a kötetlen válasz mondata után a lap
     // újrarajzolt, az újrarajzolás pedig ÚJRA kért — 700 ms alatt 33 kérés. A nemleges válasz
@@ -43,10 +70,18 @@ import { inviteNextKey } from './inviteText.mjs';
     // dönt mind a háromról — a Készletegyenlegről, a Termékkartonról és a Készletmozgásokról.
     access: { stock: { state: 'unknown' } },
     inviteToken: null, invite: null, authView: null, search: '', members: [], notice: null, resendReason: null,
+    // A NEM IGAZOLT KILÉPÉS NEVEZETT MONDATA (`KUKA-434`) — személyhez kötött, ezért a közös ürítőben szűnik meg.
+    signOutNotDone: null,
+    // EGYSZER HASZNÁLHATÓ ENGEDÉLY a futás új nézethez kötésére (`KUKA-435`): CSAK a nézetet mozdító,
+    // IGAZOLT feladat állítja be, és az első visszakötés elhasználja. ÁTMENET, nem ÁLLAPOT.
+    tourRebindOnce: null,
     membersTab: 'members', invites: null, processState: '',
     // R121 — MIT TUD MA EZ A FIÓK. A négy adatkör neve, a MA megadható halmaz és a plafon oka a
     // szerver /api/members válaszából jön: a felület nem tartja saját listát (KUKA-039).
-    scopeMeta: { known: [], grantable: [], blocked: [], reason: null, rule: null },
+    // ÉS A `measured` JELÖLŐ KIMONDJA, HOGY MÉRTÜNK-E (`KUKA-478`): üres tömb kétféle állapotot
+    // jelentett (nincs mit felkínálni VS még nem kérdeztük meg), és a felkínálás-kapu a MÁSODIKAT
+    // is nemleges válasznak vette. A nem mért állapotból nem következik nemleges válasz.
+    scopeMeta: { known: [], grantable: [], blocked: [], reason: null, rule: null, measured: false },
     samples: { document: null, documentFull: null, supplier: null },
     // A MEGKEZDETT KITÖLTÉS ÁLLAPOT, NEM CSAK DOM (FRM-01, R83/F83-02): a munkalap-váltás
     // újrarajzol, és az újrarajzolt űrlap üres volt — a lap „megőrizte a munkát" látszatával.
@@ -337,11 +372,32 @@ import { inviteNextKey } from './inviteText.mjs';
    *     `refreshMe` után dönt, és egy idegen nézőnek nem állítjuk vissza a futást.
    * A visszaállás IDEMPOTENS: átadás nélkül azonnal visszatér, tehát a plusz hívás nem költség.
    */
+  /**
+   * A FRISSÍTÉS VERDIKTJE — ÉS MIÉRT KELL (R204, MÉRVE a saját böngészőpróbámmal).
+   *
+   * A LELET. A `refreshMe`-nek KÉT korai kilépése van, és MINDKETTŐ úgy tér vissza, hogy a
+   * `state.me` a RÉGI emberé marad: a `seq`-eltérés (közben újabb frissítés indult) és a
+   * `status === 0` (az olvasó kérés nem jutott el). A hívó viszont nem tudta megkülönböztetni ezt
+   * a sikeres frissítéstől, és a `state.me`-ből döntött — tehát a RÉGI igazságból.
+   *
+   * MÉRVE (`tests/e2e/v3app-r204-kontextus.spec.mjs` R204-K1, vezérelt eseménysor): a beváltás
+   * válaszát visszatartva, közben MÁS ember belépve, és EGY `/api/me` kérést elvesztve a lap
+   * Dórának írta ki, hogy *„Elfogadtad a meghívást. Csatlakoztál ehhez a fiókhoz: Személyes
+   * fiók"* — egy műveletre, amit nem ő végzett —, és a fejlécben CARL címe állt. Pontosan az a
+   * hiba, amit az R112 a `state.me.subject_id !== r.subject_id` kapuval akart kizárni (KUKA-204):
+   * a kapu MEGVOLT, csak egy nem alkalmazott frissítés CARLT hasonlította CARLHOZ.
+   *
+   * MOSTANTÓL a frissítés KIMONDJA, alkalmazta-e a szerver igazságát. Aki a `state.me`-ből dönt,
+   * annak ELŐBB ezt kell megkérdeznie (KUKA-202: az őr ott álljon, ahol a kár keletkezik).
+   */
+  const NEM_FRISSULT = (why) => Object.freeze({ applied: false, why });
+  const FRISSULT = Object.freeze({ applied: true, why: null });
+
   async function refreshMe({ deferTourResume = false } = {}) {
     const seq = (state.seq += 1);
     const me = await api('GET', '/api/me');
-    if (seq !== state.seq) return;
-    if (me.status === 0) { notice(STATE.loadFailed, 'bad'); return; }
+    if (seq !== state.seq) return NEM_FRISSULT('superseded');
+    if (me.status === 0) { notice(STATE.loadFailed, 'bad'); return NEM_FRISSULT('unreachable'); }
     const prevSubject = state.ctx.subject;
     const prevBook = state.ctx.book;
     const prevBookName = state.ctx.bookName;
@@ -390,11 +446,72 @@ import { inviteNextKey } from './inviteText.mjs';
     }
     state.selfInitiated = false;
     state.me = me;
+    state.ctxUnconfirmed = false;   // van alkalmazott igazsag (R204)
+    state.appliedSeq += 1;          // ÉS EZT MEG IS SZÁMOLJUK (R206 — F206-02)
     render();
     if (changed) loadPageData();      // ÚJ nézet ⇒ ÚJ adat; a rajzolás maga nem kérdez
+    // A NEM IGAZOLT ÁLLAPOT EGY HELYEN SZŰNIK MEG (R206 — F206-01 · KUKA-003): akármelyik
+    // frissítés alkalmazta a szerver igazságát, a felfüggesztett művelet ITT kapja meg a
+    // válaszát — a rajzolás UTÁN, mert a mondat helye (`global-notice`) csak akkor létezik.
+    resolveCtxPending();
     // A PÁR MÁSIK FELE (F142-01). A rajzolás UTÁN: a következő lépés célja (pl. `nav-stock`) csak
     // a kész képernyőn mérhető. Átadás nélkül ez azonnal visszatér.
     if (!deferTourResume) await resumeTourAfterSwitch();
+    return FRISSULT;
+  }
+
+  /**
+   * A FELFÜGGESZTETT MŰVELET VÁLASZA — EGY HELYEN, A SZERVER IGAZOLT SZEMÉLYÉHEZ MÉRVE
+   * (R206 — F206-01 · F206-02).
+   *
+   * MIÉRT ITT, ÉS NEM A HÍVÓBAN. Az állapot HÁROM úton tisztázódhat: a felhasználó megnyomja az
+   * állapot-ellenőrzést, egy MÁR FUTÓ újabb frissítés megérkezik, vagy a lap bármely más
+   * frissítése alkalmazza a szerver igazságát. Ha a válasz a hívónál élne, a másik két úton
+   * NÉMÁN maradna el (`KUKA-218`: a nézethez kötött tár EGY helyen ürül) — és pontosan ez a
+   * hiba-osztály szülte az R204-es leletet is.
+   *
+   * ÉS A SIKER ANNAK SZÓL, AKINEK A SZERVER KISZOLGÁLTA (`KUKA-204`). Ha MÁS ember van a
+   * munkamenetben, a régi művelet eredménye NEM száll át rá: a lap a személyváltást mondja ki,
+   * a tagság tényét pedig nem tagadja le — az a szerveren áll, nem ettől a mondattól.
+   */
+  function resolveCtxPending() {
+    const p = state.ctxPending;
+    if (!p) return;
+    state.ctxPending = null;
+    if (p.what !== 'invite_redeemed') return;
+    const same = Boolean(state.me && p.subject_id && state.me.subject_id === p.subject_id);
+    if (!same) { notice(UI.otherPersonHere, 'warn'); return; }
+    // A CSATLAKOZOTT FIÓK NEVÉT A MŰVELET KÖNYVÉBŐL vesszük, nem a pillanatnyi nézetből (R112).
+    const joined = (state.me.workspaces || []).find((x) => x.book_id === p.book_id);
+    const nev = joined ? accountLabel({ name: joined.name, personal: joined.personal === true }) : accountName();
+    notice(`${UI.inviteAcceptedLead} ${tpl('accountJoined', { nev })} ${UI.inviteJoinedScopeNote}`, 'ok');
+  }
+
+  /**
+   * AZ ÁLLAPOT ELLENŐRZÉSE — A NEM IGAZOLT KONTEXTUS MŰKÖDŐ FOLYTATÁSA (R206 — F206-01).
+   *
+   * EGY KÖR FUT EGYSZERRE, és ez nem kényelmi döntés: két párhuzamos kérdés közül a MÁSODIK
+   * léptetné előre a `seq`-et, vagyis a felhasználó saját kattintása tenné elavulttá a saját
+   * előző kérdését — a lap pedig „újabb frissítés fut" indokkal maradna bizonytalan. Nincs
+   * időzítő, nincs automatikus újrapróbálkozás és nincs végtelen várakozás: EGY kérdés, EGY
+   * válasz, és a döntés a felhasználónál marad.
+   */
+  async function recheckContext() {
+    if (state.ctxRechecking) return;
+    state.ctxRechecking = true;
+    renderHeader();                       // a gomb MOST dolgozik — ez is a válasz része
+    const appliedBefore = state.appliedSeq;
+    try {
+      const r = await refreshMe();
+      // AZ ÚJABB FRISSÍTÉS IS IGAZOLÁS (F206-02): ha közben EGY MÁSIK frissítés alkalmazta a
+      // szerver igazságát, ez a kör NEM mondhatja újra nem igazoltnak az állapotot.
+      if (r.applied || state.appliedSeq > appliedBefore) return;
+      state.ctxUnconfirmed = true;
+      notice(r.why === 'superseded' ? UI.contextRecheckBusy : UI.contextRecheckFailed, 'warn');
+    } finally {
+      state.ctxRechecking = false;
+      renderHeader();
+    }
   }
 
   /** Létezik-e ez az oldal az ÚJ nézetben? (A tag nem lát Beállítások-oldalt — UX-09.) */
@@ -555,20 +672,90 @@ import { inviteNextKey } from './inviteText.mjs';
   }
 
   // ── FEJLÉC ──────────────────────────────────────────────────────────────────────────────────
+  /**
+   * A KIJELENTKEZÉS EGYBEN A SZEREPLŐ-VÁLTÓ HORGONY IS (R176 §1 — `data-tour-anchor="actor-switch"`).
+   *
+   * MIÉRT ÉPP EZ AZ ELEM. A szemantikus horgony szerződése: „az a vezérlő, amivel a néző átvált a
+   * MÁSIK szereplőre" — és felületenként MÁS elem tölti be (`elementFor` a `tour.mjs`-ben). A
+   * bemutató lapján a sáv rövidítő gombja; a VALÓDI alkalmazás-héjban a KIJELENTKEZÉS, mert itt a
+   * váltás valódi: az egyik ember kilép, a másik a SAJÁT fiókjával belép.
+   *
+   * MEGSZEMÉLYESÍTŐ KAPCSOLÓ EZZEL NEM KELETKEZIK — az R176 §1 kimondottan nem is kér ilyet. A gomb
+   * ugyanaz a kijelentkezés, ami eddig is volt; most a bemutató is meg tudja NEVEZNI. A váltás
+   * lezárását továbbra sem a kattintás adja: a `switch_actor` lépés feladathoz kötött
+   * (`actor.switched`), és csak a TÉNYLEGESEN más alany + fiók igazolja (`actorSwitchReady`).
+   *
+   * ÉS EZ NYITJA MEG A KÉT SZEREPLŐS TÖRTÉNETET A VALÓDI FELÜLETEN. A felkínálás kapuja a lépés
+   * `target`-jét kéri a felülettől (`surface_anchors`), tehát horgony nélkül a történet éles héjban
+   * NEM volt indítható — a bemutató-lapra szorult, aminek a háttere CSONK, a csonk zöldje pedig nem
+   * a határ zöldje (`KUKA-227`). A `requires_demo` kapu VÁLTOZATLAN: éles üzemben (VS_DEMO nélkül)
+   * a történet továbbra sem indítható, mert ott a két élő munkamenet nincs együtt kézben.
+   */
   function renderHeader() {
     const me = state.me;
     const loggedIn = !!(me && me.subject_id);
-    const list = (me && me.workspaces) || [];
-    setText(byTest('header-workspace'), loggedIn ? (accountName() || UI.chooseAccount) : UI.noAccountShort);
-    setText(byTest('header-subject'), loggedIn ? (me.email || me.subject_id) : UI.notSignedIn);
-    setText(byTest('avatar'), loggedIn ? String(me.email || '?').slice(0, 2).toUpperCase() : '–');
+    /**
+     * A NEM IGAZOLT ÁLLAPOTNAK EGY JELENTÉSE VAN, NEM HÁROM FELIRATA (R206 — F206-01, a külső
+     * ellenőrző fél lelete, FORRÁSBÓL igazolva).
+     *
+     * A LELET. Az R204-es alak a `ctxUnconfirmed` ágon HÁROM mezőt írt át (fiók · személy ·
+     * monogram), a többi sor viszont UGYANEBBEN a függvényben a RÉGI `me`-ből élt tovább: a
+     * képernyőolvasónak szánt „ki nevében járunk el" és a cím-megerősítés a régi emberé maradt,
+     * a fiókválasztó a régi fióklistát kínálta, a profilmenü pedig kiírta a régi e-mail-címet.
+     * Vagyis a lap EGYSZERRE állította, hogy nem tudjuk, ki ül itt, és hogy ő CARL — belső
+     * ellentmondás, és épp azt a hamis állítást tartotta életben, amiért a harmadik állapot
+     * megszületett (`KUKA-210`: a felirat EGY forrásból jön · `KUKA-208`: a fél-megerősítés a
+     * másik felét láthatatlanná teszi).
+     *
+     * A JAVÍTÁS NEM ÚJ FELIRAT, HANEM EGY FELOLDÓ: minden személyhez kötött sor ettől a
+     * `identityKnown`-tól függ, nem a puszta `loggedIn`-tól. Így egy ÚJ személy-függő sor sem
+     * születhet bélyeg nélkül (`KUKA-227`), mert nincs hova „elfelejteni" a kérdést.
+     *
+     * AMIT EZ NEM TESZ: nem jog-mátrix és nem kijelentkeztetés. A jogot továbbra is KIZÁRÓLAG a
+     * szerver dönti el; a tagság szerveroldali helyességéhez ez a függvény nem ér hozzá.
+     */
+    const unconfirmed = state.ctxUnconfirmed === true;
+    const identityKnown = loggedIn && !unconfirmed;
+    const list = (identityKnown && me.workspaces) || [];
+    // R204 — A FEJLEC NEM ALLITHAT OLYAT, AMIT NEM TUDUNK IGAZOLNI (MERVE).
+    // A LELET: egy elvesztett `/api/me` utan a fejlec TOVABB mutatta az ELOZO ember cimet,
+    // mikozben a munkamenet mar a MASIKE volt — a SPEC §2 pedig azt keri, hogy a szemely, a
+    // fejlec, az aktiv nezet es az ertesites UGYANAZT a kontextust tukrozze. A regi nev
+    // megtartasa itt nem ovatossag, hanem hamis allitas; a „nincs belepve” szinten az volna.
+    // Ezert a HARMADIK allapotot mondjuk ki, es a teendot is (KUKA-201).
+    if (unconfirmed) {
+      setText(byTest('header-workspace'), UI.contextUnconfirmedShort);
+      setText(byTest('header-subject'), UI.contextUnconfirmedShort);
+      setText(byTest('avatar'), '?');
+    } else {
+      setText(byTest('header-workspace'), loggedIn ? (accountName() || UI.chooseAccount) : UI.noAccountShort);
+      setText(byTest('header-subject'), loggedIn ? (me.email || me.subject_id) : UI.notSignedIn);
+      setText(byTest('avatar'), loggedIn ? String(me.email || '?').slice(0, 2).toUpperCase() : '–');
+    }
     // KI NEVÉBEN JÁRUNK EL, és a cím-megerősítés állapota: képernyőolvasónak mindig elérhető, a szemnek
     // a Saját profil / Belépés és biztonság oldalon (R81 §3.3). A mondat a SZERVER TÉNYEIBŐL, de a
     // NYELVCSOMAG szavaival épül (R112): a szerver kész mondata magyar volt, nyers szerepkóddal.
-    setText(byTest('header-acting-as'), loggedIn ? actingAsText(me) : '—');
-    setText(byTest('channel-proven'), loggedIn ? (me.channel_proven ? UI.yes : UI.no) : '—');
-    show(byTest('account-switcher'), loggedIn);
-    show(byTest('profile'), loggedIn);
+    setText(byTest('header-acting-as'), identityKnown ? actingAsText(me)
+      : (unconfirmed ? UI.contextUnconfirmedActing : '—'));
+    setText(byTest('channel-proven'), identityKnown ? (me.channel_proven ? UI.yes : UI.no) : '—');
+    show(byTest('account-switcher'), identityKnown);
+    show(byTest('profile'), identityKnown);
+    /**
+     * ÉS A NEMLEGES ÁLLAPOT VISZI A MŰKÖDŐ FOLYTATÁST (`KUKA-201`, R206 — F206-01).
+     *
+     * A régi alak egyetlen teendője a „tölts be újra a lapot" mondat volt — vagyis a felhasználó
+     * eszközére bíztuk azt, amit a lap maga is meg tud kérdezni. A gomb a fiókválasztó HELYÉN áll
+     * (az ilyenkor rejtve van), tehát nem kell keresni; a felirata a nyelvcsomagból jön (SZO-01),
+     * és amíg a kérdés fut, a gomb ezt KI IS MONDJA — a néma várakozás ugyanaz a hiba volna
+     * (`KUKA-228`: amit a lap nem nyom meg helyettünk, arra VÁRNI kell).
+     */
+    const slot = byTest('ctx-recheck-slot');
+    if (slot) {
+      slot.innerHTML = unconfirmed
+        ? `<button type="button" class="plain" data-action="ctx-recheck" data-testid="ctx-recheck"
+            ${state.ctxRechecking ? 'disabled' : ''}>${esc(state.ctxRechecking ? UI.contextRecheckRunning : UI.contextRecheck)}</button>`
+        : '';
+    }
 
     const personal = list.filter((w) => w.personal);
     const shared = list.filter((w) => !w.personal);
@@ -580,7 +767,7 @@ import { inviteNextKey } from './inviteText.mjs';
       </button></li>`;
     const menu = byTest('ws-list');
     if (menu) {
-      menu.innerHTML = loggedIn ? `
+      menu.innerHTML = identityKnown ? `
         ${personal.length ? `<div class="group">${esc(UI.groupPersonal)}</div><ul class="menu-list">${personal.map(line).join('')}</ul>` : ''}
         ${shared.length ? `<div class="group">${esc(UI.groupShared)}</div><ul class="menu-list">${shared.map(line).join('')}</ul>` : ''}
         <div class="divider"></div>
@@ -588,14 +775,15 @@ import { inviteNextKey } from './inviteText.mjs';
     }
     const pm = byTest('profile-menu');
     if (pm) {
-      pm.innerHTML = loggedIn ? `
+      pm.innerHTML = identityKnown ? `
         <div class="identity"><strong>${esc(me.email || me.subject_id)}</strong>
           <small data-testid="profile-menu-channel">${esc(me.channel_proven ? UI.channelProven : UI.channelPending)}</small></div>
         ${me.channel_proven ? '' : `<button type="button" data-auth="resend" data-testid="profile-menu-resend">${esc(UI.resendAsk)}</button>`}
         <button type="button" data-go="profile" data-testid="profile-menu-profile">${PAGE.profile}</button>
         <button type="button" data-go="security" data-testid="profile-menu-security">${PAGE.security}</button>
         <div class="divider"></div>
-        <button type="button" data-action="logout" data-testid="logout">${esc(UI.logout)}</button>` : '';
+        <button type="button" data-action="logout" data-testid="logout"
+          data-tour-anchor="actor-switch">${esc(UI.logout)}</button>` : '';
     }
   }
 
@@ -631,9 +819,7 @@ import { inviteNextKey } from './inviteText.mjs';
     state.notice = null;
     if (page !== 'overview') state.afterCreate = null;
     if (!state.tabs.includes(page)) state.tabs.push(page);
-    const sw = byTest('account-switcher'); if (sw) sw.open = false;
-    const pr = byTest('profile'); if (pr) pr.open = false;
-    setNavOpen(false);
+    closeHeaderOverlays();
     render();
     loadPageData();
   }
@@ -903,7 +1089,28 @@ import { inviteNextKey } from './inviteText.mjs';
    * okból jött nézet-változás is — új tár felvételekor itt az egyetlen hely, amit bővíteni kell
    * (KUKA-003: a több helyen igaz szabály EGY helyen él).
    */
-  function resetViewCaches() {
+  /**
+   * A FEJLÉC NYITOTT TAKARÓI IS NÉZETHEZ KÖTÖTT ÁLLAPOT (R176 §1 — SAJÁT LELET, MÉRVE 390 px-en).
+   *
+   * A LELET. A `go()` eddig mindhármat becsukta (fiókválasztó · profilmenü · ☰ menü), a SZEMÉLY
+   * VÁLTÁSA viszont nem: a `doLogout` és a belépés csak az ADATOT ürítette. A `details` elemek a
+   * sablonban állnak, a rajzolás csak a BELSEJÜKET írja újra — tehát a `open` attribútum túlélte a
+   * kilépést ÉS a következő ember belépését. Asztali nézetben ez csak kósza nyitott menü; 390
+   * px-en MÉRVE kár: a nyitott profilmenü pontosan a fiókválasztó nyitója fölé ül
+   * (`elementFromPoint` → `div#profile-menu`), tehát a következő ember RÁ SEM TUD kattintani arra a
+   * vezérlőre, amire az útmutató mutat (KUKA-011 · KUKA-041 · TUR-03: a buborék és a takaró nem
+   * ülhet rá arra, amire mutat). A `details` nyitva maradása ráadásul az ELŐZŐ ember kattintásának
+   * a nyoma a KÖVETKEZŐ ember képernyőjén.
+   *
+   * Ezért a zárás ONNAN megy, ahol minden nézethez kötött tár ürül (KUKA-218), és a három meglévő
+   * pont UGYANEZT hívja — egy szabály, egy otthon (KUKA-003 · KUKA-039).
+   */
+  function closeHeaderOverlays() {
+    const sw = byTest('account-switcher'); if (sw) sw.open = false;
+    const pr = byTest('profile'); if (pr) pr.open = false;
+    setNavOpen(false);
+  }
+  function resetViewCaches({ kilepes = false } = {}) {
     // A SEGÉD ÁLLAPOTA IS NÉZETHEZ KÖTÖTT (KUKA-218: minden nézethez kötött tár EGY helyen ürül).
     // A beszélgetés, a tudás-index, az engedélyezett műveletek és a futó bemutató MIND a megnyitáskori
     // személy + fiók párhoz tartozik — a fiókváltás vagy a másik ember belépése után egyik sem élhet
@@ -911,16 +1118,32 @@ import { inviteNextKey } from './inviteText.mjs';
     // kitöltését és beszélgetését").
     state.chat = emptyChat();
     state.astStatus = null;
+    state.signOutNotDone = null;   // a nem igazolt kilépés mondata is a személyhez tartozik (KUKA-218)
+
     state.helpIndex = null;
     // A DEKLARÁLT VÁLTÁS-HATÁRON a futás ÁTADÓDIK (ACT-01) — minden máson ugyanúgy elvész.
-    saveTourHandover();
+    saveTourHandover({ kilepes });
     state.tour = null; state.tourBlocked = null; state.tourFinished = false; state.tourAborted = null;
+    /**
+     * A VISSZAKÖTÉSI JEGY A FUTÁSSAL UTAZIK, NEM A GYORSÍTÓTÁRAKKAL (R176 · `KUKA-435`, MÉRVE).
+     *
+     * A LELET A SAJÁT JAVÍTÁSOMON: a jegyet előbb ITT, a közös ürítőben töröltem — és ezzel a
+     * LEGITIM esetet buktattam meg. A mérés kimondta: a `invite.redeemed` igazolása UTÁN a
+     * `refreshMe` észleli a könyv-váltást, át­vesz ezen az ürítőn, átadja a futást a rekeszbe, és a
+     * visszakötés CSAK A VISSZAÁLLÁS UTÁN következik — egy itt törölt jegy tehát SOSEM érne oda
+     * (MÉRVE: `R176-K1` a 19. lépésnél `contextChanged`-re futott).
+     *
+     * EZÉRT: a jegy a REKESZBE kerül (`saveTourHandover`), és a visszaállás onnan veszi elő. Itt
+     * csak akkor tűnik el, ha átadás NEM született — vagyis a futás VÉGLEG elveszétt. Így a jegy
+     * soha nem éli túl azt a futást, amihez tartozik (`KUKA-218` szellemében).
+     */
+    if (!peekTourHandover()) state.tourRebindOnce = null;
     state.help = { open: false, view: 'ask', topic: null, search: '', faqSearch: '', faqOpen: null };
     tourMod.clearHighlight();
     closeHelp();
     state.members = [];
     state.panels = { stock: null, price: null, members: null };
-    state.scopeMeta = { known: [], grantable: [], blocked: [], reason: null, rule: null };
+    state.scopeMeta = { known: [], grantable: [], blocked: [], reason: null, rule: null, measured: false };
     state.samples = { document: null, documentFull: null, supplier: null };
     state.access = { stock: { state: 'unknown' } };
     state.invites = null;
@@ -933,6 +1156,7 @@ import { inviteNextKey } from './inviteText.mjs';
      * semmit nem zár le. A rajzolás ugyanabban a lépésben történik, mint az ürítés, mert a kettő
      * EGY tény két fele (KUKA-218: minden nézethez kötött tár EGY helyen ürül — a képével együtt).
      */
+    closeHeaderOverlays();
     renderTour();
   }
 
@@ -1170,6 +1394,13 @@ import { inviteNextKey } from './inviteText.mjs';
     tourRecheck();
   }
 
+  /**
+   * A FUTÓ LISTA-MÉRÉS FOGANTYÚJA (`KUKA-478`): a `loadPageData()` nem várja meg a betöltést
+   * (helyesen: a rajzolás és a lekérés két külön döntés — `KUKA-209`), a meghívó-űrlap viszont
+   * a MÉRT készletre zár. Ezért a futó mérést MEGVÁRJUK, és nem indítunk másodikat.
+   */
+  let membersLoad = null;
+
   async function loadMembers() {
     const v = view();
     const gen = state.generation;
@@ -1184,7 +1415,13 @@ import { inviteNextKey } from './inviteText.mjs';
       known: Array.isArray(r.known_scopes) ? r.known_scopes : [],
       grantable: Array.isArray(r.grantable_scopes) ? r.grantable_scopes : [],
       blocked: Array.isArray(r.blocked_scopes) ? r.blocked_scopes : [],
+      // A SZEREP-PLAFON IS A KISZOLGÁLÓTÓL JÖN (`KUKA-472`): a meghívó-űrlap EBBŐL rajzol.
+      roles: Array.isArray(r.grantable_roles) ? r.grantable_roles : [],
+      blockedRoles: Array.isArray(r.blocked_roles) ? r.blocked_roles : [],
       reason: r.grantable_reason ?? null, rule: r.startup_rule_version ?? null,
+      // INNENTŐL MÉRT ÁLLAPOT (`KUKA-478`): a két készlet a KISZOLGÁLÓ válaszából áll, tehát az
+      // ürességük MÉRT tény — nem „még nem kérdeztük meg".
+      measured: true,
     };
     const cell = (m, k) => (m.effective
       ? (m.scopes && m.scopes[k] && m.scopes[k].granted ? `<span class="badge ok">${esc(UI.canView)}</span>` : `<span class="badge wait">${esc(UI.notAllowed)}</span>`)
@@ -1221,6 +1458,67 @@ import { inviteNextKey } from './inviteText.mjs';
    */
   // A HORDOZOTT LEZÁRÁS IS ÚJRARAJZOLANDÓ (F93-01): ha közben modális panel nyílik, a buboréknak
   // oda kell költöznie — különben a lezárás a párbeszéd MÖGÖTT ragad, ahol nem kattintható.
+  /**
+   * …ÉS AMIT AZ ELŐZŐ LÉPÉS IGAZOLT SIKERE MOZDÍTOTT EL, AZ NEM „a néző elkalandozott" (R176 §1).
+   *
+   * A LELET, MÉRVE A VALÓDI FELÜLETEN. A meghívás ELFOGADÁSA átléptet: a kiszolgáló a belépőt más
+   * könyvbe állítja, de a nézet-frissítés az igazolás UTÁN fut be. A következő lépés ezért MÁS
+   * nézetet látott, mint amihez a futás kötve volt, és az alany-váltás őre NEVEZETTEN megállította a
+   * bemutatót: „Közben másik fiókra vagy felhasználóra váltottál." A 19 lépésből 18 futott le, és a
+   * 19. — épp a végeredmény — szakadt meg. Ez az R164/3 átadási jegyzetében NEVESÍTVE nyitva hagyott
+   * harmadik állapot-szivárgás.
+   *
+   * A SZABÁLY, ÉS AMIÉRT NEM GYENGÍTÉS. Újrakötünk, de CSAK akkor, ha mind a három igaz:
+   *   · az ELŐZŐ lépés FELADATHOZ kötött volt (`task`) — tehát a szerver igazolta a sikert;
+   *   · és az az előző lépés `done` állapotban van;
+   *   · és a MOSTANI lépés nem deklarált váltás-határ (azt a `tourObserveActorSwitch` kezeli).
+   * Vagyis pontosan azt az egy esetet engedjük át, amiben a nézetet a BEMUTATÓ SAJÁT, IGAZOLT
+   * lépése mozdította el. Minden más úton a váltás ugyanúgy megállít, mint eddig (`KTX-03` ·
+   * `KUKA-204` · `KUKA-211`), és a `rebindView` ugyanaz az EGY feloldó (`KUKA-003`).
+   */
+  function tourRebindAfterOwnSuccess() {
+    const run = state.tour;
+    if (!run) return;
+    // A JEGY NÉLKÜL NINCS VISSZAKÖTÉS (`KUKA-435`): a maradó `done` állapot nem bizonyít okozatisságot.
+    if (!state.tourRebindOnce) return;
+    const most = view();
+    const regi = run.view || {};
+    // MÉG NEM MOZDULT EL A NÉZET: a jegy MEGMARAD — az igazolás a frissítés ELŐTT fut be (mérve).
+    if ((most.book ?? null) === (regi.book ?? null) && (most.subject ?? null) === (regi.subject ?? null)) return;
+    const mostani = run.steps[run.at];
+    // A DEKLARÁLT VÁLTÁS-HATÁR NEM IDE TARTOZIK (azt a `tourObserveActorSwitch` kezeli) — és a jegy
+    // MEGMARAD: a váltás-kapu úgyis összehangolja a nézetet, utána már nem lesz mit átkötni.
+    if (!mostani || mostani.switch_actor === true) return;
+    /**
+     * A JEGY A VALÓDI VISSZAKÖTÉSNÉL FOGY EL — NEM ELŐBB (R176, MÉRVE a saját javításomon).
+     *
+     * A LELET: az első alakom a jegyet AKKOR vette el, amikor a nézet elmozdult, bármi lett is az
+     * ítélet. A visszaállás viszont a futást MÉG a feladat-lépésen adja vissza (`run.at` = a
+     * `invite.redeemed` lépés), és a visszakötés csak a KÖVETKEZŐ rajzoláson — a léptetés után —
+     * esedékes. Az első rajzolás tehát elvette a jegyet anélkül, hogy használta volna, és a
+     * 19 lépésből a 19. ismét `contextChanged`-re futott (MÉRVE: `R176-K1`).
+     *
+     * ÉS AMIÉRT A „korábbi lépés `done`" FELTÉTEL ELMARADT: a jegy UGYANAZT mondja ki, csak
+     * pontosabban — nevezi a feladatot, és CSAK a zárt készletből adható ki. A maradó állapotra
+     * építő feltétel ettől nem lesz szigorúbb, csak tevődik — és éppen az volt a lelet.
+     */
+    /**
+     * ÉS CSAK AKKOR, HA A JEGYET SZERZŐ LÉPÉS MÁR MÖGÖTTÜNK VAN (R176, MÉRVE a saját javításomon).
+     *
+     * A LELET: a „korábbi lépés feladata `done`" feltételt elhagytam, és ezzel a visszakötés MÁR A
+     * FELADAT-LÉPÉSEN megtörtént — a visszaállás ugyanis OTT adja vissza a futást. A `run.view`
+     * így előre átvette az ÚJ fiókot, és a KÖVETKEZŐ, deklarált FIÓK-váltó lépés (`s9`) sosem
+     * teljesült: a kapu már nem látott változást (MÉRVE: `R176-K2` a 10. lépésnél, 9/20-nál ragadva).
+     *
+     * A HELYES FELTÉTEL TEHÁT KÉT RÉSZŰ, és a másodikat a jegy PONTOSÍTJA, nem pótolja: az
+     * ELŐZŐ lépés teljesítette ÉPPEN AZT a feladatot, amire a jegy szól. Egy más feladat `done`
+     * állapota nem jogosít — és amíg a léptetés nem történt meg, a jegy MEGMARAD.
+     */
+    const elozo = run.at > 0 ? run.steps[run.at - 1] : null;
+    if (!elozo || elozo.state !== 'done' || elozo.task !== state.tourRebindOnce.task) return;
+    state.tourRebindOnce = null;
+    tourMod.rebindView(run, { view: most, role: state.me && state.me.current_role });
+  }
   function tourRecheck() {
     // A VÁLTÁS MEGFIGYELÉSE A RAJZOLÁS ELŐTT (ACT-01): a néző-váltás után az app rajzol újra, és a
     // lépés ekkor igazolódik — nem egy gomb megnyomásakor. A megfigyelés IDEMPOTENS: ha nincs futó
@@ -1265,13 +1563,55 @@ import { inviteNextKey } from './inviteText.mjs';
       <button type="button" class="x" data-action="panel-close" aria-label="${esc(UI.close)}">×</button></div>`;
   }
 
-  function invitePanel() {
+  async function invitePanel() {
+    /**
+     * ELŐBB A MÉRÉS, UTÁNA A RAJZOLÁS (`KUKA-478` · `KUKA-209`).
+     *
+     * A LELET, MÉRVE (kötelező böngészős kapu, `R89-07`): a segéd „készítsd elő a meghívást"
+     * folytatása a munkatárs-oldalra VISZ és UGYANABBAN a pillanatban megnyitja az űrlapot — a
+     * lista válasza viszont csak KÉSŐBB érkezik meg. A készlet-kapuk (`KUKA-472` · `KUKA-476`)
+     * ezért egy FRISS tulajdonosnak is azt mondták, hogy nincs mit felkínálni: a nem mért
+     * állapotot nemleges válasznak vették. A mérés a lista SAJÁT betöltőjével történik, tehát a
+     * lap és a próba ugyanazt futtatja (`KUKA-207`), és a nemleges válasz CSAK mért üres
+     * készletre áll (`KUKA-049`: a „nem tudom" nem „jó lesz", de nem is „nem").
+     */
+    if (!(state.scopeMeta && state.scopeMeta.measured) && state.page === 'members') {
+      if (membersLoad) await membersLoad;          // a MÁR FUTÓ mérést megvárjuk
+      if (!(state.scopeMeta && state.scopeMeta.measured)) await loadMembers();
+    }
+    /**
+     * A SZEREP-VÁLASZTÉK A MEGMÉRT PLAFONBÓL JÖN (`KUKA-472` · `D-VS-3254`).
+     *
+     * A LELET: az adatkör-választék már a plafonból jött, a SZEREP-választék viszont BEÉGETVE
+     * két opciót rajzolt — egy delegált kezelő, akinek a plafonja `admin`-t nem enged, felkínálva
+     * látta, és a kiadás nevezetten bukott volna. ÜRES plafonnál NINCS mit felkínálni: ilyenkor a
+     * NEVEZETT mondat áll az űrlap helyén, teendővel (`KUKA-201` · `KUKA-041`).
+     */
+    const szerepek = (state.scopeMeta && Array.isArray(state.scopeMeta.roles) ? state.scopeMeta.roles : [])
+      .filter((r) => typeof r === 'string' && r);
+    /**
+     * ÉS AZ ADATKÖR-KÉSZLET IS A MÉRT PLAFONBÓL JÖN, KITALÁLT TARTALÉK NÉLKÜL (`KUKA-476` ·
+     * külső review, Codex, P2).
+     *
+     * A LELET: egy delegált kezelőnek lehet ÉRVÉNYES szerep-plafonja ÜRES adatkör-plafon mellett.
+     * Az űrlap ilyenkor KINYÍLT (a szerep-készlet nem volt üres), az adatkör-választék pedig egy
+     * BEÉGETETT `keszlet`/`arak` tartalékra esett — minden beküldést az `inviteColleague`
+     * `outside_basis_scopes`-szal utasított volna el. A kitalált tartalék tehát pontosan azt a
+     * hamis gombot állította vissza, amit a plafon-mérés megszüntetett (`KUKA-041` · `KUKA-049`).
+     */
+    const korok = (state.scopeMeta && Array.isArray(state.scopeMeta.grantable) ? state.scopeMeta.grantable : [])
+      .filter((k) => typeof k === 'string' && k);
+    if (!szerepek.length || !korok.length) {
+      openPanel(panelHead(UI.inviteTitle, UI.inviteLead)
+        + `<p class="notice" data-testid="invite-blocked">${esc(reasonText((state.scopeMeta && state.scopeMeta.reason) || 'generic'))}</p>`);
+      return;
+    }
     openPanel(panelHead(UI.inviteTitle, UI.inviteLead)
       + `<form class="form" data-testid="invite-form">
         <label>${esc(UI.email)}<input type="email" name="email" required data-testid="invite-email" autocomplete="off" placeholder="pelda@example.test"></label>
-        <label>${esc(UI.role)}<select name="role" data-testid="invite-role"><option value="user">${esc(ROLE.user)}</option><option value="admin">${esc(ROLE.admin)}</option></select>
+        <label>${esc(UI.role)}<select name="role" data-testid="invite-role">${szerepek.map((r) => `<option value="${esc(r)}">${esc(ROLE[r] || r)}</option>`).join('')}</select>
           <small>${esc(STATE.inviteRoleHelp)}</small></label>
-        <label>${esc(STATE.inviteScopeQuestion)}<select name="scope" data-testid="invite-scope">${(state.scopeMeta.grantable.length ? state.scopeMeta.grantable : ['keszlet', 'arak']).map((k) => `<option value="${esc(k)}">${esc(SCOPE[k] || k)}</option>`).join('')}</select>
+        <label>${esc(STATE.inviteScopeQuestion)}<select name="scope" data-testid="invite-scope">${korok.map((k) => `<option value="${esc(k)}">${esc(SCOPE[k] || k)}</option>`).join('')}</select>
           <small>${esc(STATE.inviteScopeHelp)}</small></label>
         <div class="buttonrow"><button type="submit" class="primary" data-testid="invite-submit">${esc(UI.inviteCreate)}</button>
           <button type="button" data-action="panel-close">${esc(UI.cancel)}</button></div>
@@ -1304,8 +1644,12 @@ import { inviteNextKey } from './inviteText.mjs';
         : tiltott
         ? `<span class="badge gray" data-testid="member-scope-blocked-${esc(k)}">${esc(UI.scopeBlocked)}</span>`
         : (van
-          ? `<button type="button" class="danger" data-action="scope-revoke" data-subject="${esc(id)}" data-scope="${esc(k)}"
-               data-testid="member-scope-revoke-${esc(id)}-${esc(k)}">${esc(UI.scopeRevoke)}</button>`
+          ? (m.rights_alterable === false
+          // A MEGVONÁS `alter_right` HATÁSKÖRT KÍVÁN (`KUKA-473`): hatáskör nélkül a NEVEZETT
+          // mondat áll a gomb helyett — az ÁLLAPOT továbbra is látszik, csak nem nyúlhat hozzá.
+          ? `<span class="badge gray" data-testid="member-scope-revoke-blocked-${esc(k)}">${esc(reasonText('authority_not_established'))}</span>`
+          : `<button type="button" class="danger" data-action="scope-revoke" data-subject="${esc(id)}" data-scope="${esc(k)}"
+               data-testid="member-scope-revoke-${esc(id)}-${esc(k)}">${esc(UI.scopeRevoke)}</button>`)
           : `<button type="button" data-action="scope-grant" data-subject="${esc(id)}" data-scope="${esc(k)}"
                data-testid="member-scope-grant-${esc(id)}-${esc(k)}">${esc(UI.scopeGrant)}</button>`);
       return `<div class="splitline" data-testid="member-scope-row-${esc(k)}"><div><strong>${esc(SCOPE[k] || k)}</strong>
@@ -1322,8 +1666,13 @@ import { inviteNextKey } from './inviteText.mjs';
       ${m.effective ? `<p class="muted" style="font-size:13px">${esc(tpl('scopeOnlyHere', { nev: accountName() }))}</p>
       <div class="divider"></div><h3>${esc(UI.accountAccess)}</h3>
       <p class="muted">${esc(STATE.revokeSectionLead)}</p>
-      <button type="button" class="danger" data-action="revoke-start" data-subject="${esc(id)}"
-        data-tour-anchor="member-revoke" data-testid="member-revoke-${esc(id)}">${esc(UI.revokeBusinessAccess)}</button>` : ''}
+      ${/* A GOMB CSAK AKKOR, HA A KISZOLGÁLÓ SZERINT VÉGREHAJTHATÓ (`KUKA-473`): a megvonás
+            `alter_right` hatáskört kíván, amit a tagság — akár `admin` — nem ad. Hatáskör nélkül a
+            NEVEZETT mondat áll a gomb helyén, tehát a kezelő tudja, mi a teendő (`KUKA-201`). */''}
+      ${m.rights_alterable === false
+        ? `<p class="notice" data-testid="member-revoke-blocked">${esc(reasonText('authority_not_established'))}</p>`
+        : `<button type="button" class="danger" data-action="revoke-start" data-subject="${esc(id)}"
+        data-tour-anchor="member-revoke" data-testid="member-revoke-${esc(id)}">${esc(UI.revokeBusinessAccess)}</button>`}` : ''}
       ${
         // R132 §3/§6 — AZ ÚJBÓLI BELÉPÉS HARMADIK, KÜLÖN MEGNEVEZETT MŰVELET. A gomb CSAK akkor
         // jelenik meg, ha a SZERVER szerint ma ajánlható (`reinvitable`) — a négy határ
@@ -1395,12 +1744,37 @@ import { inviteNextKey } from './inviteText.mjs';
     if (!m) return;
     state.reinviteOperationId = newOperationId();
     const kit = m.email || m.subject_id;
-    const korok = (state.scopeMeta && state.scopeMeta.grantable && state.scopeMeta.grantable.length)
-      ? state.scopeMeta.grantable : ['keszlet'];
+    /**
+     * ÉS AZ ADATKÖR-KÉSZLET ITT SEM TALÁLHATÓ KI (`KUKA-476` osztálya, saját lelet a `KUKA-478`
+     * megmérésekor): a régi alak üres készletnél egy BEÉGETETT `['keszlet']`-re esett, vagyis
+     * felkínált egy adatkört, amit az írás-út `outside_basis_scopes`-szal utasít el. A panel
+     * CSAK a mért készletből rajzol; mért üres készletnél a NEVEZETT mondat áll az űrlap helyén.
+     */
+    const korok = (state.scopeMeta && Array.isArray(state.scopeMeta.grantable) ? state.scopeMeta.grantable : [])
+      .filter((k) => typeof k === 'string' && k);
+    /**
+     * A SZEREP-VÁLASZTÉK A KISZOLGÁLÓ MEGMÉRT KÉSZLETÉBŐL JÖN (`KUKA-472` · külső review, P2).
+     *
+     * A LELET: a panel MINDEN ismert szerepet felkínált (`Object.keys(ROLE)`), a sor
+     * „újrahívható" jelzője viszont a tag MAI szerepére szólt. Egy delegált kezelőnél a
+     * plafonon TÚLI választás `outside_basis_roles`-szal bukik — a `tour.reentry` közben a
+     * MEGVONÁS UTÁN. A lap tehát nem talál ki szerepeket: a kiszolgáló készletét rajzolja.
+     * Ha a készlet nem érkezett meg (`null`), a tag MAI szerepe az EGYETLEN választható — ez
+     * az, amire a sor jelzője ki is mondta, hogy működik (`KUKA-049`: a nem tudom nem jó lesz).
+     */
+    const szerepek = Array.isArray(m.reinvite_roles) && m.reinvite_roles.length
+      ? m.reinvite_roles.filter((r) => typeof r === 'string' && r)
+      : [m.role || 'user'];
+    const valasztott = szerepek.includes(m.role || 'user') ? (m.role || 'user') : szerepek[0];
+    if (!szerepek.length || !korok.length) {
+      openPanel(panelHead(UI.reinviteTitle, tpl('reinviteConfirmLead', { ki: kit }))
+        + `<p class="notice" data-testid="reinvite-blocked-empty">${esc(reasonText((state.scopeMeta && state.scopeMeta.reason) || 'delegation_ceiling_empty'))}</p>`);
+      return;
+    }
     openPanel(panelHead(UI.reinviteTitle, tpl('reinviteConfirmLead', { ki: kit }))
       + `<form class="form" data-testid="reinvite-form">
         <label>${esc(UI.role)}<select name="role" data-testid="reinvite-role">
-          ${Object.keys(ROLE).map((r) => `<option value="${esc(r)}"${r === (m.role || 'user') ? ' selected' : ''}>${esc(ROLE[r])}</option>`).join('')}
+          ${szerepek.map((r) => `<option value="${esc(r)}"${r === valasztott ? ' selected' : ''}>${esc(ROLE[r] || r)}</option>`).join('')}
         </select></label>
         <label>${esc(STATE.inviteScopeQuestion)}<select name="scope" data-testid="reinvite-scope">
           ${korok.map((k) => `<option value="${esc(k)}">${esc(SCOPE[k] || k)}</option>`).join('')}
@@ -1437,7 +1811,9 @@ import { inviteNextKey } from './inviteText.mjs';
         : tpl('inviteRevokeUnchanged', { miert: reasonText(r.reason) });
       formResult('members-result', mondat, r.changed ? 'ok' : 'warn');
       toast(mondat);
-      if (r.changed) tourTaskDone('invite.revoked');   // IGAZOLT változás után (TUR-01 · KUKA-231)
+      // A JELÖLŐ A SZERVER VÁLASZÁBÓL JÖN (`r.ref`), nem a kattintott gombból: így a nyugta arról a
+      // meghívóról szól, amit a szerver TÉNYLEGESEN visszavont (R186 §2 · `KUKA-227`).
+      if (r.changed) tourTaskDone('invite.revoked', { ref: r.ref ?? ref });   // IGAZOLT változás után (TUR-01 · KUKA-231)
     } else {
       formResult('members-result', refusalText(r), 'bad');
     }
@@ -1472,7 +1848,11 @@ import { inviteNextKey } from './inviteText.mjs';
     const mondat = r.replayed === true ? tpl('reinviteReplayed', { ki: who }) : tpl('reinviteSent', { ki: who });
     formResult('members-result', mondat, 'ok');
     toast(mondat);
-    tourTaskDone('reinvite.sent');
+    // A MŰVELET A VÁLASZTOTT TAGRA SZÓL (R186 §2), ÉS AZ ÁLTALA KIÁLLÍTOTT MEGHÍVÓ JELÖLŐJE A
+    // MÁSODIK REKESZBE KERÜL (R186 §5): a kötést a KISZOLGÁLÓ válasza adja — a `ref` és az, hogy
+    // KIRE szólt (`subject_id`) is onnan jön, nem a lap feltevéséből (`KUKA-016`).
+    tourTaskDone('reinvite.sent', { ref: id,
+      auth: { ref: r.ref ?? null, actor: (r.subject_id ?? null) || id } });
   }
 
   /**
@@ -1626,7 +2006,23 @@ import { inviteNextKey } from './inviteText.mjs';
       // oldalra, és nem is gyárt meghívót — a szerver csak meghívás-kontextussal kínálta fel.
       if (state.authView !== 'invite') renderAuth('invite');
     } else if (def.requires_anonymous === true) {
-      if (state.authView !== 'register') renderAuth('register');
+      /**
+       * A BELÉPÉS ELŐTTI ÚTMUTATÓ A SAJÁT KÉPERNYŐJÉRE VISZ (R166 §3 — MÉRT lelet a böngészőben).
+       *
+       * A LELET: ez az ág FIXEN a regisztrációs képernyőre vitt. Amíg EGYETLEN belépés előtti
+       * útmutató volt (a regisztráció), ez igaznak LÁTSZOTT — de a cél az egyetlen akkori útmutatóból
+       * volt levezetve, nem az útmutató SAJÁT deklarációjából (`KUKA-227` osztálya). Az R166 §3 két új
+       * belépés előtti útmutatót adott (belépés · új megerősítő levél), és a régi ág mindkettőt a
+       * REGISZTRÁCIÓS lapra vitte — ahol a céljaik nem léteznek, tehát az útmutató azonnal
+       * NEVEZETTEN megszakadt. A felhasználó szemszögéből: a „mutasd meg, hogyan lépek be" a
+       * regisztrációs űrlapon ért véget.
+       *
+       * MOSTANTÓL az útmutató MONDJA MEG, melyik belépési nézetben jár (`auth_view`), és deklaráció
+       * NÉLKÜL nem navigálunk: a cél-ellenőrzés akkor NEVEZETTEN kimondja a hiányt, nem egy rossz
+       * képernyőre visz (fail-closed — KUKA-020 · KUKA-236). Gépi jel: `verify:tutor` TUT05.
+       */
+      const nezet = def.auth_view || null;
+      if (nezet && state.authView !== nezet) renderAuth(nezet);
     } else {
       const page = tourMod.pageOf(state.tour);
       if (page && state.page !== page) go(page);
@@ -1660,6 +2056,10 @@ import { inviteNextKey } from './inviteText.mjs';
       show(box, true);
       return;
     }
+    // A VISSZAKÖTÉS A VIZSGÁLAT ELŐTT, EGY HELYEN (R176 §1 · `KUKA-003`). A `render()` közvetlenül is
+    // ide jut (nem csak a `tourRecheck`-en át), ezért a szabály ITT áll — különben a nézet-frissítés
+    // már megállapodott megszakítást talál, és a javítás elkésik (MÉRVE: a 19. lépésnél).
+    tourRebindAfterOwnSuccess();
     const check = tourMod.checkRun(state.tour, { view: view(), role: state.me && state.me.current_role });
     if (!check.ok) {
       state.tourAborted = check.why === 'no_run' ? 'targetMissing' : check.why;
@@ -1685,10 +2085,24 @@ import { inviteNextKey } from './inviteText.mjs';
    * váltja. Ha az új nyelvű válasz nem tartalmazza ezt a bemutatót (mert a jog közben megszűnt), a
    * bemutató NEVEZETTEN megszakad — nem marad ott régi nyelvű szöveggel (KUKA-050).
    */
+  /**
+   * A FELOLDÁS EGY HELYEN — ÉS A FOLYTATHATÓKAT IS NÉZI (R176, külső review P2 · `KUKA-428`).
+   *
+   * A LELET: a visszaállást (`resumeTourAfterSwitch`) kiegészítettem a FOLYTATHATÓ listával, az
+   * ÁTSZÖVEGEZÉST (`retextTour`) viszont nem — pedig ugyanazt a kérdést teszi fel. Egy ÁTÍVELŐ,
+   * visszaállított futás a meghívott nézetében CSAK a folytathatók közt van: ha ott NYELVET váltott,
+   * a `retextTour` nem találta a definíciót, és egy ÉP futást `notAvailable`-lel elengedett. Ugyanaz
+   * a hiba-osztály, amire a `KUKA-003`/`KUKA-039` figyelmeztet: ha egy szabály két ágon igaz, EGY
+   * helyen álljon — különben a második ág kimarad.
+   */
+  function tourDefOf(id) {
+    const defs = (state.astStatus && state.astStatus.tours) || [];
+    const folytathatok = (state.astStatus && state.astStatus.resumable_tours) || [];
+    return defs.find((t) => t.id === id) || folytathatok.find((t) => t.id === id) || null;
+  }
   function retextTour() {
     if (!state.tour) return;
-    const defs = (state.astStatus && state.astStatus.tours) || [];
-    const def = defs.find((t) => t.id === state.tour.id);
+    const def = tourDefOf(state.tour.id);
     if (!def) { state.tourAborted = 'notAvailable'; state.tour = null; renderTour(); return; }
     state.tour.text = def.text || null;
     renderTour();
@@ -1714,7 +2128,7 @@ import { inviteNextKey } from './inviteText.mjs';
    * mai válaszából veszi (AST-01), és ha a bemutató ma nem indítható, NEVEZETTEN elenged.
    */
   const TOUR_HANDOVER_KEY = 'vs3.tour.handover';
-  function saveTourHandover() {
+  function saveTourHandover({ kilepes = false } = {}) {
     const run = state.tour;
     if (!run) return;
     // A KERESZT-SZEREPLŐS FUTÁS az, amelyik DEKLARÁLTAN átível a szereplőkön. Csak ez adódik át —
@@ -1723,11 +2137,83 @@ import { inviteNextKey } from './inviteText.mjs';
     // jár (a címzett belép a cégbe), és az is a történet KÖZEPE — a régi, szűkebb feltétel ott
     // elvesztette volna a futást (saját lelet a végigjáráson).
     if (!run.steps.some((x) => x.switch_actor === true)) return;
+    /**
+     * …DE AZ ELSŐ VÁLTÁS ELŐTT NINCS MIT ÁTADNI (R176, külső review P2 — MÉRVE).
+     *
+     * A LELET (chatgpt-codex, az `fb231e6` fejen): a fenti feltétel CSAK azt kérdezte, hogy a
+     * történetben VAN-E valahol váltás-lépés. Egy közönséges kijelentkezés tehát a történet ELEJÉN
+     * is átadást mentett — és a következő ember UGYANABBAN a fülben visszakapta az előző ember
+     * bemutató-azonosítóját, lépés-indexét és haladását, pedig deklarált átadás nem volt
+     * folyamatban. Ez az előző ember nyoma a következő ember képernyőjén (`KUKA-416` osztálya), és
+     * a saját R89 §6-os szabályunk ellen megy.
+     *
+     * A HATÁR MÉRHETŐ: az átadás attól a pillanattól értelmes, amikor a történet ELÉRTE az ELSŐ
+     * váltás-lépését — onnantól a folytatás MÁSIK szereplő dolga (az elfogadás is ide esik, ezért a
+     * szűk „épp váltás-lépésen állunk" feltétel kevés volt). Előtte a futás a jelen emberé, és a
+     * kilépéssel ugyanúgy elvész, mint egy egy-szereplős bemutató.
+     */
+    const elsoValtas = run.steps.findIndex((x) => x.switch_actor === true);
+    if (elsoValtas < 0 || run.at < elsoValtas) return;
+    /**
+     * ÉS A KÖZÖNSÉGES KILÉPÉS CSAK A DEKLARÁLT HATÁRON AD ÁT (R176, külső review P2 — `KUKA-424`).
+     *
+     * A LELET: az előző alakom (`run.at >= elsoValtas`) a kilépést az első váltás UTÁN is átadásnak
+     * vette — például a levél-fogadó lépésén —, pedig ott NEM átadás van folyamatban: a futás épp
+     * annak az embernek szól, aki kilép. A következő ember így megkapta az előző haladását egy olyan
+     * ponton, ahol a történet nem kért váltást. A feltétel ezért az ÁTMENETRE szól, nem a futás
+     * helyzetére: KILÉPÉSNÉL csak a VÁLTÁS-LÉPÉS jogosít (ott maga a történet kéri a kilépést);
+     * minden más nézet-váltás (belépés · fiókváltás · az elfogadás utáni frissítés) változatlan.
+     */
+    /**
+     * …ÉS CSAK A SZEMÉLY-TENGELYEN (R176, külső review P2 — `KUKA-433`).
+     *
+     * A LELET: a fenti feltétel MINDEN váltás-lépést elfogadott a kilépés jogos határának — a
+     * FIÓK-tengelyeseket is (`s9` · `s10b` · `s12b` · `s15b`). Azokon viszont a történet FIÓKVÁLTÁST
+     * kér, nem kilépést: ugyanaz az ember vált a saját másik fiókjára. Aki ott mégis kilép, az nem
+     * átad: a következő belépő UGYANABBAN a fülben megkapta az előző ember bemutató-azonosítóját
+     * és haladását (`KUKA-416` osztálya), és a történet közepén álló buborékot látott egy
+     * történetből, amit el sem indított.
+     *
+     * A KILÉPÉS A SZEMÉLYT VÁLTJA, tehát a történet csak a `subject` tengelyen kéri — a határ
+     * MAGA A DEKLARÁCIÓ. A fiók-tengelyes lépés átadása változatlan, mert az nem kilépéssel megy
+     * (`switchWorkspace` → `kilepes: false`). Ez a `KUKA-424` feltételének a második fele: nem az
+     * ÁLLAPOTRA kérdezünk, hanem az ÁTMENETRE — és most arra is, hogy MELYIK tengelyen.
+     */
+    if (!tourMod.handoverBoundaryOk(run.steps[run.at] || null, { kilepes })) return;
     if (run.endedBy) return;                       // lezárt futást nem adunk át
     try {
       sessionStorage.setItem(TOUR_HANDOVER_KEY, JSON.stringify({
         id: run.id, at: run.at,
+        // A VERZIÓ IS ÁTMEGY (R176, külső review P2 · `KUKA-425`): a haladás INDEX szerint áll, egy
+        // új kiadás viszont átírhatja a lépések célját vagy feladatát UGYANANNYI lépés mellett.
+        version: run.version ?? null,
         states: run.steps.map((x) => x.state),
+        // A VISSZAKÖTÉSI JEGY IS ÁTMEGY (`KUKA-435`): az igazolt, nézetet mozdító feladat engedélye a
+        // FUTÁSÉ, és a visszaállás UTÁN kell felhasználni — egy itt elvesztett jegy a legitim utat
+        // buktatná meg (MÉRVE: `R176-K1` 19. lépés).
+        rebind_once: state.tourRebindOnce ? { task: state.tourRebindOnce.task } : null,
+        // A TÖRTÉNET OTTHONA IS ÁTMEGY (`KUKA-441`): a fiók-váltó kapu ehhez méri a CÉLT, és a
+        // visszaállás a MAI nézetből épít — egy itt elvesztett kezdő könyv fail-closed módon
+        // megállítaná a saját történetünket (`KUKA-394` mért leckéje).
+        origin_book: run.origin_book ?? null,
+        /**
+         * A TÖRTÉNET CÉL-KÖTÉSE ÉS A KEZDŐ ALANY IS ÁTMEGY (R186 §2) — ugyanaz az indok, mint az
+         * `origin_book`-nál (`KUKA-441`), és ugyanaz a fail-closed következmény (`KUKA-394`).
+         *
+         * MIÉRT KELL ÁTVINNI: a visszaállás a SZERVER MAI válaszából épít (AST-01), a váltás után
+         * viszont a MÁSIK ember ül a fülnél — az ő nézetében a `story_data` joggal üres (nem kezelő,
+         * és nem tagja a cégnek), tehát a `def.story` `null`. A cél-kötést ezért a rekesz hordozza;
+         * enélkül a személy-tengelyes kapu a SAJÁT történetünket állítaná meg.
+         *
+         * ÉS AMI NEM MEGY ÁT: meghívó-JEGY, titok, e-mail, üzleti adat. A `ref` a token
+         * sha256-lenyomatának első tíz jegye (a token nem állítható vissza belőle), az `actor` és az
+         * `origin_subject` alany-azonosító — a rekesz a `from_subject`-et eddig is hordozta. Jogot
+         * egyik sem ad: a szerver saját ellenőrzése minden műveleten változatlanul lefut
+         * (`KUKA-227`), a bemutató állapota nem jogosultság.
+         */
+        story: run.story ? { kind: run.story.kind ?? null, ref: run.story.ref ?? null,
+          actor: run.story.actor ?? null, invite_ref: run.story.invite_ref ?? null } : null,
+        origin_subject: run.origin_subject ?? null,
         /**
          * A NÉZET PÁR — ÉS AZ ÁTADÁS IS PÁRT TÁROL (R142 — F142-05, MÉRVE).
          *
@@ -1746,32 +2232,159 @@ import { inviteNextKey } from './inviteText.mjs';
       }));
     } catch { /* a tárolás hiánya nem állíthatja meg a váltást — a bemutató elvész, a művelet nem */ }
   }
-  function takeTourHandover() {
+  function clearTourHandover() {
+    try { sessionStorage.removeItem(TOUR_HANDOVER_KEY); } catch { /* a tár nem írható — a futás akkor is elvész */ }
+  }
+  /** CSAK BELENÉZ — az ürítés a `clearTourHandover` dolga, a SIKERES visszaállás után (`KUKA-426`). */
+  function peekTourHandover() {
     try {
       const raw = sessionStorage.getItem(TOUR_HANDOVER_KEY);
       if (!raw) return null;
-      sessionStorage.removeItem(TOUR_HANDOVER_KEY);
       const o = JSON.parse(raw);
       return (o && typeof o.id === 'string' && Number.isInteger(o.at) && Array.isArray(o.states)) ? o : null;
     } catch { return null; }
   }
   /** A VÁLTÁS UTÁNI VISSZAÁLLÁS. A lépés lezárását NEM ez adja — az a `tourTaskDone` dolga. */
   async function resumeTourAfterSwitch() {
-    const h = takeTourHandover();
+    /**
+     * A REKESZT CSAK SIKERES VISSZAÁLLÁS UTÁN ÜRÍTJÜK (R176, külső review P2 — `KUKA-426`).
+     *
+     * A LELET: az előző alak ELŐBB elvette a tárolt haladást (`takeTourHandover`), és CSAK UTÁNA
+     * kérte le a lépés-listát. Ha az `/api/assistant/status` épp hálózati vagy kiszolgáló-hibába
+     * futott, a válasz ÜRES bemutató-listának látszott, a visszaállás `notAvailable`-t írt — és az
+     * újrapróbálkozásnak már nem volt mit visszaállítania: a haladás VÉGLEG elment egy MÚLÓ hiba
+     * miatt. Ezért most BELENÉZÜNK, és csak akkor ürítünk, ha a válasz MEGMÉRT (`ok`) és a
+     * visszaállás SIKERÜLT (`KUKA-215` · `KUKA-121`).
+     */
+    const h = peekTourHandover();
     if (!h) return;
     await loadHelpData();
-    const defs = (state.astStatus && state.astStatus.tours) || [];
-    const def = defs.find((t) => t.id === h.id);
-    // A SZERVER MA NEM KÍNÁLJA: nem erőltetjük vissza, és nem is hallgatunk róla (KUKA-050).
-    if (!def) { state.tour = null; state.tourAborted = 'notAvailable'; renderTour(); return; }
+    /**
+     * A MÚLÓ HIBA NEM „NINCS ILYEN BEMUTATÓ": a kérés el sem jutott a kiszolgálóig (`ok: false`).
+     * Ilyenkor a rekesz MARAD, a futás nevezetten szünetel, és egy újabb betöltés visszaállítja.
+     */
+    if (!state.astStatus || state.astStatus.ok !== true) {
+      state.tour = null; state.tourAborted = 'notAvailable'; renderTour(); return;
+    }
+    /**
+     * A LÉPÉS-LISTA A FOLYTATHATÓ LISTÁBÓL IS JÖHET (R176 §1 — a parancs nevesített hibája:
+     * „a meghívó elfogadása utáni folytatásvesztés").
+     *
+     * A LELET, MÉRVE. A két szereplős történet ÁTÍVEL a szerepeken, és a MEGHÍVOTT nem fiókkezelő:
+     * a kiszolgáló az ő nézetében ezt a bemutatót joggal nem kínálja fel INDÍTÁSRA, tehát a `tours`
+     * listában nincs benne. A visszaállás viszont EBBŐL kereste a lépés-listát, nem találta, és a
+     * futást NEVEZETTEN elengedte (`notAvailable`) — a felhasználó a történet közepén, egy ÉP
+     * képernyőn vesztette el a bemutatót, pont a tanulság előtt. Ugyanez igaz az elfogadás utáni
+     * SZEMÉLYES körre is: ott a funkció sora `personal_space` miatt nem látszik.
+     *
+     * MOSTANTÓL a kiszolgáló külön listát ad a VÁLTÁS UTÁN FOLYTATHATÓKRÓL (`resumable_tours`), és a
+     * visszaállás ELŐBB az indíthatók közt keres, UTÁNA a folytathatók közt. A lépés-lista így
+     * továbbra is a SZERVERTŐL jön (AST-01) — nem a tárolt adatból —, jogot pedig nem ad: a lépések
+     * saját `role` őre futás közben változatlanul érvényes (`rightLost`).
+     */
+    const def = tourDefOf(h.id);
+    // A SZERVER MA SEM INDÍTHATÓNAK, SEM FOLYTATHATÓNAK NEM ADJA: nem erőltetjük vissza, és nem is
+    // hallgatunk róla (KUKA-050).
+    /**
+     * …DE A NÉVTELEN NÉZŐ NEM VÁLASZ A KÉRDÉSRE (R176, külső review P2 · `KUKA-438`).
+     *
+     * A LELET, MÉRVE: az átívelő történetek `audience: 'signed_in'`-ek, tehát NÉVTELEN nézőnek a
+     * kiszolgáló se indíthatót, se folytathatót nem ad (`resumableToursFor` = 0 bejegyzés). És a
+     * két szereplő között ÉPP VAN egy névtelen állapot: az első ember kilépett, a második még nem
+     * lépett be. Ha a lapot EKKOR újratöltik, a kérés SIKERES (`ok: true`), a lista viszont üres —
+     * az előző alak tehát „a szerver ma nem adja"-nak minősítette, és a rekeszt VÉGLEG elvitte. A
+     * következő ember belépése már nem tudta folytatni a történetet.
+     *
+     * A SZABÁLY: „a kiszolgáló válaszolt" és „EZT a nézőt meg lehetett kérdezni" KÉT KÜLÖN tény
+     * (`KUKA-426` ugyanaz a lecke, egy réteggel kijjebb). Belépés nélkül a kérdés nem is tehető
+     * fel, tehát a rekesz MARAD, és nem írunk megszakítást sem: a névtelen látogatónak nincs mit
+     * mondani egy bemutatóról, amit nem ő indított (`KUKA-201` · `KUKA-416`).
+     */
+    if (!def && !(state.me && state.me.subject_id)) {
+      state.tour = null; state.tourAborted = null; renderTour(); return;
+    }
+    // A SZERVER MA NEM ADJA (és a kérés MEGTÖRTÉNT, BELÉPETT nézőnek): ez nem múló hiba, a rekesz elmegy.
+    if (!def) { clearTourHandover(); state.tour = null; state.tourAborted = 'notAvailable'; renderTour(); return; }
     const run = tourMod.newTourRun({ def, view: view(), role: state.me && state.me.current_role });
     if (!run) return;
-    // A TÁROLT ÁLLAPOT CSAK AKKOR ÉRVÉNYES, HA UGYANARRA A LÉPÉS-LISTÁRA ILLIK.
-    if (h.states.length !== run.steps.length || h.at >= run.steps.length) {
+    /**
+     * A TÁROLT ÁLLAPOT CSAK AKKOR ÉRVÉNYES, HA UGYANARRA A LÉPÉS-LISTÁRA ILLIK — ÉS UGYANARRA A
+     * VERZIÓRA (R176, külső review P2 · `KUKA-425`).
+     *
+     * A haladás INDEX szerint áll. Egy új kiadás viszont átírhatja a lépések célját vagy feladatát
+     * UGYANANNYI lépés mellett — ilyenkor az index szerinti visszaírás kész-nek jelölne olyan
+     * feladatot, ami meg sem történt, és más utasításnál folytatna. A futó állapot amúgy is a
+     * verzióhoz van kötve (`newTourRun`), tehát az átadás sem lehet lazább.
+     */
+    if (h.states.length !== run.steps.length || h.at >= run.steps.length
+        || (h.version ?? null) !== (run.version ?? null)) {
+      clearTourHandover();
       state.tour = null; state.tourAborted = 'notAvailable'; renderTour(); return;
     }
     run.steps.forEach((st, i) => { if (tourMod.STEP_STATES.includes(h.states[i])) st.state = h.states[i]; });
     run.at = h.at;
+    /**
+     * ÉS A VISSZAKÖTÉSI JEGY IS VISSZAÁLL (`KUKA-435`) — de CSAK ha a rekesz nevezett, a zárt
+     * készletben lévő feladatot hordoz. Egy kívánt név, hibás alak vagy idegen feladat NEM ad
+     * engedélyt (`KUKA-236`: nyilatkozat nélkül ZÁRVA — és a rekesz tartalma a böngésző tárából
+     * jön, tehát nem bizalmi forrás).
+     */
+    const jegyTask = h.rebind_once && typeof h.rebind_once.task === 'string' ? h.rebind_once.task : null;
+    state.tourRebindOnce = tourMod.viewMovingTask(jegyTask) ? { task: jegyTask, at: run.at } : null;
+    /**
+     * ÉS A TÖRTÉNET OTTHONA IS VISSZAÁLL (`KUKA-441`). A `newTourRun` a MAI nézetből épít, tehát
+     * az ő `origin_book`-ja már az ÚJ (gyakran személyes) könyv — a rekeszből kell átvenni. Ha a
+     * rekesz nem hordozza (régi alak), a mező `null`, és a fiók-váltó kapu ZÁR: inkább
+     * nevezetten megállunk, mint hogy egy IDEGEN céget vegyünk át (`KUKA-236`).
+     */
+    run.origin_book = typeof h.origin_book === 'string' && h.origin_book ? h.origin_book : null;
+    /**
+     * ÉS A CÉL-KÖTÉS + A KEZDŐ ALANY IS VISSZAÁLL (R186 §2) — a rekeszből, mert a MAI válasz a
+     * váltás UTÁNI nézőnek szól, és abban joggal nincs cél-kötés.
+     *
+     * A REKESZ TARTALMA NEM BIZALMI FORRÁS (a böngésző tárából jön, `KUKA-236`): csak NEVEZETT
+     * alakot veszünk át (zárt `kind`-készlet, sztring `ref`/`actor`), minden mást `null`-ra
+     * állítunk — és akkor a rá épülő kapuk ZÁRNAK. Inkább nevezetten megállunk, mint hogy egy
+     * IDEGEN célt vagy résztvevőt vegyünk át.
+     */
+    const sz = h.story && typeof h.story === 'object' ? h.story : null;
+    const szKind = sz && (sz.kind === 'invite' || sz.kind === 'member') ? sz.kind : null;
+    run.story = szKind
+      ? {
+        kind: szKind,
+        ref: typeof sz.ref === 'string' && sz.ref ? sz.ref : null,
+        actor: typeof sz.actor === 'string' && sz.actor ? sz.actor : null,
+        // A MÁSODIK REKESZ IS ÁTMEGY (R186 §5): a váltás UTÁN a meghívott az ÉPPEN KIÁLLÍTOTT
+        // meghívót fogadja el, és a kötés enélkül a váltás határán elvesznék.
+        invite_ref: typeof sz.invite_ref === 'string' && sz.invite_ref ? sz.invite_ref : null,
+      }
+      : null;
+    run.origin_subject = typeof h.origin_subject === 'string' && h.origin_subject ? h.origin_subject : null;
+    /**
+     * ÉS A HARMADIK SZEMÉLY NEM FOGYASZTJA EL AZ ÁTADÁST (R186 §2 — SAJÁT LELET, MÉRVE).
+     *
+     * A LELET. A személy-tengelyes kapu megszigorítása (`actorSwitchReady` → `expectedActorOf`)
+     * csak a MÁSODIK felét oldja meg annak, amit az R186 §2 kér: *„harmadik személy belépése ne
+     * fogyassza el az átadást ÉS ne jelezzen sikeres váltást."* A „ne jelezzen" kész — a „ne
+     * fogyassza el" NEM volt: az ürítés (`clearTourHandover`) a visszaírás ELEJÉN állt, tehát egy
+     * HARMADIK ember belépése a rekeszt akkor is elvitte, ha a kapu a váltást elutasította. A
+     * SZÁNT résztvevő ezután már nem tudta folytatni: a történet némán elveszett.
+     *
+     * A SZABÁLY UGYANAZ, AMIT EZ A FÜGGVÉNY MÁR KIMOND (`KUKA-426`): a rekesz csak a SIKERES
+     * visszaállás után ürül. A „sikeres" mostantól azt is jelenti, hogy EZ az ember folytathatja.
+     * Nem írunk megszakítást sem: a harmadik ember nem indította ezt a történetet, neki nincs mit
+     * mondani róla (`KUKA-201` · `KUKA-416`).
+     *
+     * A HATÁR KIMONDVA: csak akkor döntünk így, ha a lépés NYILATKOZIK a várt résztvevőről ÉS
+     * tudjuk, ki van bent. NÉVTELEN állapotban (újratöltés a két szereplő között) a kérdés nem
+     * tehető fel — ott a rekesz a korábbi szabály szerint MARAD, és a futás visszaáll (`R176-K8`).
+     */
+    const vartResztvevo = tourMod.expectedActorOf(run);
+    const mostAlany = (state.me && state.me.subject_id) || null;
+    if (vartResztvevo && mostAlany && mostAlany !== vartResztvevo) {
+      state.tour = null; state.tourAborted = null; renderTour(); return;
+    }
+    clearTourHandover();
     // A FUTÁS MÉG A RÉGI NÉZŐHÖZ TARTOZIK: így a váltás TÉNYE mérhető marad (`actorSwitchReady`).
     // MINDKÉT FELE (F142-05): a fiókot is a váltás ELŐTTI értékre állítjuk vissza, különben az
     // ugyanazon ember két fiókja közti váltás mérhetetlen lenne (a `newTourRun` a MAI nézetből
@@ -1801,10 +2414,78 @@ import { inviteNextKey } from './inviteText.mjs';
     tourMod.rebindView(state.tour, { view: view(), role });
     tourTaskDone('actor.switched');
   }
-  /** A FELADAT IGAZOLÁSA — a SZERVER válasza után hívjuk, nem a kattintás után (TUR-01). */
-  function tourTaskDone(taskId) {
+  /**
+   * A FELADAT IGAZOLÁSA — a SZERVER válasza után hívjuk, nem a kattintás után (TUR-01).
+   *
+   * ÉS AMIT A LÉPÉS SAJÁT SIKERE VÁLTOZTATOTT MEG, AZ NEM „a néző elkalandozott" (R176 §1, MÉRVE).
+   *
+   * A LELET. A meghívás ELFOGADÁSA átléptet: a kiszolgáló a belépőt az elfogadás után más könyvbe
+   * állítja. A következő lépés viszont nem deklarált váltás-határ, ezért az alany-váltás őre
+   * NEVEZETTEN megállította a bemutatót: „Közben másik fiókra vagy felhasználóra váltottál". MÉRVE a
+   * valódi felületen: a 19 lépésből 18 futott le, és a 19. — épp a végeredmény — szakadt meg. Ez az
+   * a harmadik állapot-szivárgás, amit az R164/3 átadási jegyzete NEVESÍTVE nyitva hagyott.
+   *
+   * A VÁLASZ, ÉS AMIÉRT NEM GYENGÍTÉS. Az őr célja (`KTX-03` · `KUKA-204` · `KUKA-211`) az, hogy a
+   * bemutató ne mutasson MÁS ember adatára, ha a NÉZŐ vált közben. Itt viszont a lépés SAJÁT,
+   * SZERVER ÁLTAL IGAZOLT sikere mozdította el a nézetet — az új nézet pontosan az, ahol a történet
+   * folytatódik. Ezért a futás ehhez a nézethez KÖTŐDIK ÚJRA, és csak akkor:
+   *   · a lépés feladata IGAZOLTAN teljesült (`taskDone` igazat adott, tehát ez az ÉPP AKTUÁLIS lépés);
+   *   · és a nézet tényleg MÁS, mint amihez a futás kötve volt.
+   * Minden más úton a váltás ugyanúgy megállítja a bemutatót, mint eddig. A `rebindView` ugyanaz az
+   * egy feloldó, amit a váltás-lépés is használ (`KUKA-003`).
+   */
+  /**
+   * A `ref` A TÖRTÉNET CÉLJÁNAK JELÖLŐJE (R186 §2): a történethez kötött lépés CSAK a VÁLASZTOTT
+   * célon teljesül (`taskDone` → `story_bound`). Ami nem kötött lépés, annál a `ref` érdektelen.
+   */
+  /**
+   * A KISZOLGÁLÓ FRISS CÉL-KÖTÉSE — CSAK AKKOR KÉRDEZZÜK MEG, HA A LÉPÉS ÁTKÖTÉST DEKLARÁL
+   * (R186 §5, külső review P2).
+   *
+   * A kiállítás válasza a jelölőt adja, az EMBERT nem — és nem is adhatja (egy ÚJ mező a válaszban
+   * fiók-létet eláruló jel lenne, `KUKA-084`). A cél-kötést viszont a kiszolgáló amúgy is kiszámolja
+   * a két átívelő történetre (`/api/assistant/status` → `story`), tehát ONNAN kérjük el: az átkötés
+   * így a kiszolgáló SAJÁT választásán áll, nem a lap feltevésén (`KUKA-016`).
+   *
+   * EGY KÉRÉS, EGY HELYEN, ÉS CSAK A SZÜKSÉGES ÚTON: a többi feladat-nyugta változatlanul egyetlen
+   * hálózati kérés nélkül fut le.
+   */
+  async function authoritativeStory(tourId, v, kertRef = null) {
+    // A KÉRT CÉLT MEGNEVEZZÜK (`KUKA-468`): a kötést arra a meghívóra kérjük, amit a kiszolgáló
+    // VÁLASZA éppen visszaadott — különben két egyformán lejáró meghívó mellett a globális
+    // sorrend MÁS sorra kötne, és a helyes művelet után a lépés függőben maradna. A DÖNTÉS
+    // továbbra is a kiszolgálóé: alkalmatlan vagy nem létező név mellett a mai választ adja.
+    const q = readQuery({ lang: currentLang(), ...(kertRef ? { story_ref: kertRef } : {}) }, v);
+    const r = await api('GET', `/api/assistant/status${q}`);
+    if (!r || r.ok !== true) return null;
+    const lista = [...(r.tours || []), ...(r.resumable_tours || [])];
+    const def = lista.find((t) => t && t.id === tourId) || null;
+    return def && def.story && typeof def.story === 'object' ? def.story : null;
+  }
+  function tourStepNeedsRebind(taskId) {
+    const run = state.tour;
+    if (!run || !Array.isArray(run.steps)) return false;
+    const step = run.steps[run.at];
+    // A REKESZ-NYILATKOZATOT A MOTOR FELOLDÓJA ÍTÉLI MEG (`KUKA-467`): a `true` és a nevezett
+    // rekesz EGYARÁNT átkötés — egy `=== true` itt a nevezett rekeszt némán kihagyta volna.
+    return Boolean(step && step.task === taskId && tourMod.storySlotOf(step.story_rebind) !== null);
+  }
+  function tourTaskDone(taskId, { ref = null, auth = null } = {}) {
     if (!state.tour) return;
-    if (tourMod.taskDone(state.tour, taskId)) { state.tourBlocked = null; renderTour(); }
+    if (!tourMod.taskDone(state.tour, taskId, { ref, auth })) return;
+    /**
+     * A VISSZAKÖTÉSI ENGEDÉLY ITT SZÜLETIK, ÉS CSAK A NÉZETET MOZDÍTÓ FELADATHOZ (`KUKA-435`).
+     *
+     * A jegy EGYSZER használható, és a kiadása a KISZOLGÁLÓ által IGAZOLT sikerhez van kötve —
+     * nem a lépés maradó `done` állapotához. Így egy későbbi, FÜGGETLEN nézet-váltás nem
+     * örökli az okozatisságot.
+     */
+    if (tourMod.viewMovingTask(taskId)) state.tourRebindOnce = { task: taskId, at: state.tour.at };
+    // A NÉZET-ELMOZDULÁST NEM ITT kötjük újra: az igazolás a frissítés ELŐTT fut be (mérve), ezért a
+    // visszakötés a `tourRecheck` egy otthonában áll (`tourRebindAfterOwnSuccess`) — KUKA-003.
+    tourRebindAfterOwnSuccess();
+    state.tourBlocked = null;
+    renderTour();
   }
   /**
    * A LEZÁRÁS A VÁLTÁS ELŐTT SZÜLETIK — EGY HELYEN, MINDEN FIÓKVÁLTÓ SIKERHEZ (F93-01 · F111-01).
@@ -1938,7 +2619,7 @@ import { inviteNextKey } from './inviteText.mjs';
         </form>
         <p class="authfoot">${esc(reg ? UI.haveAccount : UI.noAccountYet)}
           <button type="button" class="plain" data-auth="${reg ? 'login' : 'register'}">${esc(reg ? UI.loginTitle : UI.registerTitle)}</button></p>
-        ${reg ? '' : `<p class="authfoot"><button type="button" class="plain" data-auth="resend">${esc(UI.resendAsk)}</button></p>`}`;
+        ${reg ? '' : `<p class="authfoot"><button type="button" class="plain" data-auth="resend" data-testid="auth-resend-open">${esc(UI.resendAsk)}</button></p>`}`;
     } else if (kind === 'resend') {
       h = `<h1>${esc(UI.resendTitle)}</h1>
         ${state.resendReason ? `<p class="notice warn" data-testid="resend-reason">${esc(state.resendReason)}</p>` : ''}
@@ -1975,6 +2656,103 @@ import { inviteNextKey } from './inviteText.mjs';
     </div>`;
     auth.innerHTML = `<div class="card">${langRow}${h}</div>`;
     renderHeader();
+  }
+
+  /**
+   * A FOLYTATÁS SORA — A MEGHÍVÓ LAPJA NEM ZSÁKUTCA (R166 §1, TERMÉK-DÖNTÉS).
+   *
+   * A LELET, AMI EZT KIKÉNYSZERÍTETTE (az R164 jelentés 8/7. tétele, SAJÁT mérés): a meghívó-képernyő
+   * a TELJES alkalmazás-héjat lecseréli (`renderAuth` kiüríti a `nav`/`tabs`/`main` elemet), tehát ott
+   * **nincs profil-menü, és vele nincs kilépés-vezérlő**. Következmény: ha a meghívó már be van váltva,
+   * visszavonva, lejárt, hibás vagy MÁS SZEMÉLYNEK szól, a felhasználó a képernyőn ragad — a
+   * `KUKA-362`/`KUKA-383` kilépés-ágának böngészős mérése pedig emiatt volt bejárhatatlan.
+   *
+   * A SOR MINDEN ÁLLAPOTON OTT VAN, nem csak a hibásakon (KUKA-201: a nemleges válasz vigye a MŰKÖDŐ
+   * folytatást; KUKA-228: a bemutató horgonya nem lehet állapot-függő, különben hamis megszakítást ad).
+   *
+   * ÉS AMIT EZ A SOR NEM TEHET: nem fogad el meghívást és nem módosít tagságot — a visszalépés
+   * KIZÁRÓLAG a közös elfelejtőt (`forgetInvite`) hívja és navigál. A gombok MEGNEVEZÉSE és a
+   * következő képernyő a HITELESÍTÉSI ÁLLAPOTHOZ igazodik: belépve a saját fiókba visz, belépés nélkül
+   * a kezdőlapra — mert egy „Vissza a fiókomba" feliratnak belépés nélkül nincs igaz tartalma
+   * (KUKA-050: a szöveg a valóságot követi).
+   */
+  /**
+   * A NEM IGAZOLT KILÉPÉS MONDATA — EGY OTTHON, KÉT KÉPERNYŐ (`KUKA-434` · KUKA-039).
+   *
+   * A kilépés HÁROM helyről indulhat (fejléc · Belépés és biztonság · a meghívó képernyője), de a
+   * MONDAT egyetlen függvényből jön — különben a második képernyőn elmaradna, és a lap úgy
+   * hallgatna egy mért tényről.
+   */
+  function signOutNotDoneHtml() {
+    return state.signOutNotDone
+      ? `<p class="notice bad" data-testid="signout-not-done">${esc(state.signOutNotDone)}</p>`
+      : '';
+  }
+
+  function inviteContinueHtml(loggedIn) {
+    const vissza = loggedIn ? UI.inviteBackToApp : UI.inviteBackToStart;
+    return `<div class="buttonrow" data-testid="invite-continue">
+      <button type="button" data-action="invite-leave" data-testid="invite-back">${esc(vissza)}</button>
+      ${loggedIn ? `<button type="button" class="plain" data-action="logout" data-testid="invite-logout"
+        data-tour-anchor="actor-switch">${esc(UI.inviteSignOutSwitch)}</button>` : ''}
+    </div>
+    <p class="muted" data-testid="invite-leave-note">${esc(UI.inviteLeaveNote)}</p>`;
+  }
+
+  /**
+   * A VISSZALÉPÉS. Egyetlen hatása a meghívó-jegy elfelejtése — a KÖZÖS otthonon (`forgetInvite`),
+   * tehát a belső jegy ÉS a címsor-paraméter együtt megy el (`KUKA-383`). Ezért nincs visszairányítási
+   * hurok sem: a `render()` a jegyet nézi először, és a címsorban már nincs mit újraolvasni egy
+   * frissítésnél — akkor sem, ha a meghívó lejárt vagy érvénytelen.
+   */
+  async function doInviteLeave() {
+    /**
+     * A TÁROLT FOLYTATÁST IS EL KELL VINNI (R166, külső review, Codex, P2 — SAJÁT funkcióm felett).
+     *
+     * A LELET: az első alakom csak a BÖNGÉSZŐ állapotát ürítette (`forgetInvite`). A névtelen
+     * látogató meghívó-jegyét viszont az `observeInvite()` a MUNKAMENETHEZ kötve tárolja
+     * (`POST /api/invites/pending`), és a belépés ezt visszaolvassa — tehát aki kimondottan
+     * elhagyta a meghívót, a belépés UTÁN visszakerült rá. A „vissza" nem vitt vissza.
+     *
+     * A SORREND KIMONDOTT: előbb a TÁROLT állapot, utána a böngészőé. Így ha a hálózat elvágja a
+     * kérést, a felhasználó a meghívó-képernyőn marad — ott, ahol a gombja még ott van —, nem pedig
+     * egy olyan képernyőn, ami azt ígéri, hogy elhagyta a meghívót, miközben a szerver szerint nem.
+     * A `pending_invite_token` útja ettől változatlan: aki NEM lépett vissza, annak a folytatása
+     * továbbra is megmarad (ez a `KUKA-297` garanciája).
+     */
+    const r = await api('POST', '/api/invites/pending/forget', {});
+    /**
+     * ÉS A VÁLASZT MEG KELL MÉRNI (R176, külső review P2 — `KUKA-422` · `KUKA-215`).
+     *
+     * A LELET: az `api()` nem dob, hanem NEMLEGES objektumot ad vissza — az első alakom viszont a
+     * visszatérést eldobta, és a böngésző állapotát MINDENKÉPPEN ürítette. Hálózati hiba vagy 5xx
+     * esetén tehát a lap azt mondta, hogy a felhasználó elhagyta a meghívót, miközben a TÁROLT
+     * folytatás a kiszolgálón maradt — és egy későbbi belépés ugyanabban a munkamenetben
+     * visszavitte rá. A fenti megjegyzésem azt ÍGÉRTE, hogy ilyenkor a meghívó-képernyőn marad;
+     * a kód ezt nem tette meg, tehát a szöveg sem követte a valóságot (`KUKA-050`).
+     *
+     * MOSTANTÓL a három kimenet KÜLÖN mondat (ugyanaz a szerződés, mint az újraküldésnél): a
+     * böngésző állapota CSAK igazolt `ok` után ürül, különben a lap a meghívó-képernyőn marad, a
+     * gomb ott van, és a nemleges válasz NEVEZETT (`KUKA-201`: a nemleges válasz vigye a MŰKÖDŐ
+     * folytatást).
+     */
+    const v = requestOutcome(r);
+    if (v !== 'ok') {
+      state.inviteNotKept = v === 'network' ? reasonText('network_error')
+        : (v === 'uncertain' ? UI.inviteLeaveUncertain : refusalText(r));
+      render();
+      return;
+    }
+    state.inviteNotKept = null;
+    forgetInvite();
+    if (state.me && state.me.subject_id) {
+      // A HÉJBA VISSZA: a lapot a saját nézetére állítjuk, nem hagyjuk a meghívó-képernyő lapján.
+      state.authView = null;
+      state.page = state.tabs.includes(state.page) ? state.page : 'overview';
+      render();
+      return;
+    }
+    renderAuth('login');
   }
 
   /**
@@ -2027,12 +2805,15 @@ import { inviteNextKey } from './inviteText.mjs';
       <div class="cardhead"><h1>${esc(UI.inviteGenericTitle)}</h1>${helpDot('invite.accept')}</div>
       ${acc ? `<p class="lead" data-testid="invite-account-name"><strong>${esc(acc.name)}</strong></p>
         <p class="helpbox" data-testid="invite-account">${esc(UI.inviteRoleLine)}: <strong>${esc(ROLE[acc.role] || acc.role)}</strong>${o.invited_by ? ` · ${esc(UI.inviteInvitedByLine)}: <strong>${esc(o.invited_by)}</strong>` : ''}</p>` : ''}
-      <p class="muted" data-testid="invite-observe">${esc(lead)}</p>
+      <p class="muted" data-testid="invite-observe" data-ref="${esc(o.ref || '')}">${esc(lead)}</p>
       <p class="helpbox" data-testid="invite-what-happens">${esc(UI.inviteWhatHappens)}</p>
       <p class="helpbox" data-testid="invite-identity">${identity}${hint ? ` · ${esc(UI.inviteAddressLine)}: <strong>${esc(hint)}</strong>` : ''}</p>
       <div class="buttonrow" data-testid="invite-actions">${actions}</div>
+      ${state.inviteNotKept ? `<p class="notice bad" data-testid="invite-not-kept">${esc(state.inviteNotKept)}</p>` : ''}
+      ${signOutNotDoneHtml()}
       <p class="notice" data-testid="invite-redeem-result" hidden></p>
       <p class="authfoot" data-testid="invite-next" data-next="${esc(inviteNextKey(o, loggedIn))}">${esc(UI[inviteNextKey(o, loggedIn)])}</p>
+      ${inviteContinueHtml(loggedIn)}
       <div class="buttonrow" data-testid="invite-help-row">
         <button type="button" class="plain" data-action="faq-open" data-faq="faq.invite.accept" data-testid="invite-faq">${esc(UI.inviteFaqOpen)}</button>
         <button type="button" class="plain" data-action="tour-start" data-tour="tour.inviteAccept" data-testid="invite-tour">${esc(UI.inviteTourStart)}</button>
@@ -2198,7 +2979,17 @@ import { inviteNextKey } from './inviteText.mjs';
     // el: a fül megnyílt, de „Válassz fiókot" állt benne. Zsákutca (KUKA-201: a nemleges válasz
     // vigye a MŰKÖDŐ folytatást). A FIÓKHOZ KÖTÖTT üzleti oldalak korlátozása VÁLTOZATLAN, és ettől
     // fiók, jogosultság vagy megerősítés NEM keletkezik.
-    const noticeHtml = `<p class="notice ${n ? n.kind : ''}" data-testid="global-notice" ${n ? '' : 'hidden'}>${n ? esc(n.msg) + (n.action ? ` <button type="button" class="plain" data-go="${esc(n.action.go)}">${esc(n.action.label)}</button>` : '') : ''}</p>`;
+    const noticeHtml = `<p class="notice ${n ? n.kind : ''}" data-testid="global-notice" ${n ? '' : 'hidden'}>${n ? esc(n.msg) + (n.action ? ` <button type="button" class="plain" data-go="${esc(n.action.go)}">${esc(n.action.label)}</button>` : '') : ''}</p>`
+      /**
+       * ÉS A NEM IGAZOLT KILÉPÉS MONDATA IS IDE FŰZŐDIK (R176, külső review P2 · `KUKA-440`).
+       *
+       * A LELET: az előző alakban a sablon-szöveg PONTOSVESSZŐVEL zárult, és az alatta álló,
+       * összefűző sor ÖNÁLLÓ, előjeles kifejezés-utasítássá vált — a generált jelölő ELDOBÓDOTT. A
+       * héjban álló néző (fejléc · Belépés és biztonság) ezért SEMMIT nem látott egy nem igazolt
+       * kilépésről: a lap belépve maradt, mondat nélkül. A meghívó-képernyő ága működött (ott a
+       * kártya saját sablonjába fűzzük), és az `R166-M7` is azt mérte — ezért maradt rejtve.
+       */
+      + signOutNotDoneHtml();
     if (!bookId() && !PERSON_PAGES.has(state.page)) {
       // A KÉT ÁLLAPOT KÉT MONDAT: akinek a címe még nincs megerősítve, annak nincs mit választania —
       // a személyes fiókja a MEGERŐSÍTÉSKOR születik meg. Ezért nem a fiókválasztóhoz küldjük.
@@ -2234,6 +3025,23 @@ import { inviteNextKey } from './inviteText.mjs';
     }
     main.innerHTML = noticeHtml + body;
     restoreForms();                 // …és a megkezdett kitöltés nem tűnik el a rajzolással
+    /**
+     * ÉS A FUTÓ ÚTMUTATÓ ÚJRAÉRTÉKELŐDIK — EGY OTTHONBAN (R166 §3 — MÉRT lelet, `KUKA-394`).
+     *
+     * A LELET: az újrarajzolás kicseréli a `main` tartalmát, és ezzel a futó útmutató KIEMELÉSE
+     * eltűnik — a buborék a helyes lépésen marad, de semmit nem mutat. Böngészőben mérve: a
+     * Bizonylatok és a Készletkarton útmutatója a lapra ért, a lépés helyes volt (`aria-current` a
+     * menüponton), a kiemelés viszont NULLA. A tagok-lap adata ezt eddig is bejelentette
+     * (`loadMembers` → `tourRecheck`), a többi nézet NEM — egy szabály, sok ház (KUKA-003 ·
+     * KUKA-039), és a hiányzó felén a felhasználó egy üresen mutogató útmutatót kapott.
+     *
+     * MIÉRT ITT, ÉS NEM A LEKÉRŐKBEN: a szabály nem az, hogy „a minta-adat megérkezett", hanem hogy
+     * „a nézet újrarajzolt" — annak pedig EZ az egy otthona. Így egy JÖVŐBELI lekérő sem tud
+     * elfelejteni bejelentkezni a listára (KUKA-159: a bekötés listája az ÚJ szabály hatóköréből jön).
+     * A rajzolás és az adat megérkezése két külön pillanat (KUKA-209), és a buborék a MÁSODIKAT is
+     * látni akarja.
+     */
+    tourRecheck();
   }
 
   /**
@@ -2246,7 +3054,7 @@ import { inviteNextKey } from './inviteText.mjs';
     if (STOCK_PAGES.includes(state.page)) loadStock({ sync: false });
     if (state.page === 'stock') loadPrice({ sync: false });
     if (state.page === 'members' && isAdmin()) {
-      if (state.membersTab === 'invites') loadInvites(); else loadMembers();
+      if (state.membersTab === 'invites') loadInvites(); else membersLoad = loadMembers();
     }
     if (state.page === 'documents' || state.page === 'partners') loadSamples(state.page);
   }
@@ -2320,7 +3128,7 @@ import { inviteNextKey } from './inviteText.mjs';
       case 'nav-close': setNavOpen(false); break;
       case 'mail-open': closePanel(); await mailPanel(); break;
       case 'mail-refresh': await mailPanel(); break;
-      case 'invite-open': invitePanel(); break;
+      case 'invite-open': await invitePanel(); break;
       // A FÜL-VÁLTÁS IS DOM-VÁLTOZÁS, TEHÁT A FUTÓ ÚTMUTATÓT ÚJRA KELL ÉRTÉKELNI (R132, saját lelet).
       // A `tourRecheck` eddig CSAK panel- és súgó-nyitásra/zárásra futott. Mérve: egy olyan lépés,
       // aminek a célja a fül-váltással jelenik meg, ÖRÖKRE „még nem érhető el" állapotban maradt — és
@@ -2412,14 +3220,19 @@ import { inviteNextKey } from './inviteText.mjs';
         if (!allowed) { formResult('chat-result', reasonText('action_not_allowed'), 'bad'); break; }
         closeHelp();
         if (allowed.page) go(allowed.page);
-        if (allowed.panel === 'invite') invitePanel();
+        // A SEGÉD FOLYTATÁSA: a lap-váltás UTÁN a panel MÉR, ha még nem mértünk (`KUKA-478`).
+        if (allowed.panel === 'invite') await invitePanel();
         if (allowed.panel === 'mailbox') await mailPanel();
         if (allowed.focus) { const f = byTest(allowed.focus); if (f && typeof f.focus === 'function') f.focus(); }
         break;
       }
+      // AZ ÁLLAPOT ELLENŐRZÉSE (R206 — F206-01): a nem igazolt kontextus MŰKÖDŐ folytatása.
+      case 'ctx-recheck': await recheckContext(); break;
       case 'logout': await doLogout(); break;
       case 'revoke': await doRevoke(b.dataset.subject, b); break;
       case 'redeem': await doRedeem(); break;
+      // A MEGHÍVÓ-KÉPERNYŐ VISSZALÉPÉSE (R166 §1): nem fogad el meghívást, nem módosít tagságot.
+      case 'invite-leave': await doInviteLeave(); break;
       default: break;
     }
   });
@@ -2489,7 +3302,11 @@ import { inviteNextKey } from './inviteText.mjs';
       // UGYANAZ AZ EGY SZABÁLY, mint a visszaállításnál (F95-01): a döntés a modulé, a mentés a
       // döntés következménye — nem három helyen kitalált mező-név. A tároló hibája nem állítja meg
       // a váltást (privát ablak · letiltott tároló): a nyelv váltódik, csak nem marad meg.
-      const decision = decideLang({ asked: e.target.value, askedSource: 'choice' });
+      // A KÉRT nyelv SAJÁT nevén (`wanted`): a nyugta mércéje ettől a MÉRT értéktől függ, nem egy
+      // nem létező mezőtől. A feloldó eldobja, ami nincs bekapcsolva — ezért a KÉRT és a KAPOTT
+      // kód eltérhet, és épp ezt kell kimondani (R208/F208-01 · KUKA-245).
+      const wanted = String(e.target.value || '');
+      const decision = decideLang({ asked: wanted, askedSource: 'choice' });
       const code = useLang(decision);
       /**
        * A GENERÁCIÓ MINDEN VÁLTÁSNÁL NŐ (F93-02) — akkor is, ha a nyelv ugyanoda ér vissza. A
@@ -2507,7 +3324,7 @@ import { inviteNextKey } from './inviteText.mjs';
       if (state.help.open) renderHelp();
       retextTour();
       // A KÉRT ÉS A KAPOTT NYELV KÜLÖNBSÉGE KIMONDVA — néma elnyelés nincs (KUKA-012).
-      notice(tpl('langSwitched', { nyelv: currentEndonym() }), got === wanted ? 'ok' : 'warn');
+      notice(tpl('langSwitched', { nyelv: currentEndonym() }), code === wanted ? 'ok' : 'warn');
       const again = byTest(d.testid);
       if (again && typeof again.focus === 'function') again.focus();
       return;
@@ -2622,15 +3439,117 @@ import { inviteNextKey } from './inviteText.mjs';
     renderAuth('resent');
   }
 
+  /**
+   * A MEGHÍVÓ JEGY ELFELEJTÉSE — A CÍMSORRÓL IS, EGY HELYEN (R164 review, Codex, P2 —
+   * `KUKA-383` · `D-VS-3191`).
+   *
+   * A LELET. A kilépés a belső jegyet (`state.inviteToken`) kiürítette, a CÍMSORT viszont nem: a lap
+   * `/?invite=<jegy>` alakban nyílt meg, és ott is maradt. Egy FRISSÍTÉS — vagy ugyanannak a
+   * történet-bejegyzésnek az újbóli megnyitása, miután MÁS EMBER ült le a böngészőhöz — az indulásnál
+   * újra beolvasta a jegyet a címsorból, és a felület visszatért az ELŐZŐ ember meghívó-folyamatára.
+   * Vagyis pontosan az az elkülönítés bukott meg, amit a `KUKA-362`-es javítás állított.
+   *
+   * MIÉRT EGY HELYEN: a sikeres beváltás útja a címsort MÁR eddig is tisztította, a kilépés nem — két
+   * ág, egy szabály, és az egyiken elmaradt (KUKA-003 · KUKA-218). Innentől mindkettő EZT hívja.
+   *
+   * ÉS CSAK A MEGHÍVÓ PARAMÉTERT VISSZÜK EL: a nyelvválasztás vagy bármely más paraméter a címsorban
+   * marad (a korábbi alak az EGÉSZ címsort `/`-re írta, tehát azokat is elvitte).
+   */
+  function forgetInvite() {
+    state.inviteToken = null;
+    state.invite = null;
+    state.inviteNotKept = null;
+    try {
+      const u = new URL(window.location.href);
+      if (!u.searchParams.has('invite')) return;
+      u.searchParams.delete('invite');
+      const q = u.searchParams.toString();
+      history.replaceState(null, '', `${u.pathname}${q ? `?${q}` : ''}${u.hash || ''}`);
+    } catch { /* a címsor nem írható (pl. próbakörnyezet) — a belső állapot akkor is ürült */ }
+  }
+
   async function doLogout() {
     newContext('logout');
-    await api('POST', '/api/logout', {});
+    /**
+     * A KIJELENTKEZÉS A KÖZÖS ÜRÍTŐN MEGY ÁT (R164/3 — SAJÁT LELET, MÉRVE).
+     *
+     * A LELET. Ez a függvény eddig a SAJÁT, részleges ürítését végezte (`me` · `ctx` · `members`), a
+     * `resetViewCaches()`-t pedig nem hívta. Két következménye volt, és mindkettő mérhető:
+     *   1. A NÉZETHEZ KÖTÖTT TÁRAK nem ürültek ki a kilépéskor (beszélgetés, tudás-index, súgó,
+     *      panelek, mintaadat) — pedig a KUKA-218 szabálya szerint „minden nézethez kötött tár EGY
+     *      helyen ürül". A következő belépő `refreshMe`-je ugyan ürített, de a kilépés és a belépés
+     *      KÖZÖTTI képernyőn a régi ember adata még a memóriában állt.
+     *   2. A FUTÓ BEMUTATÓ nem adódott át ITT, és a futás a kilépés UTÁNI anonim képernyőn is élt.
+     *      Az őr ilyenkor azt mérte, hogy a lépés célja (`logout`) nincs a lapon — és NEVEZETTEN
+     *      megszakította a bemutatót egy ÉP átadás közben: „az útmutatóban megnevezett elem nem
+     *      látható ezen a képernyőn". Hamis hibaüzenet a helyes út közepén (KUKA-171 · KUKA-201).
+     *
+     * MOSTANTÓL a kilépés is a KÖZÖS ürítőn megy át: az átadás ott keletkezik (`saveTourHandover`),
+     * a futás ott szűnik meg, és a tárak ott ürülnek — egy szabály, egy otthon (KUKA-003 · KUKA-039).
+     */
+    /**
+     * ÉS A KILÉPÉS VÁLASZÁT MEGMÉRJÜK (R176, külső review P2 — `KUKA-434`).
+     *
+     * A LELET: ez a sor a választ ELDOBTA. Az `api()` NEM dob kivételt — hálózati hibára, 5xx-re
+     * és értelmezhetetlen válaszra is OBJEKTUMMAL tér vissza —, tehát a függvény a kimenet
+     * ISMERETE NÉLKÜL ürített, elvette a meghívó JEGYÉT (`forgetInvite`: memória ÉS címsor), és a
+     * belépő lapot rajzolta ki — vagyis KIMONDTA, hogy kiléptünk. Két kár egyszerre:
+     *   1. A kiszolgáló munkamenete ÉLHET tovább, a lap mégis azt állítja, hogy nincs belépve —
+     *      aki így adja át a gépet, az hamis állításban bízik.
+     *   2. A meghívó képernyőjén ez a jegy az EGYETLEN azonnali út vissza a meghíváshoz — egy
+     *      múló hálózati hiba tehát VISSZAFORDÍTHATATLANUL elvette azt, amit meg sem történt
+     *      művelet árán (`KUKA-422` · `KUKA-215`: a választ MEG KELL MÉRNI).
+     *
+     * ÉS A HATÓKÖR A HIBA-OSZTÁLY, NEM A LELET SORSZÁMA (`KUKA-418`): a visszalépést (`doInviteLeave`)
+     * már megmértem, a SZOMSZÉDÁT — amelyik UGYANAZT a közös ürítőt hívja — nem.
+     *
+     * AMIT EZ NEM ÁLLÍT (`KUKA-220`): a nem igazolt kimenet NEM „nem történt meg". Ezért a
+     * bizonytalan ágon sem azt mondjuk, hogy a kilépés MEGHIÚSULT, hanem hogy NEM ELDÖNTHETŐ — és
+     * a képernyő marad, ahol a felhasználó újra tudja próbálni (`KUKA-201`).
+     */
+    const r = await api('POST', '/api/logout', {});
+    const v = requestOutcome(r);
+    if (v !== 'ok') {
+      /**
+       * ÉS A SAJÁT KEZDEMÉNYEZÉS JELE IS ELSZÁLL A MEGHIÚSULT KILÉPÉSSEL (`KUKA-470` · külső review,
+       * Codex, P2). A LELET: a `newContext('logout')` a függvény ELEJÉN beállítja a
+       * `state.selfInitiated`-et, és azt CSAK a következő `refreshMe` törli. Ha a kilépés
+       * meghiúsul, a jelölő BENT MARAD — és ha közben egy MÁSIK fül kicseréli a kiszolgált
+       * személyt vagy fiókot, a következő frissítés `foreign`-ot HAMISRA számolja, és a lap
+       * NÉMÁN átveszi az új nézetet: nem jelenik meg sem a „más ember lépett be", sem a
+       * „másik fiókra váltottak" figyelmeztetés (`KUKA-204` · `KUKA-208` · `KUKA-217`).
+       *
+       * A VÁLASZ A LEGSZŰKEBB IGAZ ÁLLÍTÁS: ami nem történt meg, azt nem kezdeményeztük. A
+       * nemzedék-szám emelése MARAD (a későn beérkező válasz nem rajzolhat — `KUKA-230`), a
+       * SAJÁT-kezdeményezés jele viszont elszáll, tehát a következő nézet-változás KIMONDJA magát.
+       */
+      state.selfInitiated = false;
+      state.signOutNotDone = v === 'uncertain' ? UI.signOutUncertain : refusalText(r);
+      render();
+      return;
+    }
+    state.generation += 1;
+    resetViewCaches({ kilepes: true });
     state.me = null; state.ctx = { subject: null, book: null }; state.members = [];
+    /**
+     * AZ ELŐZŐ EMBER MEGHÍVÓ-JEGYE SEM ÉLHETI TÚL A KILÉPÉST (R164/3 — SAJÁT LELET, MÉRVE).
+     *
+     * A LELET. Ez a függvény a `state.invite`-ot (a megfigyelt meghívó ADATÁT) kiürítette, a
+     * `state.inviteToken`-t (magát a JEGYET) viszont nem. A `render()` pedig a jegyet nézi először:
+     * `if (state.inviteToken) { renderAuth('invite'); return; }`. Következmény, MÉRVE a két szereplős
+     * történeten: a meghívott megnyitja a meghívó-képernyőt, kilép, és a KÖVETKEZŐ belépő — egy MÁS
+     * EMBER — ugyanazon a meghívó-képernyőn landol; a héj-nézet (menü, lapok) meg sem jelenik. A
+     * bemutató ezért `targetMissing`-gel megállt, pedig a felület volt rossz állapotban, nem a lépés.
+     *
+     * Ez a KUKA-218 osztálya („minden nézethez kötött tár EGY helyen ürül") és a KUKA-217-é is: egy
+     * MÁSIK ember belépése nem örökölheti az előző ember állapotát.
+     */
+    forgetInvite();
     // AZ ELŐZŐ EMBER VÁLASZTÁSA NEM A KÖVETKEZŐ EMBERÉ (F93-02, a külső fél kikötése): a tárolt
     // választás személyhez kötve megmarad, de az ÚTON tett választást itt eldobjuk — különben egy
     // kijelentkezés után belépő MÁSIK ember örökölné.
     rememberChoice(null);
-    state.tabs = ['overview']; state.page = 'overview'; state.notice = null; state.invite = null;
+    state.tabs = ['overview']; state.page = 'overview'; state.notice = null;
     closePanel();
     renderAuth('login');
   }
@@ -2657,7 +3576,7 @@ import { inviteNextKey } from './inviteText.mjs';
     resetViewCaches();
     state.tabs = ['overview']; state.page = 'overview'; state.notice = null; state.afterCreate = null;
     closePanel();
-    const sw = byTest('account-switcher'); if (sw) sw.open = false;
+    closeHeaderOverlays();
     render();                       // ELŐBB ÜRÍT, aztán kér — a régi fiók adata azonnal lekerül
     const r = await api('POST', '/api/session/workspace', { book_id: id });
     if (!r.ok) { notice(refusalText(r), 'bad'); await refreshMe(); return; }
@@ -2760,7 +3679,13 @@ import { inviteNextKey } from './inviteText.mjs';
     formResult('invite-result', tpl('inviteReady', { mikor: whenText(r.expires_at) }), 'ok');
     // A BEMUTATÓ FELADAT-LÉPÉSE ITT LESZ IGAZOLT: a szerver TÉNYLEGESEN létrehozta a meghívót. A
     // gomb megnyomása önmagában nem siker (TUR-01 · KUKA-129).
-    tourTaskDone('invite.created');
+    // A TÖRTÉNET SAJÁT VÁLASZTÁSI LÉPÉSE (R186 §2): az ÚJ meghívó jelölője a SZERVER válaszából
+    // jön, és innentől az a történet célja — az elfogadásnak (`s17`) ERRE kell szólnia.
+    // AZ ÁTKÖTÉS A KISZOLGÁLÓ SAJÁT CÉL-KÖTÉSÉHEZ VAN KÖTVE (R186 §5): a friss kötést CSAK akkor
+    // kérjük el, ha a lépés átkötést deklarál — különben egyetlen kérés sem indul.
+    const ujKotes = tourStepNeedsRebind('invite.created')
+      ? await authoritativeStory(state.tour.id, v, r.ref ?? null) : null;
+    tourTaskDone('invite.created', { ref: r.ref ?? null, auth: ujKotes });
     show(byTest('invite-mail-row'), true);
     if (state.page === 'members' && state.membersTab === 'invites') await loadInvites();
   }
@@ -2784,7 +3709,9 @@ import { inviteNextKey } from './inviteText.mjs';
       const mondat = r.changed === false
         ? tpl('scopeGrantUnchanged', { ki: who, mit })
         : tpl('memberCanSee', { ki: who, mit });
-      if (r.changed !== false) tourTaskDone('grant.saved');   // IGAZOLT változás után (TUR-01 · F91-01)
+      // A JOGADÁS IS A VÁLASZTOTT TAGRA SZÓL (R186 §2): a `tour.reentry` s14 lépése történethez
+      // kötött, tehát a nyugta hozza, KINEK adtuk meg — egy másik tagon a lépés nem teljesül.
+      if (r.changed !== false) tourTaskDone('grant.saved', { ref: id });   // IGAZOLT változás után (TUR-01 · F91-01)
       formResult('members-result', mondat, r.changed === false ? 'warn' : 'ok');
       toast(mondat);
     } else {
@@ -2836,15 +3763,46 @@ import { inviteNextKey } from './inviteText.mjs';
     const who = m ? (m.email || id) : id;
     // A BEMUTATÓ LÉPÉSE A SZERVER IGAZOLT VÁLASZÁRA ZÁRUL (TUR-01 · KUKA-231): a „Tovább" gomb nem
     // szünteti meg senki tagságát a felhasználó helyett.
-    if (r.ok) tourTaskDone('member.revoked');
-    formResult('members-result', r.ok ? tpl('memberRevoked', { ki: who, nev: accountName() }) : refusalText(r), r.ok ? 'ok' : 'bad');
+    /**
+     * ÉS A NYUGTA IGAZAT MOND ARRÓL, TÖRTÉNT-E VÁLTOZÁS (`KUKA-475` · külső review, Codex, P2).
+     *
+     * A LELET: a megvonás ÜZLETILEG IDEMPOTENS — ha egy MÁSIK FÜL a lap betöltése után már
+     * megvonta ezt a tagot, a mag `ok: true, changed: false`-ot ad `revocation_already_effective`
+     * okkal. Ez a sor viszont a PUSZTA `r.ok`-ra zárta a bemutató lépését, és azt mondta ki, hogy
+     * „EZ a kérés" szüntette meg a hozzáférést — vagyis egy MEG SEM TÖRTÉNT átmenetre állított
+     * teljesítést (`KUKA-129` · `KUKA-231`). A szomszéd utak (adatkör-megadás, meghívó-visszavonás)
+     * már ezt a szabályt követték: fél őr volt (`KUKA-039`).
+     *
+     * AZ ÁTMENET A `r.revocation`-ben áll (a válasz a mag teljes verdiktjét átadja), tehát ONNAN
+     * kérdezzük — és változatlan állapotnál a nyugta is ezt mondja.
+     */
+    const megvontMost = Boolean(r.revocation && r.revocation.changed === true);
+    if (r.ok && megvontMost) tourTaskDone('member.revoked', { ref: id });   // a VÁLASZTOTT tagra szól (R186 §2)
+    formResult('members-result',
+      r.ok ? (megvontMost ? tpl('memberRevoked', { ki: who, nev: accountName() })
+        : tpl('memberRevokeUnchanged', { ki: who, nev: accountName() })) : refusalText(r),
+      r.ok ? (megvontMost ? 'ok' : 'warn') : 'bad');
     await loadMembers();
   }
 
   // ── MEGHÍVÓ ─────────────────────────────────────────────────────────────────────────────────
+  /**
+   * A FOLYTATÁS MEGŐRZÉSÉNEK VÁLASZÁT MEG KELL MÉRNI (R164 review, Codex, P2 — `KUKA-385` · `D-VS-3193`).
+   *
+   * A LELET. A szerver HELYESEN utasítja el a folytatás megőrzését, ha a munkamenet-tár tele van
+   * (503 `at_capacity`) vagy ha a nézet alatt kiléptek (409 `session_gone`) — és NEVEZETT indokot ad.
+   * Ez a hívás viszont a választ ELDOBTA, és a lap úgy folytatta, mintha minden rendben lett volna.
+   * A kár ettől NÉMA és KÉSŐBB jelentkezik: a felhasználó elindul az új fiókos megerősítő levéllel, a
+   * jegy EGYETLEN példánya ott marad a kliens memóriájában, és a belépés után a szerver már nem tud
+   * `pending_invite_token`-t adni — a megígért folytatás tehát CSENDBEN eltűnik.
+   *
+   * MA: a választ megmérjük (KUKA-215), és ami nem sikerült, azt a lap KIMONDJA — a szöveg a
+   * nyelvcsomagból jön (SZO-01), nem beégetve, és megnevezi a MŰKÖDŐ folytatást (KUKA-201).
+   */
   async function observeInvite() {
     if (!state.inviteToken) return;
-    await api('POST', '/api/invites/pending', { token: state.inviteToken });
+    const keep = await api('POST', '/api/invites/pending', { token: state.inviteToken });
+    state.inviteNotKept = keep && keep.ok ? null : refusalText(keep);
     state.invite = await api('GET', `/api/invites/observe?token=${encodeURIComponent(state.inviteToken)}`);
   }
   async function doRedeem() {
@@ -2854,7 +3812,9 @@ import { inviteNextKey } from './inviteText.mjs';
     // `ok` válasza UTÁN és a képernyő elhagyása ELŐTT megy ki — a „Tovább"/„Befejezés" gomb tehát
     // nem fogadja el a meghívást a felhasználó helyett (KUKA-231), és egy elutasított beváltás nem
     // zárja le a bemutatót sikeresen (KUKA-163 alakja a bemutatón).
-    tourTaskDone('invite.redeemed');
+    // AZ ELFOGADÁS IS A TÖRTÉNET CÉLJÁRA SZÓL (R186 §2): a jelölő a megfigyelt meghívó
+    // képernyőjéről jön, amit a szerver adott a bizonyított címzettnek — nem a böngésző számolja.
+    tourTaskDone('invite.redeemed', { ref: (state.invite && state.invite.ref) || null });
     // ÉS A LEZÁRÁS IS ITT, A FIÓKVÁLTÁS ELŐTT (F111-01): a tagság létrejötte önmagában NEM bizonyítja
     // a bemutató befejezését — az összegzés a szerver igazolt válaszából születik, a váltás előtt.
     //
@@ -2865,14 +3825,100 @@ import { inviteNextKey } from './inviteText.mjs';
     const tovabbVan = Boolean(state.tour) && state.tour.steps.some((x) => x.switch_actor === true)
       && state.tour.at + 1 < state.tour.steps.length;
     if (!tovabbVan) carryTourBeforeSwitch('invite_redeemed');
-    state.inviteToken = null;
-    state.invite = null;
-    history.replaceState(null, '', '/');
+    forgetInvite();
     newContext('invite_redeemed');
     state.tabs = ['overview']; state.page = 'overview';
     // KIMONDOTT KÉSLELTETÉS (F142-01): itt a visszaállás a „más ember ült le közben" ág UTÁN
     // történik — egy idegen nézőnek nem állítjuk vissza az előző ember futását (R112-I3 · KUKA-204).
-    await refreshMe({ deferTourResume: true });
+    const appliedBefore = state.appliedSeq;
+    const frissult = await refreshMe({ deferTourResume: true });
+    /**
+     * ELŐBB AZT KÉRDEZZÜK MEG, TUDJUK-E, KI ÜL A LAPNÁL (R204 — SAJÁT LELET, MÉRVE).
+     *
+     * A lenti kapu a `state.me`-ből dönt, azt viszont a frissítés korai kilépése a RÉGI emberen
+     * hagyja. Ilyenkor a kapu CARLT hasonlítja CARLHOZ, átengedi, és a siker mondata annak szól,
+     * aki épp ott ül. Ezért: ha a frissítés NEM alkalmazta a szerver igazságát, SEMMIT nem
+     * állítunk a személyről — se sikert, se személyváltást.
+     *
+     * AMIT EZ MEGTART: a szerver TÉNYE (a tagság létrejött) nem tűnik el, és nem is nevezzük
+     * meghiúsultnak — a mondat a NEM ELDÖNTHETŐ állapotot mondja ki, a teendővel (KUKA-201 · a
+     * KUKA-093 alakja a felületen: a hiányzó mérés nem zöld, de nem is piros).
+     * ÉS AMIT NEM TESZÜNK: nem rajzolunk át egy kontextust, amit nem igazoltunk (a `render()`
+     * ezen az ágon a RÉGI embert festené — a SPEC §2: „Késői válasz ne rajzoljon vissza régi
+     * személyt/adatot"), és a hordozott lezárás sem száll át.
+     */
+    /**
+     * AZ ELAVULT FRISSÍTÉS NEM ÉRVÉNYTELENÍTHETI AZ ÚJABBAT (R206 — F206-02, a külső ellenőrző
+     * fél lelete, FORRÁSBÓL igazolva).
+     *
+     * A LELET. A korábbi alak MINDEN `applied: false` eredményre bizonytalanra állította a
+     * kontextust, a `why` különbségétől függetlenül. A `superseded` viszont NEM azt jelenti,
+     * hogy nem tudjuk, ki ül itt — azt jelenti, hogy egy ÚJABB frissítés indult, és az akár
+     * MÁR alkalmazta is a mai nézetet. Ilyenkor az elavult hívó egy IGAZOLT, frissebb képet
+     * tett volna újra bizonytalanná, és a saját, régebbi mondatát írta volna a frissebb
+     * értesítés helyére (`KUKA-211`: a válasz a MEGNYITÁSKORI nézethez tartozik ·
+     * `KUKA-041`: a késve érkező válasz nem írhat az új nézetbe).
+     *
+     * A KÉT ESET KÉT VÁLASZ, ÉS A KÜLÖNBSÉGET MÉRJÜK, nem feltételezzük: a `appliedSeq`
+     * megmondja, alkalmazott-e KÖZBEN egy újabb frissítés.
+     *   · ÚJABB MÁR ALKALMAZTA → a frissebb, igazolt képhez nem érünk hozzá: se bizonytalanság,
+     *     se átrajzolás, se felülírt értesítés. A művelet eredménye a SAJÁT helyén marad.
+     *   · ÚJABB MÉG FÜGGŐBEN (vagy a kiszolgáló elérhetetlen) → a kontextus VALÓBAN nem igazolt;
+     *     a lap ezt kimondja, a folytatást felkínálja, és amint a függő frissítés megérkezik, az
+     *     állapot MAGÁTÓL helyreáll (a feloldó a `refreshMe`-ben áll — nincs várakozó időzítő).
+     */
+    const ujabbIgazolas = !frissult.applied && frissult.why === 'superseded'
+      && state.appliedSeq > appliedBefore;
+    if (ujabbIgazolas) {
+      // A SAJÁT HELYÉN, A SAJÁT MŰVELETÉRŐL (a kártya sora): a héj közös értesítése a FRISSEBB,
+      // igazolt eseményé — azt nem írjuk át egy korábbi művelet mondatával.
+      formResult('invite-redeem-result', UI.inviteAcceptedLead, 'ok');
+      return;
+    }
+    if (!frissult.applied) {
+      state.tourCarry = null;
+      // A MONDAT ODA MEGY, AHOL A FELHASZNÁLÓ ÁLL: a meghívó kártya saját sora MOST látszik (a héj
+      // `global-notice`-a ezen a képernyőn nincs is a lapon — ezért nyelte el a régi alak a
+      // `notice()`-t, némán).
+      state.ctxUnconfirmed = true;
+      /**
+       * A SIKER NEM TŰNIK EL, CSAK VÁR A CÍMZETTJÉRE (R206 — F206-01). A szerver IGAZOLTA a
+       * tagságot; a kérdés csak az, kinek szól. A művelet alanya és könyve ezért ITT marad, és
+       * az állapot tisztázásakor EGY feloldó dönt (`resolveCtxPending`).
+       */
+      state.ctxPending = { what: 'invite_redeemed', subject_id: r.subject_id ?? null, book_id: r.book_id ?? null };
+      /**
+       * A SAJÁT KEZDEMÉNYEZÉS JELE ITT ELAVULT (R206 — F206-01). A `newContext('invite_redeemed')`
+       * azért állította be, hogy a SAJÁT váltásunkra ne jöjjön „másik ember ült le ide" mondat —
+       * de az a frissítés, amelyik ezt elhasználta volna, NEM alkalmazott. Ha a jel itt maradna,
+       * a KÖVETKEZŐ frissítés elnyelné a személyváltás mondatát: pontosan az a némaság, amit az
+       * R112-I3 lelete leírt (`KUKA-204`).
+       */
+      state.selfInitiated = false;
+      /**
+       * A RÉGI MŰVELET NEM KÜLDHETŐ BE ÚJRA (a SPEC §2 kikötése). A beváltás MEGTÖRTÉNT a
+       * kiszolgálón, a gomb viszont ott maradt a kártyán — és ha közben MÁS ember ült le, az ő
+       * ujja alatt indult volna újra ugyanaz a művelet. A jegyet a `forgetInvite()` már elvette;
+       * a gombot NEVEZETTEN vesszük ki a használatból, nem elrejtve (`KUKA-011`: a „nem látszik"
+       * nem ugyanaz, mint a „nincs ott").
+       */
+      const redeemBtn = byTest('invite-redeem');
+      if (redeemBtn) redeemBtn.disabled = true;
+      /**
+       * ÉS A BEMUTATÓ EREDMÉNYE SEM SZÁLL ÁT (a SPEC §2 · `KUKA-204` · `KUKA-218`). A futó
+       * útmutató a MEGNYITÁSKORI személyhez tartozik; egy nem igazolt nézetben nem folytatható,
+       * és nem is zárható le sikerrel. A futás NEVEZETT indokkal áll meg (a hátralévő lépések
+       * átugrottak, nem elvégzettek — TUR-01), a lezárás pedig nem hordozódik tovább.
+       */
+      if (state.tour) tourMod.exitRun(state.tour, 'context_unconfirmed');
+      state.tour = null; state.tourFinished = false; state.tourBlocked = null;
+      state.tourAborted = 'contextUnconfirmed';
+      renderHeader();                 // CSAK a fejlec — a nezetet nem rajzoljuk at igazolas nelkul
+      renderTour();
+      formResult('invite-redeem-result', UI.inviteAcceptedUnconfirmed, 'warn');
+      notice(UI.inviteAcceptedUnconfirmed, 'warn');
+      return;
+    }
     /**
      * A SIKER ANNAK SZÓL, AKINEK A SZERVER KISZOLGÁLTA (R112 saját lelete · KUKA-204).
      *

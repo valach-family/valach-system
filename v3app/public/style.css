@@ -51,6 +51,10 @@ td.numeric{text-align:right;font-variant-numeric:tabular-nums}
 .brand:hover{background:none;text-decoration:underline}
 .spacer{flex:1}
 .switcher,.profile{position:relative}
+/* R206 — A NEM IGAZOLT KONTEXTUS FOLYTATÁSÁNAK HELYE a fejlécben: a gombot a lap rajzolja ide,
+   a fiókválasztó HELYÉRE (az ilyenkor rejtve van) — üresen nem foglal helyet. */
+.ctxslot{display:inline-flex;align-items:center}
+.ctxslot>button{min-height:42px}
 .switcher>summary,.profile>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:7px 11px;border:1px solid var(--border);border-radius:var(--radius);min-height:42px;background:#fff}
 .switcher>summary::-webkit-details-marker,.profile>summary::-webkit-details-marker{display:none}
 .switcher .label{font-size:12px;color:var(--muted)}

@@ -1,10 +1,11 @@
 {
  "status": {
   "ok": true,
-  "served_book_id": "ws_938f0d44",
-  "served_subject_id": "sub_4241b08d1a34694e",
+  "served_book_id": null,
+  "served_subject_id": null,
   "lang": "hu",
   "dir": "ltr",
+  "surface": "demo",
   "languages": [
    {
     "code": "hu",
@@ -241,6 +242,11 @@
     "requires_role": null,
     "audience": "signed_in",
     "requires_anonymous": false,
+    "auth_view": null,
+    "requires_dev_mailbox": false,
+    "requires_stock_access": false,
+    "requires_demo_fixture": false,
+    "requires_story_data": null,
     "requires_invite": false,
     "steps": [
      {
@@ -249,7 +255,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -257,7 +268,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -265,7 +281,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s4",
@@ -273,7 +294,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s5",
@@ -281,7 +307,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -307,7 +338,8 @@
       "title": "A Súgó",
       "body": "Innen nyílik a súgó: kérdezhetsz, leírást olvashatsz, kereshetsz a gyakori kérdésekben, vagy megnézheted az oldaltérképet."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.invite",
@@ -317,6 +349,11 @@
     "requires_role": "admin",
     "audience": "signed_in",
     "requires_anonymous": false,
+    "auth_view": null,
+    "requires_dev_mailbox": false,
+    "requires_stock_access": false,
+    "requires_demo_fixture": false,
+    "requires_story_data": null,
     "requires_invite": false,
     "steps": [
      {
@@ -325,7 +362,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -333,7 +375,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -341,7 +388,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": "invite-open"
+      "switch_axis": null,
+      "appears_after": "invite-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s4",
@@ -349,7 +401,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": "invite-open"
+      "switch_axis": null,
+      "appears_after": "invite-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s5",
@@ -357,7 +414,12 @@
       "task": "invite.created",
       "role": null,
       "switch_actor": false,
-      "appears_after": "invite-open"
+      "switch_axis": null,
+      "appears_after": "invite-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s6",
@@ -365,7 +427,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": "invite-submit"
+      "switch_axis": null,
+      "appears_after": "invite-submit",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -395,7 +462,8 @@
       "title": "A levél megnyitása",
       "body": "A próbafelületen a levél a Próbaüzenetek panelen nyílik meg. Valódi levelet nem küldtünk."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.addBusiness",
@@ -405,6 +473,11 @@
     "requires_role": null,
     "audience": "signed_in",
     "requires_anonymous": false,
+    "auth_view": null,
+    "requires_dev_mailbox": false,
+    "requires_stock_access": false,
+    "requires_demo_fixture": false,
+    "requires_story_data": null,
     "requires_invite": false,
     "steps": [
      {
@@ -413,7 +486,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -421,7 +499,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -429,7 +512,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": "ws-kind-business"
+      "switch_axis": null,
+      "appears_after": "ws-kind-business",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s4",
@@ -437,7 +525,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": "ws-kind-business"
+      "switch_axis": null,
+      "appears_after": "ws-kind-business",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s5",
@@ -445,7 +538,12 @@
       "task": "workspace.created",
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -471,7 +569,8 @@
       "title": "A létrehozás",
       "body": "Nyomd meg az „Új fiók hozzáadása” gombot. Ez a lépés csak tényleges létrehozás után halad tovább."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.stock",
@@ -481,6 +580,11 @@
     "requires_role": null,
     "audience": "signed_in",
     "requires_anonymous": false,
+    "auth_view": null,
+    "requires_dev_mailbox": false,
+    "requires_stock_access": false,
+    "requires_demo_fixture": false,
+    "requires_story_data": null,
     "requires_invite": false,
     "steps": [
      {
@@ -489,7 +593,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -497,7 +606,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -505,7 +619,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s4",
@@ -513,7 +632,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -535,7 +659,8 @@
       "title": "Az árak",
       "body": "Az árak két feltételhez kötöttek: csomag és engedély. A lap megmondja, melyik hiányzik."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.grant",
@@ -545,6 +670,11 @@
     "requires_role": "admin",
     "audience": "signed_in",
     "requires_anonymous": false,
+    "auth_view": null,
+    "requires_dev_mailbox": false,
+    "requires_stock_access": false,
+    "requires_demo_fixture": false,
+    "requires_story_data": null,
     "requires_invite": false,
     "steps": [
      {
@@ -553,7 +683,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -561,7 +696,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -569,7 +709,12 @@
       "task": "grant.saved",
       "role": null,
       "switch_actor": false,
-      "appears_after": "members-list"
+      "switch_axis": null,
+      "appears_after": "members-list",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -587,7 +732,8 @@
       "title": "Az adatkör engedélyezése",
       "body": "Válaszd ki az adatkört, és nyomd meg a „Megtekintés engedélyezése” gombot. Ez a lépés csak tényleges mentés után halad tovább."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.scopeLifecycle",
@@ -597,6 +743,11 @@
     "requires_role": "admin",
     "audience": "signed_in",
     "requires_anonymous": false,
+    "auth_view": null,
+    "requires_dev_mailbox": false,
+    "requires_stock_access": false,
+    "requires_demo_fixture": false,
+    "requires_story_data": null,
     "requires_invite": false,
     "steps": [
      {
@@ -605,7 +756,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -613,7 +769,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -621,7 +782,12 @@
       "task": "grant.saved",
       "role": null,
       "switch_actor": false,
-      "appears_after": "members-list"
+      "switch_axis": null,
+      "appears_after": "members-list",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s4",
@@ -629,7 +795,12 @@
       "task": "scope.revoked",
       "role": null,
       "switch_actor": false,
-      "appears_after": "members-list"
+      "switch_axis": null,
+      "appears_after": "members-list",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -651,7 +822,8 @@
       "title": "És a visszavonás",
       "body": "Ugyanabban a sorban a „Hozzáférés visszavonása” gomb csak ezt az egy hozzáférést veszi el — a tagság és a többi adat megmarad."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.inviteRevoke",
@@ -661,6 +833,11 @@
     "requires_role": "admin",
     "audience": "signed_in",
     "requires_anonymous": false,
+    "auth_view": null,
+    "requires_dev_mailbox": true,
+    "requires_stock_access": false,
+    "requires_demo_fixture": false,
+    "requires_story_data": "pending_invite",
     "requires_invite": false,
     "steps": [
      {
@@ -669,7 +846,12 @@
       "task": null,
       "role": "admin",
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -677,7 +859,12 @@
       "task": null,
       "role": "admin",
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -685,7 +872,12 @@
       "task": null,
       "role": "admin",
       "switch_actor": false,
-      "appears_after": "members-tab-invites"
+      "switch_axis": null,
+      "appears_after": "members-tab-invites",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s4",
@@ -693,7 +885,12 @@
       "task": "invite.revoked",
       "role": "admin",
       "switch_actor": false,
-      "appears_after": "members-tab-invites"
+      "switch_axis": null,
+      "appears_after": "members-tab-invites",
+      "switch_to": null,
+      "story_bound": "ref",
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s5",
@@ -701,7 +898,12 @@
       "task": null,
       "role": "admin",
       "switch_actor": false,
-      "appears_after": "members-tab-invites"
+      "switch_axis": null,
+      "appears_after": "members-tab-invites",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s6",
@@ -709,7 +911,12 @@
       "task": "actor.switched",
       "role": null,
       "switch_actor": true,
-      "appears_after": null
+      "switch_axis": "subject",
+      "appears_after": null,
+      "switch_to": "story_actor",
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s7",
@@ -717,7 +924,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s8",
@@ -725,7 +937,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": "demo-mail-open"
+      "switch_axis": null,
+      "appears_after": "demo-mail-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s9",
@@ -733,7 +950,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": "mailbox"
+      "switch_axis": null,
+      "appears_after": "mailbox",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": true,
+      "story_rebind": false
      },
      {
       "id": "s10",
@@ -741,7 +963,25 @@
       "task": "actor.switched",
       "role": "admin",
       "switch_actor": true,
-      "appears_after": null
+      "switch_axis": "subject",
+      "appears_after": null,
+      "switch_to": "origin_actor",
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s10b",
+      "target": "account-switcher",
+      "task": "actor.switched",
+      "role": "admin",
+      "switch_actor": true,
+      "switch_axis": "book",
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s11",
@@ -749,7 +989,12 @@
       "task": null,
       "role": "admin",
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s12",
@@ -757,7 +1002,12 @@
       "task": null,
       "role": "admin",
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s13",
@@ -765,7 +1015,12 @@
       "task": "invite.created",
       "role": "admin",
       "switch_actor": false,
-      "appears_after": "invite-open"
+      "switch_axis": null,
+      "appears_after": "invite-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": "ref"
      },
      {
       "id": "s14",
@@ -773,7 +1028,12 @@
       "task": "actor.switched",
       "role": null,
       "switch_actor": true,
-      "appears_after": null
+      "switch_axis": "subject",
+      "appears_after": null,
+      "switch_to": "story_actor",
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s15",
@@ -781,7 +1041,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s16",
@@ -789,7 +1054,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": "demo-mail-open"
+      "switch_axis": null,
+      "appears_after": "demo-mail-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s17",
@@ -797,7 +1067,12 @@
       "task": "invite.redeemed",
       "role": null,
       "switch_actor": false,
-      "appears_after": "mailbox"
+      "switch_axis": null,
+      "appears_after": "mailbox",
+      "switch_to": null,
+      "story_bound": "ref",
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s18",
@@ -805,7 +1080,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -833,7 +1113,7 @@
      },
      "s6": {
       "title": "Válts át Béla nézetére",
-      "body": "A próbafelület sávjában a „Váltás Béla nézetére” gomb. Ez valódi ki- és belépés: innentől az ő munkamenetében vagy. Ha panel van nyitva, előbb zárd be — a sáv csak akkor érhető el."
+      "body": "A kiemelt vezérlő a kijelentkezés — ez valódi váltás, nem megszemélyesítés. Nyomd meg, majd Béla lépjen be a saját fiókjával ugyanitt; vagy nyissa meg a meghívót a saját böngészőjében. Az útmutató akkor folytatódik, amikor a kiszolgáló már az ő nézetét adja — a haladásod addig megmarad. Ha panel van nyitva, előbb zárd be."
      },
      "s7": {
       "title": "Nyisd meg a próbaüzeneteket",
@@ -850,6 +1130,10 @@
      "s10": {
       "title": "Válts vissza Anna nézetére",
       "body": "A fiókkezelőnek új meghívást kell kiadnia — a régi hivatkozás már nem éleszthető fel."
+     },
+     "s10b": {
+      "title": "Válts át a cég fiókjára",
+      "body": "A belépés után a saját személyes körödben állsz — a Felhasználók képernyő csak a cég fiókjában létezik. A fejléc fiókválasztójában válaszd a céget."
      },
      "s11": {
       "title": "Nyisd meg újra a Felhasználókat",
@@ -883,6 +1167,11 @@
       "title": "Nézd meg az eredményt",
       "body": "A fiókváltóban ott a cég: Béla mostantól tag. A régi, visszavont meghívó ettől nem éledt fel — ez egy új meghívás eredménye."
      }
+    },
+    "story": {
+     "kind": "invite",
+     "ref": null,
+     "actor": null
     }
    },
    {
@@ -893,6 +1182,11 @@
     "requires_role": "admin",
     "audience": "signed_in",
     "requires_anonymous": false,
+    "auth_view": null,
+    "requires_dev_mailbox": true,
+    "requires_stock_access": false,
+    "requires_demo_fixture": false,
+    "requires_story_data": "other_member",
     "requires_invite": false,
     "steps": [
      {
@@ -901,7 +1195,12 @@
       "task": null,
       "role": "admin",
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -909,7 +1208,12 @@
       "task": null,
       "role": "admin",
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -917,7 +1221,12 @@
       "task": "member.revoked",
       "role": "admin",
       "switch_actor": false,
-      "appears_after": "members-list"
+      "switch_axis": null,
+      "appears_after": "members-list",
+      "switch_to": null,
+      "story_bound": "ref",
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s4",
@@ -925,7 +1234,12 @@
       "task": "reinvite.sent",
       "role": "admin",
       "switch_actor": false,
-      "appears_after": "members-list"
+      "switch_axis": null,
+      "appears_after": "members-list",
+      "switch_to": null,
+      "story_bound": "ref",
+      "story_ref": false,
+      "story_rebind": "invite_ref"
      },
      {
       "id": "s5",
@@ -933,7 +1247,12 @@
       "task": "actor.switched",
       "role": null,
       "switch_actor": true,
-      "appears_after": null
+      "switch_axis": "subject",
+      "appears_after": null,
+      "switch_to": "story_actor",
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s6",
@@ -941,7 +1260,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s7",
@@ -949,7 +1273,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": "demo-mail-open"
+      "switch_axis": null,
+      "appears_after": "demo-mail-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s8",
@@ -957,7 +1286,12 @@
       "task": "invite.redeemed",
       "role": null,
       "switch_actor": false,
-      "appears_after": "mailbox"
+      "switch_axis": null,
+      "appears_after": "mailbox",
+      "switch_to": null,
+      "story_bound": "invite_ref",
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s9",
@@ -965,7 +1299,12 @@
       "task": "actor.switched",
       "role": null,
       "switch_actor": true,
-      "appears_after": null
+      "switch_axis": "book",
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s10",
@@ -973,7 +1312,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s11",
@@ -981,7 +1325,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s12",
@@ -989,7 +1338,25 @@
       "task": "actor.switched",
       "role": "admin",
       "switch_actor": true,
-      "appears_after": null
+      "switch_axis": "subject",
+      "appears_after": null,
+      "switch_to": "origin_actor",
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s12b",
+      "target": "account-switcher",
+      "task": "actor.switched",
+      "role": "admin",
+      "switch_actor": true,
+      "switch_axis": "book",
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s13",
@@ -997,7 +1364,12 @@
       "task": null,
       "role": "admin",
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s14",
@@ -1005,7 +1377,12 @@
       "task": "grant.saved",
       "role": "admin",
       "switch_actor": false,
-      "appears_after": "members-list"
+      "switch_axis": null,
+      "appears_after": "members-list",
+      "switch_to": null,
+      "story_bound": "ref",
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s15",
@@ -1013,7 +1390,25 @@
       "task": "actor.switched",
       "role": null,
       "switch_actor": true,
-      "appears_after": null
+      "switch_axis": "subject",
+      "appears_after": null,
+      "switch_to": "story_actor",
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s15b",
+      "target": "account-switcher",
+      "task": "actor.switched",
+      "role": null,
+      "switch_actor": true,
+      "switch_axis": "book",
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s16",
@@ -1021,7 +1416,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s17",
@@ -1029,7 +1429,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s18",
@@ -1037,7 +1442,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -1061,7 +1471,7 @@
      },
      "s5": {
       "title": "Válts át Béla nézetére",
-      "body": "A próbafelület sávjában a „Váltás Béla nézetére” gomb. Ez valódi ki- és belépés. Ha panel van nyitva, előbb zárd be — a sáv csak akkor érhető el."
+      "body": "A kiemelt vezérlő a kijelentkezés — ez valódi váltás, nem megszemélyesítés. Nyomd meg, majd Béla lépjen be a saját fiókjával ugyanitt; vagy nyissa meg a levelét a saját böngészőjében. Az útmutató akkor folytatódik, amikor a kiszolgáló már az ő nézetét adja — a haladásod addig megmarad. Ha panel van nyitva, előbb zárd be."
      },
      "s6": {
       "title": "Nyisd meg a próbaüzeneteket",
@@ -1091,6 +1501,10 @@
       "title": "Válts vissza Anna nézetére",
       "body": "Az adatkört a fiókkezelő adja meg, külön művelettel."
      },
+     "s12b": {
+      "title": "Válts át a cég fiókjára",
+      "body": "A belépés után a saját személyes körödben állsz — a jogadás a cég fiókjában megy. A fejléc fiókválasztójában válaszd a céget."
+     },
      "s13": {
       "title": "Nyisd meg újra a Felhasználókat",
       "body": "A váltás után az áttekintésen állsz. A jogadás a Felhasználók képernyőről megy."
@@ -1102,6 +1516,10 @@
      "s15": {
       "title": "Válts át újra Béla nézetére",
       "body": "Most már látnia kell a készletet — de csak azt, amire jogot kapott."
+     },
+     "s15b": {
+      "title": "Válts át a cég fiókjára",
+      "body": "Belépés után itt is a személyes kör jön elő — a készlet képernyői a cég fiókjában vannak. Válaszd a céget a fejlécben."
      },
      "s16": {
       "title": "Nyisd meg újra a Készletegyenleget",
@@ -1115,6 +1533,11 @@
       "title": "Az ár viszont nem",
       "body": "Az árak külön adatkör, és azt nem adtuk meg. A képernyő kimondja a hiányt — nem üres mezőt mutat."
      }
+    },
+    "story": {
+     "kind": "member",
+     "ref": null,
+     "actor": null
     }
    },
    {
@@ -1125,6 +1548,11 @@
     "requires_role": "admin",
     "audience": "signed_in",
     "requires_anonymous": false,
+    "auth_view": null,
+    "requires_dev_mailbox": false,
+    "requires_stock_access": false,
+    "requires_demo_fixture": false,
+    "requires_story_data": null,
     "requires_invite": false,
     "steps": [
      {
@@ -1133,7 +1561,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -1141,7 +1574,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -1149,7 +1587,12 @@
       "task": "plan.saved",
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -1167,7 +1610,8 @@
       "title": "A mentés",
       "body": "Nyomd meg a „Csomag mentése” gombot. Ez a lépés csak tényleges mentés után halad tovább."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.language",
@@ -1177,6 +1621,11 @@
     "requires_role": null,
     "audience": "signed_in",
     "requires_anonymous": false,
+    "auth_view": null,
+    "requires_dev_mailbox": false,
+    "requires_stock_access": false,
+    "requires_demo_fixture": false,
+    "requires_story_data": null,
     "requires_invite": false,
     "steps": [
      {
@@ -1185,7 +1634,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -1193,7 +1647,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -1207,7 +1666,8 @@
       "title": "A nyelv kiválasztása",
       "body": "A választás azonnal érvényes a felületre, a súgóra, a gyakori kérdésekre és a segédre. Országot, adózási rendet és pénznemet nem állít."
      }
-    }
+    },
+    "story": null
    },
    {
     "id": "tour.help",
@@ -1217,6 +1677,11 @@
     "requires_role": null,
     "audience": "public",
     "requires_anonymous": false,
+    "auth_view": null,
+    "requires_dev_mailbox": false,
+    "requires_stock_access": false,
+    "requires_demo_fixture": false,
+    "requires_story_data": null,
     "requires_invite": false,
     "steps": [
      {
@@ -1225,7 +1690,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": null
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s2",
@@ -1233,7 +1703,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": "help-open"
+      "switch_axis": null,
+      "appears_after": "help-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s3",
@@ -1241,7 +1716,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": "help-open"
+      "switch_axis": null,
+      "appears_after": "help-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      },
      {
       "id": "s4",
@@ -1249,7 +1729,12 @@
       "task": null,
       "role": null,
       "switch_actor": false,
-      "appears_after": "help-open"
+      "switch_axis": null,
+      "appears_after": "help-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
      }
     ],
     "text": {
@@ -1271,6 +1756,1588 @@
       "title": "Oldaltérkép",
       "body": "Megmutatja, mely menüpontok érhetők el neked ebben a fiókban — a listát a rendszer a jogosultságaid alapján állítja össze."
      }
+    },
+    "story": null
+   },
+   {
+    "id": "tour.warehouses",
+    "version": "1.1.0",
+    "feature": "data.warehouses",
+    "page": "warehouses",
+    "requires_role": null,
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "auth_view": null,
+    "requires_dev_mailbox": false,
+    "requires_stock_access": false,
+    "requires_demo_fixture": true,
+    "requires_story_data": null,
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "nav-warehouses",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s2",
+      "target": "list-rows",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s3",
+      "target": "list-search",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     }
+    ],
+    "text": {
+     "title": "A Raktárak lap",
+     "lead": "Három lépés. Olvasó nézet: semmit nem mentünk el közben.",
+     "s1": {
+      "title": "Nyisd meg a Raktárakat",
+      "body": "A Törzsadatok csoportban találod. A lap a fiók mintaadatát mutatja."
+     },
+     "s2": {
+      "title": "A lista",
+      "body": "Raktár, jelleg, és hány tétel tartozik hozzá. A tételszám a termékek száma, nem mennyiség."
+     },
+     "s3": {
+      "title": "A kereső",
+      "body": "Szűkítheted a listát. Csak a megjelenített sorokra hat — a fiókban semmi nem változik."
+     }
+    },
+    "story": null
+   },
+   {
+    "id": "tour.processes",
+    "version": "1.1.0",
+    "feature": "data.processes",
+    "page": "processes",
+    "requires_role": null,
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "auth_view": null,
+    "requires_dev_mailbox": false,
+    "requires_stock_access": false,
+    "requires_demo_fixture": true,
+    "requires_story_data": null,
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "nav-processes",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s2",
+      "target": "list-rows",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s3",
+      "target": "list-search",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     }
+    ],
+    "text": {
+     "title": "A Folyamatok lap",
+     "lead": "Három lépés. Olvasó nézet: folyamatot itt ma nem lehet indítani vagy lezárni.",
+     "s1": {
+      "title": "Nyisd meg a Folyamatokat",
+      "body": "A Műveletek csoportban találod. A lap a fiók mintaadatát mutatja."
+     },
+     "s2": {
+      "title": "A lista",
+      "body": "Azonosító, megnevezés, állapot és időpont. Az állapot jelvényként látszik."
+     },
+     "s3": {
+      "title": "A kereső és a szűrő",
+      "body": "Szűkítheted a listát szövegre vagy állapotra. A fiókban semmi nem változik tőle."
+     }
+    },
+    "story": null
+   },
+   {
+    "id": "tour.verify",
+    "version": "1.0.0",
+    "feature": "auth.verify",
+    "page": null,
+    "requires_role": null,
+    "audience": "public",
+    "requires_anonymous": false,
+    "auth_view": null,
+    "requires_dev_mailbox": true,
+    "requires_stock_access": false,
+    "requires_demo_fixture": false,
+    "requires_story_data": null,
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "demo-mail-open",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s2",
+      "target": "mailbox",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": "demo-mail-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     }
+    ],
+    "text": {
+     "title": "A cím megerősítése",
+     "lead": "Két lépés. A megerősítő hivatkozást te nyitod meg a levélből — helyetted nem kattintunk.",
+     "s1": {
+      "title": "Nyisd meg a Próbaüzeneteket",
+      "body": "A fejlécben találod. Ez a próbafelület levél-fogadója: a rendszer levelei itt jelennek meg, valódi postafiók nélkül."
+     },
+     "s2": {
+      "title": "A megerősítő levél",
+      "body": "Nyisd meg a legutóbbi levelet, és kattints a benne lévő hivatkozásra. A cím ettől lesz megerősítve; belépni csak utána lehet."
+     }
+    },
+    "story": null
+   },
+   {
+    "id": "tour.logout",
+    "version": "1.1.0",
+    "feature": "auth.logout",
+    "page": "security",
+    "requires_role": null,
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "auth_view": null,
+    "requires_dev_mailbox": false,
+    "requires_stock_access": false,
+    "requires_demo_fixture": false,
+    "requires_story_data": null,
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "profile",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s2",
+      "target": "logout",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": "profile",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     }
+    ],
+    "text": {
+     "title": "Kilépés",
+     "lead": "Két lépés. A kilépés a saját eszközödön zárja a munkamenetet.",
+     "s1": {
+      "title": "Nyisd meg a profil-menüt",
+      "body": "A fejléc jobb szélén, a címed alatt. Ez a menü minden fiókban ott van — a személyes és a vállalkozási nézetben is."
+     },
+     "s2": {
+      "title": "Kilépés",
+      "body": "A profil-menüben találod. A kilépés után a böngészőben nem marad a fiókodhoz tartozó adat — a következő belépő nem a te nézetedet látja."
+     }
+    },
+    "story": null
+   },
+   {
+    "id": "tour.personalAccount",
+    "version": "1.0.0",
+    "feature": "account.personal",
+    "page": "overview",
+    "requires_role": null,
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "auth_view": null,
+    "requires_dev_mailbox": false,
+    "requires_stock_access": false,
+    "requires_demo_fixture": false,
+    "requires_story_data": "own_personal_book",
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "header-workspace",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s2",
+      "target": "account-switcher",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     }
+    ],
+    "text": {
+     "title": "A személyes fiókod",
+     "lead": "Két lépés. Olvasó nézet: semmit nem mentünk el közben.",
+     "s1": {
+      "title": "Melyik fiókban vagy",
+      "body": "A fejléc mindig megmutatja, melyik fiók adatát látod. A személyes fiók a belépéssel megvan — nem kell létrehozni."
+     },
+     "s2": {
+      "title": "A fiókválasztó",
+      "body": "Itt váltasz a személyes fiókod és a vállalkozások között, és itt tudsz újat létrehozni. A tagság és a megtekintési engedély két külön állapot."
+     }
+    },
+    "story": null
+   },
+   {
+    "id": "tour.documents",
+    "version": "1.1.0",
+    "feature": "data.documentSample",
+    "page": "documents",
+    "requires_role": null,
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "auth_view": null,
+    "requires_dev_mailbox": false,
+    "requires_stock_access": false,
+    "requires_demo_fixture": true,
+    "requires_story_data": null,
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "nav-documents",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s2",
+      "target": "sample-document",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s3",
+      "target": "sample-document-full",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     }
+    ],
+    "text": {
+     "title": "A Bizonylatok lap",
+     "lead": "Három lépés. Olvasó nézet: bizonylatot itt ma nem lehet kiállítani.",
+     "s1": {
+      "title": "Nyisd meg a Bizonylatokat",
+      "body": "A Műveletek csoportban találod. A lap a fiók mintaadatát mutatja."
+     },
+     "s2": {
+      "title": "A minta-bizonylat",
+      "body": "A szakasz jelölve van: ez minta, nem a fiók valódi bizonylata."
+     },
+     "s3": {
+      "title": "A teljes minta",
+      "body": "A részletes alak a sorokat is megnyitja. A valódi bizonylatok megtekintéséhez a fiókkezelő külön engedélyt ad."
+     }
+    },
+    "story": null
+   },
+   {
+    "id": "tour.partners",
+    "version": "1.1.0",
+    "feature": "data.supplierSample",
+    "page": "partners",
+    "requires_role": null,
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "auth_view": null,
+    "requires_dev_mailbox": false,
+    "requires_stock_access": false,
+    "requires_demo_fixture": true,
+    "requires_story_data": null,
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "nav-partners",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s2",
+      "target": "sample-supplier",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     }
+    ],
+    "text": {
+     "title": "A Partnerek lap",
+     "lead": "Két lépés. Olvasó nézet: partnert itt ma nem lehet felvenni.",
+     "s1": {
+      "title": "Nyisd meg a Partnereket",
+      "body": "A Törzsadatok csoportban találod. A lap a fiók mintaadatát mutatja."
+     },
+     "s2": {
+      "title": "A minta-beszállító",
+      "body": "A szakasz jelölve van: ez minta. A valódi partner-adatokhoz a fiókkezelő ad engedélyt."
+     }
+    },
+    "story": null
+   },
+   {
+    "id": "tour.assistant",
+    "version": "1.0.0",
+    "feature": "shell.assistant",
+    "page": null,
+    "requires_role": null,
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "auth_view": null,
+    "requires_dev_mailbox": false,
+    "requires_stock_access": false,
+    "requires_demo_fixture": false,
+    "requires_story_data": null,
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "help-open",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s2",
+      "target": "help-tab-ask",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": "help-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s3",
+      "target": "chat-input",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": "help-tab-ask",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s4",
+      "target": "chat-send",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": "help-tab-ask",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     }
+    ],
+    "text": {
+     "title": "A segéd — Kérdezz",
+     "lead": "Négy lépés. A segéd elmagyaráz és eligazít; helyetted nem kattint.",
+     "s1": {
+      "title": "Nyisd meg a súgót",
+      "body": "A fejléc súgó-gombja nyitja. A súgó füleken áll, és az egyik a Kérdezz."
+     },
+     "s2": {
+      "title": "A Kérdezz fül",
+      "body": "Itt a saját szavaiddal kérdezhetsz. A segéd csak arról beszél, amiről tudása van."
+     },
+     "s3": {
+      "title": "A kérdés",
+      "body": "Több sort is írhatsz: az Enter sortörés, a kérdést a küldés viszi el."
+     },
+     "s4": {
+      "title": "Küldés",
+      "body": "A válasz csak az átadott tudásra hivatkozhat. Ha nincs rá forrás, a segéd ezt kimondja, és nem talál ki választ."
+     }
+    },
+    "story": null
+   },
+   {
+    "id": "tour.products",
+    "version": "1.1.0",
+    "feature": "shell.sample_pages",
+    "page": "products",
+    "requires_role": null,
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "auth_view": null,
+    "requires_dev_mailbox": false,
+    "requires_stock_access": false,
+    "requires_demo_fixture": true,
+    "requires_story_data": null,
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "nav-products",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s2",
+      "target": "list-rows",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s3",
+      "target": "list-search",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     }
+    ],
+    "text": {
+     "title": "A Termékek lap",
+     "lead": "Három lépés. Olvasó nézet: terméket itt ma nem lehet felvenni.",
+     "s1": {
+      "title": "Nyisd meg a Termékeket",
+      "body": "A Törzsadatok csoportban találod. A lap a fiók mintaadatát mutatja."
+     },
+     "s2": {
+      "title": "A lista",
+      "body": "Megnevezés, azonosító és a hozzá tartozó adatok. A sorok mintaadatok, és jelölve vannak."
+     },
+     "s3": {
+      "title": "A kereső",
+      "body": "Szűkítheted a listát. Csak a megjelenített sorokra hat — a fiókban semmi nem változik tőle."
+     }
+    },
+    "story": null
+   },
+   {
+    "id": "tour.stockcard",
+    "version": "1.1.0",
+    "feature": "data.stockcard",
+    "page": "stockcard",
+    "requires_role": null,
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "auth_view": null,
+    "requires_dev_mailbox": false,
+    "requires_stock_access": true,
+    "requires_demo_fixture": true,
+    "requires_story_data": null,
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "nav-stockcard",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s2",
+      "target": "stockcard-table",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     }
+    ],
+    "text": {
+     "title": "A Készletkarton lap",
+     "lead": "Két lépés. Engedélyhez kötött nézet: a karton csak akkor rajzol, ha a fiókkezelő kiadta a készletadatokat. Helyetted nem adunk jogot — a jogadás útját a Hozzáférés megadása útmutató vezeti végig.",
+     "s1": {
+      "title": "Nyisd meg a Készletkartont",
+      "body": "A Kimutatások csoportban találod."
+     },
+     "s2": {
+      "title": "A karton",
+      "body": "Egy termék mozgásai időrendben. Ha a készlet-adatkör nincs kiadva, a lap ezt kimondja, és nem mutat sorokat."
+     }
+    },
+    "story": null
+   },
+   {
+    "id": "tour.movements",
+    "version": "1.1.0",
+    "feature": "data.movements",
+    "page": "movements",
+    "requires_role": null,
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "auth_view": null,
+    "requires_dev_mailbox": false,
+    "requires_stock_access": true,
+    "requires_demo_fixture": true,
+    "requires_story_data": null,
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "nav-movements",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s2",
+      "target": "movements-table",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     }
+    ],
+    "text": {
+     "title": "A Mozgások lap",
+     "lead": "Két lépés. Ugyanazon a kapun áll, mint a Készletegyenleg: a mozgások csak kiadott készlet-engedéllyel rajzolnak. Helyetted nem adunk jogot.",
+     "s1": {
+      "title": "Nyisd meg a Mozgásokat",
+      "body": "A Kimutatások csoportban találod."
+     },
+     "s2": {
+      "title": "A mozgás-tábla",
+      "body": "Bevét és kiadás időrendben. Engedély nélkül a lap kimondja, hogy nincs mit mutatnia — nem üres táblát ad."
+     }
+    },
+    "story": null
+   },
+   {
+    "id": "tour.outbox",
+    "version": "1.0.0",
+    "feature": "shell.demo_mail",
+    "page": "outbox",
+    "requires_role": null,
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "auth_view": null,
+    "requires_dev_mailbox": true,
+    "requires_stock_access": false,
+    "requires_demo_fixture": false,
+    "requires_story_data": null,
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "nav-outbox",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s2",
+      "target": "demo-mail-open",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s3",
+      "target": "mailbox",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": "demo-mail-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     }
+    ],
+    "text": {
+     "title": "A Próbaüzenetek lap",
+     "lead": "Három lépés. Ez a próbafelület levél-fogadója: a rendszer leveleit valódi postafiók nélkül lehet megnyitni.",
+     "s1": {
+      "title": "Nyisd meg a Próbaüzeneteket",
+      "body": "A Műveletek csoportban találod. A lap kimondja, mire jó ez a nézet."
+     },
+     "s2": {
+      "title": "A megnyitó gomb",
+      "body": "A fejlécben is ott van, minden lapon. Ez tárja fel a levél-fogadót."
+     },
+     "s3": {
+      "title": "A levél-fogadó",
+      "body": "A meghívó- és megerősítő levelek itt jelennek meg. A bennük lévő hivatkozást te nyitod meg."
+     }
+    },
+    "story": null
+   },
+   {
+    "id": "tour.accountSettings",
+    "version": "1.0.0",
+    "feature": "account.settings",
+    "page": "account",
+    "requires_role": null,
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "auth_view": null,
+    "requires_dev_mailbox": false,
+    "requires_stock_access": false,
+    "requires_demo_fixture": false,
+    "requires_story_data": null,
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "nav-account",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s2",
+      "target": "section-account",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s3",
+      "target": "representation-note",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     }
+    ],
+    "text": {
+     "title": "A fiók adatai",
+     "lead": "Három lépés. Olvasó nézet: itt ma nem módosítasz semmit.",
+     "s1": {
+      "title": "Nyisd meg a fiók lapját",
+      "body": "A Beállítások csoportban találod. Azt a fiókot mutatja, amelyik most meg van nyitva."
+     },
+     "s2": {
+      "title": "Mit látsz",
+      "body": "A fiók neve, a te szereped benne, az előfizetés és a megadott vállalkozási adat."
+     },
+     "s3": {
+      "title": "A kimondott határ",
+      "body": "A vállalkozási adatról kiírjuk: megadott adat, nem ellenőrzött — hatóságnál nem igazoltuk."
+     }
+    },
+    "story": null
+   }
+  ],
+  "resumable_tours": [
+   {
+    "id": "tour.inviteRevoke",
+    "version": "2.0.0",
+    "feature": "invite.revoke",
+    "page": "members",
+    "requires_role": "admin",
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "auth_view": null,
+    "requires_dev_mailbox": true,
+    "requires_stock_access": false,
+    "requires_demo_fixture": false,
+    "requires_story_data": "pending_invite",
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "nav-members",
+      "task": null,
+      "role": "admin",
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s2",
+      "target": "members-tab-invites",
+      "task": null,
+      "role": "admin",
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s3",
+      "target": "invites-table",
+      "task": null,
+      "role": "admin",
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": "members-tab-invites",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s4",
+      "target": "invites-table",
+      "task": "invite.revoked",
+      "role": "admin",
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": "members-tab-invites",
+      "switch_to": null,
+      "story_bound": "ref",
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s5",
+      "target": "invites-table",
+      "task": null,
+      "role": "admin",
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": "members-tab-invites",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s6",
+      "target": "actor-switch",
+      "task": "actor.switched",
+      "role": null,
+      "switch_actor": true,
+      "switch_axis": "subject",
+      "appears_after": null,
+      "switch_to": "story_actor",
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s7",
+      "target": "demo-mail-open",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s8",
+      "target": "mailbox",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": "demo-mail-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s9",
+      "target": "invite-observe",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": "mailbox",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": true,
+      "story_rebind": false
+     },
+     {
+      "id": "s10",
+      "target": "actor-switch",
+      "task": "actor.switched",
+      "role": "admin",
+      "switch_actor": true,
+      "switch_axis": "subject",
+      "appears_after": null,
+      "switch_to": "origin_actor",
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s10b",
+      "target": "account-switcher",
+      "task": "actor.switched",
+      "role": "admin",
+      "switch_actor": true,
+      "switch_axis": "book",
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s11",
+      "target": "nav-members",
+      "task": null,
+      "role": "admin",
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s12",
+      "target": "invite-open",
+      "task": null,
+      "role": "admin",
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s13",
+      "target": "invite-submit",
+      "task": "invite.created",
+      "role": "admin",
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": "invite-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": "ref"
+     },
+     {
+      "id": "s14",
+      "target": "actor-switch",
+      "task": "actor.switched",
+      "role": null,
+      "switch_actor": true,
+      "switch_axis": "subject",
+      "appears_after": null,
+      "switch_to": "story_actor",
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s15",
+      "target": "demo-mail-open",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s16",
+      "target": "mailbox",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": "demo-mail-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s17",
+      "target": "invite-actions",
+      "task": "invite.redeemed",
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": "mailbox",
+      "switch_to": null,
+      "story_bound": "ref",
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s18",
+      "target": "account-switcher",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     }
+    ],
+    "text": {
+     "title": "Egy kiadott meghívás visszavonása — és ami utána jön",
+     "lead": "Végigviszed mind a két oldalról: visszavonod a meghívást, a címzett nézetében látod, hogy a régi hivatkozás már nem jó, majd új meghívást adsz, amit ő elfogad.",
+     "s1": {
+      "title": "Nyisd meg a Felhasználókat",
+      "body": "A Beállítások csoportban, fiókkezelői jogosultsággal."
+     },
+     "s2": {
+      "title": "Váltsd át az „Elfogadásra vár” fülre",
+      "body": "Itt látszik, melyik meghívás vár elfogadásra, melyiket fogadták el, melyik járt le, és melyiket vonták vissza."
+     },
+     "s3": {
+      "title": "Keresd meg a függő meghívást",
+      "body": "Béla sora „Elfogadásra vár” állapotban áll. A sor végén van a visszavonás gombja."
+     },
+     "s4": {
+      "title": "Vond vissza a meghívást",
+      "body": "A sor „Meghívás visszavonása” gombja, majd a megerősítés. Ez a lépés csak tényleges visszavonás után halad tovább."
+     },
+     "s5": {
+      "title": "Nézd meg a megváltozott állapotot",
+      "body": "A sor most „Visszavonva”, és a művelet oszlopa üres: ugyanazt a meghívást másodszor nem lehet visszavonni."
+     },
+     "s6": {
+      "title": "Válts át Béla nézetére",
+      "body": "A kiemelt vezérlő a kijelentkezés — ez valódi váltás, nem megszemélyesítés. Nyomd meg, majd Béla lépjen be a saját fiókjával ugyanitt; vagy nyissa meg a meghívót a saját böngészőjében. Az útmutató akkor folytatódik, amikor a kiszolgáló már az ő nézetét adja — a haladásod addig megmarad. Ha panel van nyitva, előbb zárd be."
+     },
+     "s7": {
+      "title": "Nyisd meg a próbaüzeneteket",
+      "body": "Itt állnak a próbafelület levelei. A korábban kiküldött meghívó is köztük van."
+     },
+     "s8": {
+      "title": "Nyisd meg a korábbi meghívó hivatkozását",
+      "body": "Ez az a hivatkozás, amit Béla korábban megkapott. Kattints rá: a meghívó képernyője nyílik meg."
+     },
+     "s9": {
+      "title": "A régi meghívó megnyitva",
+      "body": "A képernyő kimondja: ezt a meghívást visszavonták, ezért nem fogadható el. Elfogadás gomb sincs — a hivatkozás elhalt."
+     },
+     "s10": {
+      "title": "Válts vissza Anna nézetére",
+      "body": "A fiókkezelőnek új meghívást kell kiadnia — a régi hivatkozás már nem éleszthető fel."
+     },
+     "s10b": {
+      "title": "Válts át a cég fiókjára",
+      "body": "A belépés után a saját személyes körödben állsz — a Felhasználók képernyő csak a cég fiókjában létezik. A fejléc fiókválasztójában válaszd a céget."
+     },
+     "s11": {
+      "title": "Nyisd meg újra a Felhasználókat",
+      "body": "A váltás után az áttekintésen állsz. A meghívás a Felhasználók képernyőről indul."
+     },
+     "s12": {
+      "title": "Nyisd meg a meghívás űrlapját",
+      "body": "A „Felhasználó meghívása” gomb a képernyő tetején."
+     },
+     "s13": {
+      "title": "Adj ki új meghívást Bélának",
+      "body": "A „Felhasználó meghívása” gomb, majd a cím és az adatkör megadása után az elküldés. Ez a lépés csak tényleges elküldés után halad tovább."
+     },
+     "s14": {
+      "title": "Válts át újra Béla nézetére",
+      "body": "Most már az új meghívó várja. A tagságot továbbra is az ő elfogadása hozza létre."
+     },
+     "s15": {
+      "title": "Nyisd meg újra a próbaüzeneteket",
+      "body": "Az új meghívó levele is ide érkezett."
+     },
+     "s16": {
+      "title": "Nyisd meg az új meghívó hivatkozását",
+      "body": "A legfrissebb levél hivatkozása. Ez már az új meghívásra szól."
+     },
+     "s17": {
+      "title": "Fogadd el az új meghívást",
+      "body": "Béla saját műveletével. Az útmutató ezt soha nem végzi el helyette."
+     },
+     "s18": {
+      "title": "Nézd meg az eredményt",
+      "body": "A fiókváltóban ott a cég: Béla mostantól tag. A régi, visszavont meghívó ettől nem éledt fel — ez egy új meghívás eredménye."
+     }
+    },
+    "story": {
+     "kind": "invite",
+     "ref": null,
+     "actor": null
+    }
+   },
+   {
+    "id": "tour.reentry",
+    "version": "2.0.0",
+    "feature": "members.reinvite",
+    "page": "members",
+    "requires_role": "admin",
+    "audience": "signed_in",
+    "requires_anonymous": false,
+    "auth_view": null,
+    "requires_dev_mailbox": true,
+    "requires_stock_access": false,
+    "requires_demo_fixture": false,
+    "requires_story_data": "other_member",
+    "requires_invite": false,
+    "steps": [
+     {
+      "id": "s1",
+      "target": "nav-members",
+      "task": null,
+      "role": "admin",
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s2",
+      "target": "members-list",
+      "task": null,
+      "role": "admin",
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s3",
+      "target": "member-revoke",
+      "task": "member.revoked",
+      "role": "admin",
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": "members-list",
+      "switch_to": null,
+      "story_bound": "ref",
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s4",
+      "target": "reinvite-form",
+      "task": "reinvite.sent",
+      "role": "admin",
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": "members-list",
+      "switch_to": null,
+      "story_bound": "ref",
+      "story_ref": false,
+      "story_rebind": "invite_ref"
+     },
+     {
+      "id": "s5",
+      "target": "actor-switch",
+      "task": "actor.switched",
+      "role": null,
+      "switch_actor": true,
+      "switch_axis": "subject",
+      "appears_after": null,
+      "switch_to": "story_actor",
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s6",
+      "target": "demo-mail-open",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s7",
+      "target": "mailbox",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": "demo-mail-open",
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s8",
+      "target": "invite-actions",
+      "task": "invite.redeemed",
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": "mailbox",
+      "switch_to": null,
+      "story_bound": "invite_ref",
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s9",
+      "target": "account-switcher",
+      "task": "actor.switched",
+      "role": null,
+      "switch_actor": true,
+      "switch_axis": "book",
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s10",
+      "target": "nav-stock",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s11",
+      "target": "data-stock",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s12",
+      "target": "actor-switch",
+      "task": "actor.switched",
+      "role": "admin",
+      "switch_actor": true,
+      "switch_axis": "subject",
+      "appears_after": null,
+      "switch_to": "origin_actor",
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s12b",
+      "target": "account-switcher",
+      "task": "actor.switched",
+      "role": "admin",
+      "switch_actor": true,
+      "switch_axis": "book",
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s13",
+      "target": "nav-members",
+      "task": null,
+      "role": "admin",
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s14",
+      "target": "member-scope-row-keszlet",
+      "task": "grant.saved",
+      "role": "admin",
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": "members-list",
+      "switch_to": null,
+      "story_bound": "ref",
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s15",
+      "target": "actor-switch",
+      "task": "actor.switched",
+      "role": null,
+      "switch_actor": true,
+      "switch_axis": "subject",
+      "appears_after": null,
+      "switch_to": "story_actor",
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s15b",
+      "target": "account-switcher",
+      "task": "actor.switched",
+      "role": null,
+      "switch_actor": true,
+      "switch_axis": "book",
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s16",
+      "target": "nav-stock",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s17",
+      "target": "data-stock-btn",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     },
+     {
+      "id": "s18",
+      "target": "data-price",
+      "task": null,
+      "role": null,
+      "switch_actor": false,
+      "switch_axis": null,
+      "appears_after": null,
+      "switch_to": null,
+      "story_bound": false,
+      "story_ref": false,
+      "story_rebind": false
+     }
+    ],
+    "text": {
+     "title": "Munkatárs visszatérése — a tagságtól a készletadatig",
+     "lead": "Megszünteted Béla tagságát, majd újra meghívod. A tagság az ő elfogadásával jön létre, de a régi adat-hozzáférései nem állnak vissza: azokat külön kell megadni.",
+     "s1": {
+      "title": "Nyisd meg a Felhasználókat",
+      "body": "A Beállítások csoportban, fiókkezelői jogosultsággal."
+     },
+     "s2": {
+      "title": "Nézd meg Béla mai állapotát",
+      "body": "A listán látszik a tagsága és az is, mely adatkörökhöz fér hozzá. Jegyezd meg: a készletadatokat most látja."
+     },
+     "s3": {
+      "title": "Szüntesd meg a tagságát",
+      "body": "Nyisd meg a sorát a „Hozzáférés kezelése” gombbal, majd szüntesd meg a hozzáférést. Ez a lépés csak tényleges megszüntetés után halad tovább."
+     },
+     "s4": {
+      "title": "Küldd el az új meghívást",
+      "body": "Az „Újbóli belépés” szakaszban az „Újra meghívás” gomb. A megerősítés kimondja: a korábbi adat-hozzáférései nem állnak vissza."
+     },
+     "s5": {
+      "title": "Válts át Béla nézetére",
+      "body": "A kiemelt vezérlő a kijelentkezés — ez valódi váltás, nem megszemélyesítés. Nyomd meg, majd Béla lépjen be a saját fiókjával ugyanitt; vagy nyissa meg a levelét a saját böngészőjében. Az útmutató akkor folytatódik, amikor a kiszolgáló már az ő nézetét adja — a haladásod addig megmarad. Ha panel van nyitva, előbb zárd be."
+     },
+     "s6": {
+      "title": "Nyisd meg a próbaüzeneteket",
+      "body": "Az újbóli meghívás levele ide érkezett."
+     },
+     "s7": {
+      "title": "Nyisd meg a meghívó hivatkozását",
+      "body": "A levélben lévő hivatkozás a meghívó képernyőjére visz."
+     },
+     "s8": {
+      "title": "Fogadd el a meghívást",
+      "body": "Béla saját műveletével. A tagság ettől jön létre — és csak a tagság."
+     },
+     "s9": {
+      "title": "Válts át a cég fiókjára",
+      "body": "Az elfogadás után Béla a saját személyes körében áll. A fejléc fiókválasztójában válaszd a Minta Műhely Kft.-t — a cég képernyői csak ott érhetők el."
+     },
+     "s10": {
+      "title": "Nyisd meg a Készletegyenleget",
+      "body": "Béla már tag, tehát a cég képernyői elérhetők neki."
+     },
+     "s11": {
+      "title": "Tagság van, készletadat nincs",
+      "body": "A képernyő kimondja, hogy nincs hozzáférés. A régi jog nem jött vissza a tagsággal együtt."
+     },
+     "s12": {
+      "title": "Válts vissza Anna nézetére",
+      "body": "Az adatkört a fiókkezelő adja meg, külön művelettel."
+     },
+     "s12b": {
+      "title": "Válts át a cég fiókjára",
+      "body": "A belépés után a saját személyes körödben állsz — a jogadás a cég fiókjában megy. A fejléc fiókválasztójában válaszd a céget."
+     },
+     "s13": {
+      "title": "Nyisd meg újra a Felhasználókat",
+      "body": "A váltás után az áttekintésen állsz. A jogadás a Felhasználók képernyőről megy."
+     },
+     "s14": {
+      "title": "Add meg a készletadatok jogát",
+      "body": "Béla sorában a „Készletadatok” kör engedélyezése. Ez a lépés csak tényleges megadás után halad tovább."
+     },
+     "s15": {
+      "title": "Válts át újra Béla nézetére",
+      "body": "Most már látnia kell a készletet — de csak azt, amire jogot kapott."
+     },
+     "s15b": {
+      "title": "Válts át a cég fiókjára",
+      "body": "Belépés után itt is a személyes kör jön elő — a készlet képernyői a cég fiókjában vannak. Válaszd a céget a fejlécben."
+     },
+     "s16": {
+      "title": "Nyisd meg újra a Készletegyenleget",
+      "body": "Ugyanaz a képernyő, mint az előbb — csak most van hozzá jog."
+     },
+     "s17": {
+      "title": "A mennyiség látszik",
+      "body": "Kérd le a készletet: a képernyő kiírja a mennyiséget. A most megadott jog hatályos."
+     },
+     "s18": {
+      "title": "Az ár viszont nem",
+      "body": "Az árak külön adatkör, és azt nem adtuk meg. A képernyő kimondja a hiányt — nem üres mezőt mutat."
+     }
+    },
+    "story": {
+     "kind": "member",
+     "ref": null,
+     "actor": null
     }
    }
   ],
@@ -1284,11 +3351,11 @@
  },
  "knowledge": {
   "ok": true,
-  "served_book_id": "ws_938f0d44",
-  "served_subject_id": "sub_4241b08d1a34694e",
+  "served_book_id": null,
+  "served_subject_id": null,
   "lang": "hu",
-  "population": 31,
-  "visible_count": 30,
+  "population": 37,
+  "visible_count": 36,
   "index": [
    {
     "id": "auth.register",
@@ -1315,7 +3382,7 @@
     "visible": true,
     "why": null,
     "replaced_by": null,
-    "tour": null,
+    "tour": "tour.verify",
     "faq": [
      "faq.verify.expired",
      "faq.verify.used"
@@ -1331,7 +3398,7 @@
     "visible": true,
     "why": null,
     "replaced_by": null,
-    "tour": null,
+    "tour": "tour.login",
     "faq": [
      "faq.login.failed"
     ],
@@ -1346,7 +3413,7 @@
     "visible": true,
     "why": null,
     "replaced_by": null,
-    "tour": null,
+    "tour": "tour.resend",
     "faq": [
      "faq.resend.why"
     ],
@@ -1361,7 +3428,7 @@
     "visible": true,
     "why": null,
     "replaced_by": null,
-    "tour": null,
+    "tour": "tour.logout",
     "faq": [
      "faq.logout.language"
     ],
@@ -1376,7 +3443,7 @@
     "visible": true,
     "why": null,
     "replaced_by": null,
-    "tour": null,
+    "tour": "tour.personalAccount",
     "faq": [
      "faq.account.personalVsBusiness"
     ],
@@ -1534,7 +3601,7 @@
     "visible": true,
     "why": null,
     "replaced_by": null,
-    "tour": null,
+    "tour": "tour.documents",
     "faq": [
      "faq.data.sampleAccess",
      "faq.data.mixedDocument"
@@ -1550,7 +3617,7 @@
     "visible": true,
     "why": null,
     "replaced_by": null,
-    "tour": null,
+    "tour": "tour.partners",
     "faq": [
      "faq.data.sampleAccess"
     ],
@@ -1693,7 +3760,7 @@
     "visible": true,
     "why": null,
     "replaced_by": null,
-    "tour": null,
+    "tour": "tour.assistant",
     "faq": [
      "faq.chat.source",
      "faq.chat.limits",
@@ -1711,7 +3778,7 @@
     "visible": true,
     "why": null,
     "replaced_by": null,
-    "tour": null,
+    "tour": "tour.outbox",
     "faq": [
      "faq.mail.real"
     ],
@@ -1726,7 +3793,7 @@
     "visible": true,
     "why": null,
     "replaced_by": null,
-    "tour": null,
+    "tour": "tour.products",
     "faq": [
      "faq.demo.whatIsReal",
      "faq.demo.noFixture"
@@ -1775,6 +3842,101 @@
     "tour": null,
     "faq": [],
     "title": "A korábbi egyoldalas próbalap (kivezetve)"
+   },
+   {
+    "id": "data.warehouses",
+    "status": "working",
+    "group": "shell",
+    "screen": "warehouses",
+    "version": "1.0.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": "tour.warehouses",
+    "faq": [
+     "faq.warehouses.readOnly",
+     "faq.warehouses.itemCount"
+    ],
+    "title": "Raktárak"
+   },
+   {
+    "id": "data.processes",
+    "status": "working",
+    "group": "shell",
+    "screen": "processes",
+    "version": "1.0.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": "tour.processes",
+    "faq": [
+     "faq.processes.filter",
+     "faq.processes.readOnly"
+    ],
+    "title": "Folyamatok"
+   },
+   {
+    "id": "data.stockcard",
+    "status": "working",
+    "group": "plan",
+    "screen": "stockcard",
+    "version": "1.0.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": "tour.stockcard",
+    "faq": [
+     "faq.stockcard.sameGate",
+     "faq.stockcard.whichProduct"
+    ],
+    "title": "Termékkarton"
+   },
+   {
+    "id": "data.movements",
+    "status": "working",
+    "group": "plan",
+    "screen": "movements",
+    "version": "1.0.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": "tour.movements",
+    "faq": [
+     "faq.movements.sameGate",
+     "faq.movements.readOnly"
+    ],
+    "title": "Készletmozgások"
+   },
+   {
+    "id": "account.settings",
+    "status": "working",
+    "group": "account",
+    "screen": "account",
+    "version": "1.0.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": "tour.accountSettings",
+    "faq": [
+     "faq.account.notChecked",
+     "faq.account.whoChanges"
+    ],
+    "title": "A fiók adatai"
+   },
+   {
+    "id": "personal.ownMatters",
+    "status": "planned",
+    "group": "shell",
+    "screen": "personal",
+    "version": "1.0.0",
+    "visible": true,
+    "why": null,
+    "replaced_by": null,
+    "tour": null,
+    "faq": [
+     "faq.personal.whyEmpty"
+    ],
+    "title": "Saját ügyek"
    }
   ]
  }

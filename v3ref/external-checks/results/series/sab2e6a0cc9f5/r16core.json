@@ -1,0 +1,56 @@
+{
+  "contract": "EXS-01",
+  "series": "sab2e6a0cc9f5",
+  "binding": {
+    "bundle_digest": "0f9de36606d0298237ba28c76a33a13658330c0b163f1e748140cd2cfe49eefd",
+    "programs_digest": "32669221eb583c73e760f82eb1e1f7d50a5ad7cca77c5774c2210f7343645bc4",
+    "runner_digest": "7f22e546b5a3dcc3a7bafcafddba3852bff2e11a29e49465452628daf9aeaf07",
+    "config_digest": "f0ce4e38338ca820",
+    "profile_id": "today-17",
+    "profile_digest": "1964f62c4f96870b",
+    "clean": true
+  },
+  "provenance": {
+    "commit": "85bb473d58eaa4c6b441c8c93d0659f0eec61fb7"
+  },
+  "program": "r16core",
+  "program_digest": "58db34b50c85db4ddaf8531cea20176ff8c90a25f91c96493faf743ccdfab0ae",
+  "exit": 0,
+  "ok": true,
+  "cases": [
+    {
+      "id": "repeat-canonical",
+      "pass": true
+    },
+    {
+      "id": "scope-conflict",
+      "pass": true
+    },
+    {
+      "id": "cross-book-write-rejected",
+      "pass": true
+    },
+    {
+      "id": "future-not-in-past",
+      "pass": true
+    },
+    {
+      "id": "calendar-invalid",
+      "pass": true
+    },
+    {
+      "id": "backdate-overflow-atomic",
+      "pass": true
+    },
+    {
+      "id": "unauthorized-object-neutral",
+      "pass": true
+    }
+  ],
+  "evidence_digest": "e7a0ba113828b25a3c18b522251e4d4846e5e829cd1321e604fa89e2fd276109",
+  "failure_kind": "unknown",
+  "failure_why": "nincs mért környezeti akadály a nyers eredményben",
+  "ms": 150,
+  "at": "2026-10-13T08:54:32.944Z",
+  "env_skipped": false
+}

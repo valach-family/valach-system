@@ -1,0 +1,182 @@
+{
+  "contract": "EXS-01",
+  "series": "s8efde465d71d",
+  "binding": {
+    "bundle_digest": "9e80eefd305960738a2ddbd7c221789b419eaacdf8a9c247336255ecb5a38822",
+    "programs_digest": "e9622db45921f4bedcc0857f44aa86b520beef401ab6a709afb85584c87d3123",
+    "runner_digest": "e859b6cdaca6034936332536476e46ae78e8081d3405987efa5c82fc96243b77",
+    "config_digest": "f0ce4e38338ca820",
+    "clean": true
+  },
+  "provenance": {
+    "commit": "a2060778131c0c42a0d5e59bc9ddad9540d072c9"
+  },
+  "program": "r77",
+  "program_digest": "dd425e97c5b65614ab001600006b9d2960ec8a9665d7007516f7b987c8ceb07b",
+  "exit": 0,
+  "ok": true,
+  "cases": [
+    {
+      "id": "M-suspend-book-matching",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-book-other",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-operation-matching",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-operation-other",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-subject-matching",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-credential-matching",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-credential-other",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-credential-absent",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-session-matching",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-session-other",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-session-absent",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-legal_basis-matching",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-legal_basis-other",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-legal_basis-absent",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-data_scope-matching",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-data_scope-other",
+      "pass": true
+    },
+    {
+      "id": "M-suspend-data_scope-absent",
+      "pass": true
+    },
+    {
+      "id": "M-lift-book-matching",
+      "pass": true
+    },
+    {
+      "id": "M-lift-book-other",
+      "pass": true
+    },
+    {
+      "id": "M-lift-operation-matching",
+      "pass": true
+    },
+    {
+      "id": "M-lift-operation-other",
+      "pass": true
+    },
+    {
+      "id": "M-lift-subject-matching",
+      "pass": true
+    },
+    {
+      "id": "M-lift-credential-matching",
+      "pass": true
+    },
+    {
+      "id": "M-lift-credential-other",
+      "pass": true
+    },
+    {
+      "id": "M-lift-credential-absent",
+      "pass": true
+    },
+    {
+      "id": "M-lift-session-matching",
+      "pass": true
+    },
+    {
+      "id": "M-lift-session-other",
+      "pass": true
+    },
+    {
+      "id": "M-lift-session-absent",
+      "pass": true
+    },
+    {
+      "id": "M-lift-legal_basis-matching",
+      "pass": true
+    },
+    {
+      "id": "M-lift-legal_basis-other",
+      "pass": true
+    },
+    {
+      "id": "M-lift-legal_basis-absent",
+      "pass": true
+    },
+    {
+      "id": "M-lift-data_scope-matching",
+      "pass": true
+    },
+    {
+      "id": "M-lift-data_scope-other",
+      "pass": true
+    },
+    {
+      "id": "M-lift-data_scope-absent",
+      "pass": true
+    },
+    {
+      "id": "F01-issue-authority-expired-at-write",
+      "pass": true
+    },
+    {
+      "id": "F01-suspend-authority-expired-at-write",
+      "pass": true
+    },
+    {
+      "id": "F01-lift-authority-expired-at-write",
+      "pass": true
+    },
+    {
+      "id": "F02-data-scope-context-does-not-filter-price-result",
+      "pass": true
+    },
+    {
+      "id": "F03-malformed-operation-scope-is-undecidable",
+      "pass": true
+    }
+  ],
+  "evidence_digest": "845e6bb34e2f66bf6cbbed748175dde1cb58bd9b97e537dc66813ed52008429d",
+  "failure_kind": "unknown",
+  "failure_why": "nincs mért környezeti akadály a nyers eredményben",
+  "ms": 918,
+  "at": "2026-10-11T16:21:31.519Z",
+  "env_skipped": false
+}

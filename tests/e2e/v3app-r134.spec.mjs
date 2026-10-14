@@ -27,6 +27,7 @@ import { resolve } from 'node:path';
 import {
   World, Db, gotoPage, createWorkspaceUI, inviteUI, openInviteUI, redeemUI, revokeUI,
   openMemberPanel, openProfile, withResponse, withOptionalResponse, switchUI,
+  apiOf,
 } from './helpers.mjs';
 import { fetchWatchScript, installFetchWatch, holdRoute, inFlight, atad } from './lateResponse.mjs';
 import { dictFor } from '../../v3app/public/i18n/dict.mjs';
@@ -196,20 +197,53 @@ test.describe('R134 — a véglegesítési kapuk, az egyszeri ajánlat és a nye
        VALUES (?,?,?,?,?)`, bela.subjectId, ws.bookId, anna.subjectId, new Date().toISOString(),
       'r134-B2 fixtúra: felfüggesztés');
 
-    // (2) AZ ELUTASÍTOTT ÚT VÉGIGMEGY: a mondat NÉMETÜL áll, és NEVEZETT folytatást visz.
-    const elutasitva = await reinviteUI(anna.page, bela.subjectId);
+    /**
+     * (2) AZ ELUTASÍTÁS A KÉPERNYŐRŐL OLVASHATÓ — ÉS A GOMB MÁR NEM IS JELENIK MEG (R186 §5).
+     *
+     * AMI MEGVÁLTOZOTT, ÉS MIÉRT. A `KUKA-458` óta a lista-sor `reinvitable` mezője az ÍRÁS-ÚT
+     * SAJÁT feltételét kérdezi (`reinviteFeasibility`), tehát egy FELFÜGGESZTETT tagságnál a gomb
+     * MEG SEM jelenik: a sor helyette a NEVEZETT elakadás-mondatot rajzolja ki, a mag SAJÁT
+     * ok-kódjával, a felhasználó nyelvén. Ez NEM a teendő elrejtése (`KUKA-201`): a mondat
+     * ugyanazt az okot ÉS ugyanazt a folytatást viszi („előbb a felfüggesztést kell feloldani"),
+     * csak nem kell hozzá megnyomni egy gombot, ami biztosan nemet mond (`KUKA-011` · `KUKA-041`).
+     *
+     * A HTTP-ELUTASÍTÁS ÜZENETE EZZEL NEM TŰNT EL, csak más úton mérjük: a végpontot KÖZVETLENÜL
+     * hívjuk (a felület nem is ajánlja fel), és a válasz ugyanúgy viszi a `reason`-t és a
+     * `next_step`-et — a nemleges válasz tartalma tehát változatlanul mérve van (`KUKA-215`).
+     */
+    await openMemberPanel(anna.page, bela.subjectId);
+    await expect(anna.page.getByTestId('member-reinvite-blocked')).toBeVisible();
+    await expect(anna.page.getByTestId(`member-reinvite-${bela.subjectId}`)).toHaveCount(0);
+    expect((await anna.page.getByTestId('member-reinvite-blocked').textContent()) || '')
+      .toContain(DE.REASON.reentry_blocked_suspension.split('.')[0].trim());
+    await closeAnyPanel(anna.page);
+
+    const elutasitva = await apiOf(anna.page).post('/api/members/reinvite',
+      { subject_id: bela.subjectId, role: 'user', scope: 'keszlet', operation_id: 'r134-b2-blocked' });
     expect(elutasitva.body.ok).toBe(false);
     expect(elutasitva.body.reason).toBe('reentry_blocked_suspension');
     expect(elutasitva.body.next_step).toBe('lift_suspension');
-    expect(elutasitva.resultText).toContain(DE.REASON.reentry_blocked_suspension.split('.')[0].trim());
     // ÉS A TÁROLÓBAN SEMMI NEM KELETKEZETT (az elutasítás írásmentes — KUKA-220).
     expect(db.count('SELECT COUNT(*) FROM membership_reentry WHERE subject_id = ?', bela.subjectId)).toBe(0);
-    await closeAnyPanel(anna.page);
 
     // (3) A KIZÁRÁS FELOLDÁSA UTÁN UGYANAZ AZ ÚT SIKERES, és a nyugta NÉMETÜL áll.
     dbW.store.run('UPDATE membership_suspension SET lifted_at = ?, lifted_by = ? WHERE subject_id = ?',
       new Date().toISOString(), anna.subjectId, bela.subjectId);
     dbW.close();
+    /**
+     * ÉS A LAPNAK ÚJRA MEG KELL MÉRNIE — EZ A SOR A LELET MIATT VAN ITT (`KUKA-458` · `KUKA-209`).
+     *
+     * A felfüggesztés feloldása a TÁROLÓBAN történt (fixtúra: HTTP-út nincs rá, és ezt a próba
+     * fentebb ki is mondja). A sor „újrahívható" jelzője azonban az R186 §5 óta a KISZOLGÁLÓ mért
+     * verdiktje, és a lap magától nem kérdez újra: a képernyőn tehát a FELFÜGGESZTETT állapot
+     * mondata állt, a gomb pedig — helyesen — nem is létezett. A felhasználó útja ugyanez: a
+     * listát újra be kell kérni. Itt a FÜLVÁLTÁS a valódi vezérlő (a mérés viselkedést mér, nem
+     * DOM-ot állít — `KUKA-237`), és ezzel a mérés a MAI szerződést méri, nem a tavalyit.
+     */
+    await anna.page.getByTestId('members-tab-invites').click();
+    await expect(anna.page.getByTestId('invites-list')).toBeVisible();
+    await anna.page.getByTestId('members-tab-members').click();
+    await expect(anna.page.getByTestId(`member-${bela.subjectId}`)).toBeVisible();
     const siker = await reinviteUI(anna.page, bela.subjectId);
     expect(siker.body.ok).toBe(true);
     expect(siker.body.requires_acceptance).toBe(true);

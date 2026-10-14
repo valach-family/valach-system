@@ -50,9 +50,20 @@
     <button type="button" class="primary" data-action="tour-start" data-tour="tour.reentry"
       data-testid="demo-story-reentry">2 · Munkatárs visszatérése</button>
     <span class="spacer"></span>
+    <!-- A NÉZŐ-VÁLTÁS A BEMUTATÓ-LAPON: valódi ki- és belépés, majd tiszta címre újratöltés (lentebb,
+         `switchViewer`). Az R164/3-ban megépítettem az ALKALMAZÁSON BELÜLI, újratöltés nélküli
+         átadást is (a profil-menü feltárásával és a kijelentkezéssel); 19-ből 18 lépést ért el, és
+         két állapot-szivárgást javítottam közben, de a harmadik nem záródott le — a részletek a
+         `features.mjs` váltás-lépéseinél, a maradék munka a jelentésben NEVESÍTVE. -->
     <button type="button" data-testid="demo-switch-viewer" data-tour-anchor="actor-switch">Váltás Béla nézetére</button>
     <button type="button" data-testid="demo-restart">Újrakezdés</button>
+    <!-- R206 §3 — A JAVÍTÁS KIPRÓBÁLÁSA. A nem igazolt kontextus HIBA-ÚTON látszik: enélkül a
+         néző nem tudná végigkattintani, mit tesz a lap, ha nem tudja ellenőrizni, ki ül a gépnél.
+         A kapcsoló a KÖVETKEZŐ állapot-ellenőrzést veszti el (valódi hálózati hiba alakjában), és
+         utána magától elfogy. A választ nem hamisítja: üzleti eredményt nem talál ki. -->
+    <button type="button" data-testid="demo-lose-me">Hálózati hiba utánzása (1×)</button>
     <span class="note" data-testid="demo-viewer-note"></span>
+    <span class="note" data-testid="demo-lose-me-note"></span>
   </div>
 
   <header class="top" data-testid="header">
@@ -67,6 +78,15 @@
       </summary>
       <div class="menu" data-testid="ws-list"></div>
     </details>
+
+    <!-- R206/F206-01 — A NEM IGAZOLT KONTEXTUS MŰKÖDŐ FOLYTATÁSÁNAK HELYE. Ha a lap nem tudta
+         igazolni, KI ül a gépnél, a fiókválasztó és a profil elrejtőzik (a régi személyt nem
+         állítjuk aktuálisnak), és ITT, ugyanazon a helyen jelenik meg az állapot-ellenőrzés.
+         A GOMBOT A LAP RAJZOLJA (`renderHeader`), ahogy a fiókválasztó és a profilmenü tartalmát
+         is: a vázban se szöveg, se vezérlő nem áll (SZO-01 · I18N-01), és így a művelet a
+         felületi FORRÁSBAN is megtalálható — a lefedési mérés népessége a `data-action`-okat
+         ebből gyűjti (KUKA-207: amit próba nem tud MEGHÍVNI, azt bizalomból hisszük). -->
+    <span class="ctxslot" data-testid="ctx-recheck-slot"></span>
 
     <span class="spacer"></span>
     <span class="sr-only" data-testid="header-acting-as">—</span>
@@ -173,11 +193,57 @@
       }, { capture: true });
     }
 
+    /**
+     * R206 §3 — A HÁLÓZATI HIBA KÉRÉSE. A kapcsoló NEM üzleti művelet: azt állítja elő, hogy a
+     * KÖVETKEZŐ állapot-ellenőrzés elveszik. A néző ezután a MEGLÉVŐ felületen látja a harmadik
+     * állapotot („Nem igazolt") és a MŰKÖDŐ folytatást („Állapot ellenőrzése") — a javítás tehát
+     * kipróbálható, nem csak leírva van.
+     */
+    function paintLose() {
+      const n = (window.VS_DEMO && window.VS_DEMO.losingMe && window.VS_DEMO.losingMe()) || 0;
+      const el = byTest('demo-lose-me-note');
+      if (el) {
+        el.textContent = n > 0
+          ? 'A következő állapot-ellenőrzés elveszik — fogadd el a meghívást, és nézd meg, mit ír a fejléc.'
+          : '';
+      }
+    }
+    const lose = byTest('demo-lose-me');
+    if (lose) {
+      lose.addEventListener('click', () => {
+        if (window.VS_DEMO && window.VS_DEMO.loseNextMe) window.VS_DEMO.loseNextMe(1);
+        paintLose();
+      });
+    }
+    paintLose();
+
     const sw = byTest('demo-switch-viewer');
     if (sw) sw.addEventListener('click', switchViewer);
     const rs = byTest('demo-restart');
     if (rs) rs.addEventListener('click', restart);
     paint();
+
+    /**
+     * ÉS HA A FELÜLET FÁJLJAI NEM JÖNNEK MEG, AZT A LAP KIMONDJA — NEM ÜRES KÉPERNYŐT AD.
+     *
+     * MIÉRT (R206 §3). Ez a lap NEM csak a repóból nyílik meg: az átadott (publikált) alakja egy
+     * MÁSIK cím alatt szolgál ki, és ott a testvér-fájlok feloldása a befogadó oldal dolga. Ha
+     * ezen az úton a modulok nem töltődnek be, a néző egy fehér lapot látna, és nem tudná, mi
+     * történt — ez a némaság ugyanaz a hiba-osztály, amit a `KUKA-201` és a `KUKA-012` zár ki.
+     * A mérés a KÉSZ állapotot kérdezi (a héj felállt-e), nem a hálózatot figyeli (`KUKA-121`).
+     */
+    setTimeout(() => {
+      const fejlec = byTest('header-subject');
+      const felallt = Boolean(window.VS_DEMO) && Boolean(fejlec) && (fejlec.textContent || '').trim().length > 0;
+      if (felallt) return;
+      const box = document.createElement('p');
+      box.setAttribute('data-testid', 'demo-load-failed');
+      box.style.cssText = 'margin:0;padding:14px 16px;border-bottom:1px solid #d9d9e3;background:#fff4f4;color:#7a1212;font:14px/1.5 inherit';
+      box.textContent = 'A bemutató felületi fájljai nem töltődtek be ezen a címen, ezért a lap üres. '
+        + 'A csomag tartalma rendben van (a bejárás helyben zöld) — ez a megnyitás útjának hibája. '
+        + 'Jelezd a fejlesztői sávnak, és addig a helyi csomagból nyisd meg.';
+      document.body.insertBefore(box, document.body.firstChild);
+    }, 8000);
 
     // ÚJRATÖLTÉS UTÁN: ha a néző történetet választott, az app saját indító gombját nyomjuk meg.
     // Megvárjuk, hogy a felület felálljon (a bemutató-lista a segéd-csomagból jön).

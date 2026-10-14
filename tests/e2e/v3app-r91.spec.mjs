@@ -9,7 +9,8 @@
 // MIT MÉR:
 //   R91-01  A BEFEJEZÉS nem állít hamis sikert: függő feladatnál elakad, és ott a KIMONDOTT kihagyás.
 //   R91-02  A KILÉPÉS is ELSZÁMOL: a záró lap három számot ír ki, és MÁS mondattal.
-//   R91-03  MIND A KILENC bemutató elindul és a saját képernyőjén kiemel — vagy NEVEZETTEN nem indítható.
+//   R91-03  MINDEN deklarált bemutató elindul és a saját képernyőjén kiemel — vagy NEVEZETTEN nem
+//           indítható. A várt KÉSZLET a regiszterből jön, nem beírt darabszámból (KUKA-045).
 //   R91-04  A BELÉPÉS ELŐTTI segítség: a panel négy nézete és a regisztrációs bemutató VÉGIGVIHETŐ.
 //   R91-05  A NYELV a belépés előtt is választható, és TÚLÉLI a lapfrissítést.
 //   R91-06  A NYELV a SZEMÉLYHEZ tartozik: másik ember belépése nem viszi át az előző beállítását.
@@ -23,6 +24,7 @@ import {
   World, createWorkspaceUI, openProfile, setPlanUI, logoutUI, registerUI, verifyFromMailboxUI, loginUI,
 } from './helpers.mjs';
 import { dictFor } from '../../v3app/public/i18n/dict.mjs';
+import { TOURS, actorSwitchSteps } from '../../v3app/knowledge/features.mjs';
 
 const HU = dictFor('hu');
 
@@ -89,18 +91,88 @@ test('R91-03 — MINDEN bemutató elindul a saját képernyőjén, vagy NEVEZETT
     await createWorkspaceUI(anna.page, { name: 'Bemutató Kft', business: { jurisdiction: 'HU', tax_id: '12345678-1-42' } });
     const status = await anna.api.get('/api/assistant/status?lang=hu');
     const tours = status.body.tours.map((t) => t.id);
-    // A fiókkezelőnek TIZENEGY bemutató jár (a regisztrációs CSAK belépés előtt indítható).
-    // R121: a kilencedik a hozzáférés ÉLETCIKLUSA (megadás ÉS visszavonás).
-    // R132: a tizedik a MEGHÍVÁS VISSZAVONÁSA, a tizenegyedik az ÚJBÓLI BELÉPÉS — a szám ezért nőtt.
-    //
-    // A PIN NEM KÉZI SZÁM, HANEM KÖVETKEZMÉNY (KUKA-045): a számot akkor írjuk át, amikor ÚJ
-    // képesség VALÓBAN megszületett, és a hozzá tartozó bemutató INDÍTHATÓ is — amit ez a hurok
-    // mér. Ha a szám csak azért nőne, hogy a piros eltűnjön, a lenti ciklus azonnal elbuktatná.
-    expect(tours.length).toBe(11);
+    /**
+     * A VÁRT KÉSZLET A REGISZTERBŐL JÖN, NEM KÉZI SZÁMBÓL (R164/3 — KUKA-045 harmadszor).
+     *
+     * A RÉGI ALAK egy beírt szám volt (`toBe(11)`), és ez a csomagban KÉTSZER bukott el pusztán
+     * attól, hogy új útmutató született — egyszer itt, egyszer az `v3app-r93` lapon. A szám átírása
+     * önmagában HAMIS ZÖLD lett volna (ezt a külső review `F164-05`-ként ki is mondta), a szám
+     * MEGTARTÁSA pedig piros egy ÉP rendszeren. Egy előre beírt darabszám tehát sosem lehet a
+     * szabály.
+     *
+     * A SZABÁLY, AMIT EZ MÉR: a határ PONTOSAN azt a készletet adja ki, amit a regiszter deklarál —
+     * mindkét irányban. Egy NÉMÁN kiesett bemutatót a szám nem fogott volna meg (ha közben egy új
+     * születik, az összeg akár stimmelhet is); egy KITALÁLT azonosítót sem.
+     *
+     * A HÁROM KIZÁRÁS NEVEZETT, és mind a regiszter adatából jön, nem itteni névsorból:
+     *   · `requires_anonymous` — a belépés ELŐTTI képernyőn fut (regisztráció), belépve nincs célja;
+     *   · `requires_invite`    — a meghívó-képernyőhöz kötött, meghívás nélkül a célja nem létezik;
+     *   · `switch_actor`       — „váltás a másik nézetére" vezérlőt kér, ami az ALKALMAZÁS-HÉJBAN
+     *     nincs. R164/3-ig ez a kettő felkínálódott (a kapu a `VS_DEMO` KÖRNYEZET-jelét kérdezte), és
+     *     a végigjárásuk a hatodik lépésen megszakadt — a külső review hatodik körének lelete. A kapu
+     *     ma a BETÖLTÖTT FELÜLET horgonyaihoz kötött, tehát a héj ezt a kettőt nem kapja meg; a
+     *     végigvitelüket a bemutató LAPJÁN mérjük (`npm run proof:demo-walk`).
+     * A `requires_role: 'admin'` nem kizárás, mert ez az ember a vállalkozás LÉTREHOZÓJA.
+     */
+    /**
+     * A HARMADIK KIZÁRÁS INDOKA AZ R176 §1-BEN MEGVÁLTOZOTT — ÉS A SZÖVEG A VALÓSÁGOT KÖVETI.
+     *
+     * A `switch_actor` lépés kizárása eddig azon állt, hogy „a héjban nincs váltó vezérlő". Az
+     * R176 §1 ezt MEGSZÜNTETTE: a váltó vezérlő a VALÓDI kijelentkezés (`data-tour-anchor`
+     * =„actor-switch"), és a két átívelő történet a VALÓDI felületen végig is megy (`R176-K1`
+     * 19/19 · `K2` 18/18 · `K3` 390 px-en). A kizárás ezért ma MÁS tényen áll: a történet INDULÓ
+     * ADATÁN (`requires_story_data` — függő meghívás, illetve másik tag), ami EBBEN a frissen
+     * létrehozott vállalkozásban nincs meg. És ezt MÉRJÜK, nem feltételezzük (`KUKA-215`).
+     */
+    const fuggo = await anna.api.get('/api/invites/waiting');
+    const tagok = await anna.api.get('/api/members');
+    const vanFuggo = ((fuggo.body && fuggo.body.invites) || []).some((i) => i.state === 'pending');
+    const masTag = ((tagok.body && tagok.body.members) || []).filter((m) => m.email !== anna.email);
+    expect(`${vanFuggo} · ${masTag.length}`, 'MÉRVE: ebben a vállalkozásban nincs függő meghívás és nincs másik tag')
+      .toBe('false · 0');
+    /**
+     * ÉS AZ INDULÓ ADAT MINDEN TÉNYÉT MÉRJÜK (R176 · `KUKA-430`): a készlet zárt, de nem minden
+     * tagja HIÁNYZIK ebben a nézetben — a saját személyes kör például MEGVAN. A kizárás ezért a
+     * MÉRT tényekből jön, nem abból, hogy a bemutató „kér-e" induló adatot.
+     */
+    const sajatKor = Boolean(((await anna.api.get('/api/me')).body || {}).personal_book_id);
+    const adat = { pending_invite: vanFuggo, other_member: masTag.length > 0, own_personal_book: sajatKor };
+    expect(`${adat.own_personal_book}`, 'MÉRVE: ennek az embernek VAN saját személyes köre (a címe megerősített)').toBe('true');
+    const DEKLARALT = Object.keys(TOURS);
+    const nevezettenKizart = DEKLARALT.filter((id) => TOURS[id].requires_anonymous === true
+      || TOURS[id].requires_invite === true
+      || (TOURS[id].requires_story_data && adat[TOURS[id].requires_story_data] !== true));
+    // ÉS A KÉT VÁLTÓS TÖRTÉNET MINDEGYIKE KIMONDJA AZ INDULÓ ADATÁT — különben a horgony-változás
+    // után némán felkínálódna egy végig nem vihető történet (az R176 §1 MÉRT lelete, `KUKA-417`).
+    const valtos = DEKLARALT.filter((id) => actorSwitchSteps(TOURS[id]).length > 0);
+    expect(valtos.filter((id) => !TOURS[id].requires_story_data).join(',') || 'nincs',
+      'MINDEN szereplő-váltó történet kimondja a saját INDULÓ adatát').toBe('nincs');
+    const vart = DEKLARALT.filter((id) => !nevezettenKizart.includes(id));
+    expect(tours.slice().sort(), 'a határ PONTOSAN a regiszter deklarált készletét adja ki — se néma kiesés, se kitalált azonosító')
+      .toEqual(vart.slice().sort());
+    /**
+     * A KIZÁRTAK LISTÁJA PADLÓ, NEM PONTOS NÉVSOR (R166 §3 — KUKA-045 NEGYEDSZER).
+     *
+     * A korábbi alak egy BEÍRT négy-nevű listához mérte a kizártakat — pontosan az a hiba, amit a
+     * fenti saját megjegyzésem tilt („a kizártak LISTÁJA is a regiszterből jön, nem itteni
+     * névsorból"). Az R166 §3 két új belépés előtti útmutatót adott, és a beírt névsor azonnal
+     * pirosra vált egy ÉP rendszeren. A mérce ezért: a korábban kizártak MARADNAK kizárva (padló),
+     * és minden kizárásnak NEVEZETT indoka van a regiszterben — a halmaz mérete nőhet.
+     */
+    for (const id of ['tour.inviteAccept', 'tour.inviteRevoke', 'tour.reentry', 'tour.register']) {
+      expect(nevezettenKizart, `a korábban is kizárt ${id} TOVÁBBRA IS kizárt (padló)`).toContain(id);
+    }
+    const indokNelkul = nevezettenKizart.filter((id) => !(TOURS[id].requires_anonymous === true
+      || TOURS[id].requires_invite === true || Boolean(TOURS[id].requires_story_data)));
+    expect(tours, 'és a saját személyes kör útmutatója JÁR neki (az induló adata megvan)').toContain('tour.personalAccount');
+    expect(indokNelkul.join(',') || 'nincs', 'és MINDEN kizárásnak nevezett indoka van a regiszterben').toBe('nincs');
     expect(tours).not.toContain('tour.register');
     expect(tours, 'az R121 hozzáférés-életciklus bemutatója a kezelőnek jár').toContain('tour.scopeLifecycle');
-    expect(tours, 'az R132 meghívás-visszavonás bemutatója a kezelőnek jár').toContain('tour.inviteRevoke');
-    expect(tours, 'az R132 újbóli belépés bemutatója a kezelőnek jár').toContain('tour.reentry');
+    // A KÉT SZEREPLŐ-VÁLTÓ TÖRTÉNET ITT NEVEZETTEN NEM JÁR — de MÁS okból, mint az R164/3-ban: a
+    // váltó vezérlő ma MEGVAN a héjban (R176 §1), az INDULÓ ADATA viszont nincs meg ebben a
+    // vállalkozásban (fentebb MÉRVE). Amit nem lehet végigvinni, azt nem kínáljuk fel (F91-01).
+    expect(tours, 'a meghívás-visszavonás története függő meghívás NÉLKÜL nem jár').not.toContain('tour.inviteRevoke');
+    expect(tours, 'az újbóli belépés története másik tag NÉLKÜL nem jár').not.toContain('tour.reentry');
     const byFeature = Object.fromEntries(status.body.tours.map((t) => [t.id, t.feature]));
     for (const id of tours) {
       // A SÚGÓBÓL INDÍTJUK, ahogy a felhasználó: a funkció útmutatójából.
@@ -116,7 +188,9 @@ test('R91-03 — MINDEN bemutató elindul a saját képernyőjén, vagy NEVEZETT
       const highlighted = await anna.page.locator('.tourtarget').count();
       const pending = await anna.page.getByTestId('tour-pending').count();
       const aborted = await anna.page.getByTestId('tour-aborted').count();
-      expect(highlighted + pending + aborted, `${id}: kiemel VAGY nevezetten vár/megszakít`).toBeGreaterThan(0);
+      const lepesCim = ((await anna.page.getByTestId('tour-step-title').textContent().catch(() => null)) || '(nincs)').trim();
+      expect(highlighted + pending + aborted,
+        `${id}: kiemel VAGY nevezetten vár/megszakít — kiemelt ${highlighted} · vár ${pending} · megszakadt ${aborted} · lépés „${lepesCim.slice(0, 40)}” · lap ${await anna.page.evaluate(() => (document.querySelector('[aria-current="page"]') || {}).dataset?.testid || '(nincs)')}`).toBeGreaterThan(0);
       if (aborted) await expect(anna.page.getByTestId('tour-aborted')).toHaveAttribute('data-why', /targetMissing|rightLost|contextChanged|notAvailable/);
       await anna.page.getByTestId('tour-exit').click();
       if (await anna.page.getByTestId('tour-close').count()) await anna.page.getByTestId('tour-close').click();

@@ -13,6 +13,7 @@
  * UAD05  a fixtúra ALAKJA az ÍRÓTÓL származik, nem az emlékezetből (padlóval — KUKA-016/068)
  * UAD06  a támogatott futási szerződés SZABÁLY, és az ismeretlen verzió nem olvasható be
  * UAD08  a darabszámnak EGY deklarált otthona van, és az otthon tényleg hat (KUKA-129 · KUKA-126)
+ * UAD09  a darabolás terve VÉGES és a CÉLRA irányul; a hiányzó döntés nem tartalék-futás (R194)
  */
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, cpSync, rmSync, existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -23,7 +24,10 @@ import { admitUnits, chainBacking, SUPPORTED_RUN_CONTRACTS } from '../v3ref/unit
 import { REQUIRED_EVIDENCE, indexDigest, expectedChainRows, chainRowKey } from '../v3ref/norms.mjs';
 import { EXPECTED_PROBES } from '../v3ref/manifest.mjs';
 import { contractRef } from '../v3ref/normContract.mjs';
-import { DECLARED_UNITS, unitsScriptLine, unitsScriptLineAuto, unitsScriptLineIsHomed } from '../v3ref/external-checks/batteryUnits.mjs';
+import { DECLARED_UNITS, unitsScriptLine, unitsScriptLineAuto, unitsScriptLineIsHomed,
+  finestUnits, unitPlan, nextUnits } from '../v3ref/external-checks/batteryUnits.mjs';
+import { MUTATIONS } from '../v3ref/mutations.mjs';
+import { unitFailureKind } from '../v3ref/unitFailureKind.mjs';
 import { PROGRAMS } from '../v3ref/external-checks/case-manifest.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -104,6 +108,12 @@ const unit = (k, ids) => ({
   // ÚJRA tudja futtatni a `checkNorms`-ot; a fixtúrának ezért hordoznia kell — különben az UAD05
   // helyesen mondja ki, hogy „az őr elavult alakot mérne" (KUKA-051: a mérés nőjön az íróval).
   norm_inputs: { records: [], expectation: { base_digest: 'sha256:x', run_tokens: {}, mutated_digests: {} } },
+  // AZ MBX-01 BATCH-BÉLYEG (R198 §2). Az író kiírja, MELYIK batch megosztott alapvonalát használta
+  // az egység (vagy hogy SAJÁT alapvonallal futott), mert az ÖSSZEFŰZÉS is ellenőrzi a kötést. A
+  // fixtúrának ezért hordoznia kell — az UAD05 helyesen mondta ki, hogy különben „az őr elavult
+  // alakot mérne" (KUKA-051 · KUKA-477: a szerződés-bővítés a fogyasztók TELJES listájára szól).
+  baseline_mode: 'sajat',
+  batch: null,
 });
 const IDS = [['MA1', 'MA2'], ['MB1', 'MB2'], ['MC1', 'MC2']];
 const ALL_IDS = IDS.flat();
@@ -399,7 +409,101 @@ say('UAD06', admit(noContract).problems.some((p) => /`run_contract`: a mező HI�
     'a parancs-sor generátor maga hibás — az UAD08 összevetése így önmagát igazolná vissza');
 }
 
-console.log(`MRG-01 BEADVÁNY-KAPU (UAD01–UAD08): ${CASES.length + 1} ellenpélda · 1 pozitív kontroll · `
+
+// ── UAD09 — A DARABOLÁS TERVE VÉGES ÉS A CÉLRA IRÁNYUL (R194 §1 · KUKA-479 · D-VS-3259) ─────────
+//
+// MIT MÉR EZ, ÉS MIÉRT ÍGY. Az előző alakom azt rögzítette, hogy 12 301 → 12 150 ms után „biztosan
+// nem szabad tovább finomítani" — vagyis a HIBÁS heurisztikát őrizte (KUKA-479: a két szám nem
+// ugyanazt a munkát méri, és a 256-os fok MÉRVE belefért). Ez az alak ezért nem a megoldás FORRÁS-
+// SZÖVEGÉT nézi (KUKA-239), hanem a VISELKEDÉST hívja: a tervet, a célt, a vágást és a megállást.
+{
+  const N = MUTATIONS.length;
+  const finest = finestUnits(N);
+
+  // (a) A CÉL ELÉRHETŐ, ÉS A TERV VÉGES. Kicsi köztes nyereség NEM állíthatja meg a tervet: a
+  //     finomítás egy lépésben a legfinomabb megengedett felosztásra megy.
+  say('UAD09', finest === N,
+    `a legfinomabb megengedett felosztás nem mutációnkénti egység (${finest} ≠ ${N})`);
+  for (const start of [1, 7, 11, 64, 128, N]) {
+    const plan = unitPlan({ startUnits: start, mutationCount: N });
+    say('UAD09', plan.length >= 1 && plan.length <= 2,
+      `a terv nem VÉGES a ${start} kezdőértékről: ${plan.join(' → ')} (${plan.length} fok)`);
+    say('UAD09', plan[plan.length - 1] === finest,
+      `a terv nem a legfinomabb felosztásban végződik a ${start} kezdőértékről: ${plan.join(' → ')}`);
+    say('UAD09', plan.every((n) => n >= 1 && n <= N),
+      `a terv ÜRES szeletet adó fokot tartalmaz a ${start} kezdőértékről: ${plan.join(' → ')} (a mutáció-szám ${N})`);
+  }
+  // (b) A VÁGÁS: a mutáció-szám fölötti kezdőérték NEM maradhat meg — minden üres szelet még
+  //     egyszer kifizeti a teljes fix költséget (MÉRVE: n = 512 mellett 259 üres szelet).
+  say('UAD09', unitPlan({ startUnits: 512, mutationCount: N }).every((n) => n <= N),
+    'az 512-es kezdőérték nem lett a legfinomabb felosztásra VÁGVA — üres szeletek futnának le');
+
+  // (c) A MEGÁLLÁS MINDEN ESETBEN VÉGES: a `nextUnits`-ot követve legfeljebb EGY finomítás van,
+  //     és a lánc `null`-lal áll meg. Ezt SZIMULÁCIÓVAL mérjük, nem szövegből olvassuk.
+  for (const start of [1, 11, 64, 128, N, 512]) {
+    let cur = unitPlan({ startUnits: start, mutationCount: N })[0];
+    let steps = 0; let last = null;
+    for (;;) {
+      const r = nextUnits({ current: cur, mutationCount: N });
+      last = r;
+      if (r.next === null) break;
+      cur = r.next; steps += 1;
+      if (steps > 3) break;                       // a próba SAJÁT biztosítéka a végtelen ellen
+    }
+    say('UAD09', steps <= 1,
+      `a ${start} kezdőértékről a finomítás ${steps} lépést tett — a terv legfeljebb EGYET engedhet`);
+    say('UAD09', last && last.next === null && /legfinomabb|hiányos/i.test(last.why || ''),
+      `a ${start} kezdőértékről a megállás nem NEVEZETT és véges: ${JSON.stringify(last)}`);
+  }
+  // (d) ÉS A LEGFINOMABB FELOSZTÁSON NINCS TOVÁBBI FOK — ez a „legfinomabbal sem fér bele" eset.
+  const atFinest = nextUnits({ current: finest, mutationCount: N });
+  say('UAD09', atFinest.next === null,
+    'a legfinomabb felosztáson a döntés MÉGIS finomítana — a megállás nem véges');
+
+  // (e) TARTALMI HIBA: a darabolás ezen nem segít, és a hívó nem is finomíthat rá. A döntést a
+  //     NEVEZETT feloldó hozza — itt is HÍVVA, nem forrásból olvasva (KUKA-207).
+  say('UAD09', unitFailureKind({ slice_clean: false }) === 'content',
+    'a tartalmi bukást a feloldó nem `content`-nek minősíti — a hívó finomítani próbálna rá');
+  say('UAD09', unitFailureKind({ slice_clean: true, wall: { ms: 12_400, budget_ms: 12_000 } }) === 'too_slow',
+    'az IDŐ miatti bukást a feloldó nem `too_slow`-nak minősíti — a jogos finomítás elmaradna');
+  // ÉS A HARMADIK ÁG: befért, mégis bukott ⇒ ISMERETLEN, amire darabolni TILOS (KUKA-049).
+  say('UAD09', unitFailureKind({ slice_clean: true, wall: { ms: 9_000, budget_ms: 12_000 } }) === 'unknown',
+    'a „befért, mégis bukott" esetet a feloldó nem `unknown`-nak minősíti — vakon finomítanánk rá');
+
+  // (f) A KÖTELEZŐ DÖNTÉS HIÁNYA NEM TARTALÉK-FUTÁS, HANEM NEM SIKERES LEZÁRÁS (R194 §1).
+  //     ÉLESBEN mérve: a közös otthon nélkül a `--units-auto` el sem indul, és NEM nullával zár.
+  {
+    const tmp = mkdtempSync(join(tmpdir(), 'vs-uad09-'));
+    try {
+      cpSync(join(ROOT, 'v3ref'), join(tmp, 'v3ref'), { recursive: true });
+      rmSync(join(tmp, 'v3ref/external-checks/batteryUnits.mjs'), { force: true });
+      const r = spawnSync(process.execPath, [join(tmp, 'v3ref/mutate.mjs'), '--units-auto'],
+        { encoding: 'utf8', timeout: 60_000, maxBuffer: 8 * 1024 * 1024 });
+      const out = `${r.stdout || ''}${r.stderr || ''}`;
+      /**
+       * A VISELKEDÉST MÉRJÜK, NEM A MONDATOT (saját lelet, MÉRVE — `KUKA-207` · `KUKA-239`).
+       *
+       * Az első alakom a kimenet SZÖVEGÉRE illesztett („NEM SIKERES LEZÁRÁS"). Ellenpróbán mérve ez
+       * NEM fogta meg a visszacsúszást: a tartalék-ág visszaállításakor a mondat TOVÁBBRA IS
+       * kiíródott (csak a `process.exit(2)` tűnt el), tehát a próba zölden állt egy olyan futtatón,
+       * ami épp a tiltott tartalék-futást végezte. A mérce ezért a PONTOS kilépési kód és az, hogy
+       * a mérés EL SEM INDULT.
+       */
+      say('UAD09', r.status === 2,
+        `a közös otthon NÉLKÜL a \`--units-auto\` kilépési kódja ${r.status} (várt: 2) — a hiányzó `
+        + 'kötelező döntés nem egyértelmű, nem sikeres lezárás');
+      say('UAD09', !/A DARABOLÁS TERVE/.test(out),
+        'a közös otthon nélkül a futtató MÉGIS tervet hirdetett és elindult — ez a közös szabály '
+        + 'rejtett megkerülése (tartalék-futás)');
+      say('UAD09', !/FINOMABBRA osztok|EGYSÉG /.test(out),
+        'a közös otthon nélkül a futtató MÉGIS mért egységeket — drága tartalék-futás a döntés helyett');
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  }
+}
+
+console.log(`MRG-01 BEADVÁNY-KAPU (UAD01–UAD09): ${CASES.length + 1} ellenpélda · 1 pozitív kontroll · `
   + `${writerKeys.length} író-mező · kötelező készlet: ${REQUIRED_EVIDENCE.version} (${REQUIRED_EVIDENCE.clauses.length} klauzula)`);
 if (problems.length) {
   console.error(`\nPIROS (${problems.length}):`);

@@ -17,6 +17,10 @@
 //   R93-07  A chat FORRÁSA megnyitható — és a megfelelő útmutatóra visz.
 import { test, expect } from '@playwright/test';
 import { dictFor } from '../../v3app/public/i18n/dict.mjs';
+import { TOURS, actorSwitchSteps } from '../../v3app/knowledge/features.mjs';
+// AZ R166 §3 TIZENKÉT ÚTMUTATÓJÁNAK ÉLŐ TANÚJA EGY MÁSIK LAP — a listát ONNAN olvassuk, nem
+// írjuk ide másodszor: két névsor előbb-utóbb elcsúszik (KUKA-003 · KUKA-045).
+import { UJ_UTMUTATOK } from './r166Tours.mjs';
 import {
   World, createWorkspaceUI, openProfile, logoutUI,
   gotoPage, openInviteUI, redeemUI, ensureMemberRow, openMemberPanel, inviteUI, openMailbox, revokeUI,
@@ -78,19 +82,45 @@ async function currentStep(page) {
  * `elakadt:<lépés>` · `nem_ert_veget`. Az „elindult" NEM eredmény.
  */
 async function walkTour(page, perform = {}) {
+  // AZ UTOLSÓ ISMERT LÉPÉS — mert a megszakítás-kártya ELVISZI a lépés-listát, és akkor már nincs
+  // kit megkérdezni. A verdikt viszont pontosan azt kéri számon, HOL állt meg a történet, tehát a
+  // tényt ott kell megőrizni, ahol még tudható (KUKA-049: a nem tudott nem „nem történt meg").
+  let lastStep = null;
   for (let guard = 0; guard < 40; guard += 1) {
     if (await page.getByTestId('tour-finished').count()) return 'befejezve';
-    if (await page.getByTestId('tour-aborted').count()) {
-      return `megszakadt:${await page.getByTestId('tour-aborted').getAttribute('data-why')}`;
-    }
+    // A LÉPÉST A MEGSZAKADÁS ELŐTT OLVASSUK KI: a megszakítás-kártya ELVISZI a lépés-listát (nincs
+    // többé `aria-current`), tehát a megszakadás után kérdezve a válasz `null` — a verdikt épp azt
+    // nem tudná megmondani, amiért a lépést felvettük (MÉRVE: „megszakadt:targetMissing:null").
     const step = await currentStep(page);
+    if (step !== null) lastStep = step;
+    if (await page.getByTestId('tour-aborted').count()) {
+      // A HOL IS RÉSZE A VERDIKTNEK (R158/2): egy puszta „megszakadt:targetMissing" nem mondja meg,
+      // hogy a történet a MÁSODIK vagy a TIZENHATODIK lépésnél állt-e meg — márpedig az elvárást
+      // csak a lépés ismeretében lehet pontosan kimondani (KUKA-216).
+      const w = await page.getByTestId('tour-aborted').getAttribute('data-why');
+      return `megszakadt:${w}:${step ?? lastStep}`;
+    }
     if (await page.getByTestId('tour-blocked').count()) {
       if (!perform[step]) return `elakadt:${step}`;
       await perform[step]();
       continue;
     }
-    if (await page.getByTestId('tour-pending').count()) {
+    // A TEENDŐ ÉS A TÁJÉKOZTATÁS KÜLÖNBSÉGE A KIMENETBŐL JÖN, NEM A JÁRÓ TUDÁSÁBÓL (R158/2): a
+    // `data-actionable` a lap döntése (`INFORMATIONAL_PENDING`, `v3app/public/tour.mjs`) — így a
+    // szabály EGY helyen áll, nem két járóban lemásolva (KUKA-003 · KUKA-039).
+    if (await page.getByTestId('tour-pending').count()
+        && await page.getByTestId('tour-pending').getAttribute('data-actionable') !== 'false') {
       if (perform[step]) { await perform[step](); continue; }
+      // A VÁRAKOZÁSHOZ TARTOZIK KIEMELÉS — ÉS HA NEM, AZ MÉRT VERDIKT, NEM IDŐTÚLLÉPÉS (R158/2).
+      // A korábbi alak VAKON kattintott a `.tourtarget`-re: ha a buborék várakozást írt ki kiemelés
+      // NÉLKÜL (pl. szereplő-váltást kérő lépés a valódi héjban, ahol ilyen vezérlő nincs), a próba
+      // 15 másodpercet várt, majd „locator.click: Timeout"-tal bukott — a LELET helyett a MÉRŐ
+      // hibájáról beszélt (KUKA-215: a választ meg kell MÉRNI · KUKA-049: a nem tudott nem „nem
+      // történt meg"). Most a verdikt megnevezi a lépést ÉS a várakozás okát.
+      if (!await page.locator('.tourtarget').count()) {
+        const why = await page.getByTestId('tour-pending').getAttribute('data-why');
+        return `varakozik_kiemeles_nelkul:${step}:${why}`;
+      }
       await page.locator('.tourtarget').first().click();
       continue;
     }
@@ -131,12 +161,72 @@ test('R93-01/02/03 — MINDEN bemutató VÉGIGVIHETŐ, a cégalapítás a fiókv
     // ── A DEKLARÁLT LISTA A SZERVERTŐL JÖN — nem kézi másolat (KUKA-051).
     const status = await anna.api.get('/api/assistant/status?lang=hu');
     const tours = status.body.tours;
-    // R132: a tizedik a MEGHÍVÁS VISSZAVONÁSA, a tizenegyedik az ÚJBÓLI BELÉPÉS. A szám KÖVETKEZMÉNY,
-    // nem kézi pin: mind a tizenegyet VÉGIG IS VISSZÜK ebben a próbában (KUKA-045).
-    expect(tours.length, 'a fiókkezelőnek tizenegy bemutató jár').toBe(11);
+    /**
+     * A VÁRT KÉSZLET A REGISZTERBŐL JÖN, NEM BEÍRT DARABSZÁMBÓL (R164/3 — KUKA-045).
+     *
+     * A RÉGI ALAK egy pin volt (`toBe(11)`, majd `toBe(14)`), és a külső review `F164-05`-ként
+     * kimondta a csapdát: a szám ÁTÍRÁSA önmagában hamis zöld, a MEGTARTÁSA viszont piros egy ép
+     * rendszeren. A szám így kétszer bukott el ebben a csomagban, pusztán attól, hogy új útmutató
+     * született.
+     *
+     * A MÉRCE MOST A KÉSZLET, MINDKÉT IRÁNYBAN: a határ pontosan azt adja ki, amit a regiszter
+     * deklarál. Egy némán kiesett bemutatót a darabszám nem fogott volna meg (ha közben új születik,
+     * az összeg akár stimmelhet is), egy kitalált azonosítót sem. A HÁROM kizárás a regiszter
+     * ADATÁBÓL jön: `requires_anonymous` (belépés előtti képernyő) · `requires_invite`
+     * (meghívó-képernyő) · és a SZEREPLŐ-VÁLTÓ lépés (lásd alább).
+     *
+     * A HARMADIK KIZÁRÁS A R164/3 JAVÍTÁSA (a külső review hatodik körének lelete). Ez a próba a
+     * VALÓDI alkalmazás-héjat futtatja; abban nincs „váltás a másik nézetére" vezérlő, tehát a két
+     * szereplő-váltó bemutató ott NEM vihető végig. Korábban a kiszolgáló mégis felkínálta őket (a
+     * kapu a KÖRNYEZET jelét kérdezte), és ez a próba a `targetMissing` MEGSZAKADÁST írta elő
+     * elvárt eredményként — azaz a hibát szentesítette. Mostantól a kapu a FELÜLET horgonyaihoz
+     * kötött, a héj ezt a kettőt NEM kapja meg, és itt a KIZÁRÁST mérjük. A kizárandók listája nem
+     * kézi: a bemutató SAJÁT `switch_actor` lépéseiből számoljuk (KUKA-045).
+     */
+    /**
+     * A HARMADIK KIZÁRÁS INDOKA AZ R176 §1-BEN MEGVÁLTOZOTT. A váltó vezérlő ma MEGVAN a valódi
+     * héjban (a kijelentkezés az, `data-tour-anchor="actor-switch"`), és a két átívelő történet a
+     * VALÓDI felületen végig is megy (`R176-K1/K2/K3`). A kizárás ma a történet INDULÓ ADATÁN áll
+     * (`requires_story_data`): ebben a próbában nincs függő meghívás és nincs másik tag, tehát a
+     * kiszolgáló NEVEZETTEN nem kínálja fel őket (`KUKA-417`).
+     */
+    /**
+     * ÉS AZ INDULÓ ADATOT MÉRJÜK, NEM FELTESSZÜK (`KUKA-215`). Itt a két tény KÜLÖNBÖZIK, és éppen
+     * ez az ELLENPÁR: Berta elfogadta a meghívást, tehát FÜGGŐ meghívás NINCS (a visszavonás
+     * története nem jár), MÁSIK TAG viszont VAN (az újbóli belépés története jár). Egy általános,
+     * mindkettőt kizáró szabály ezt a különbséget elrejtené.
+     */
+    const fuggo = await anna.api.get('/api/invites/waiting');
+    const tagok = await anna.api.get('/api/members');
+    const adat = {
+      pending_invite: ((fuggo.body && fuggo.body.invites) || []).some((i) => i.state === 'pending'),
+      other_member: ((tagok.body && tagok.body.members) || []).some((m) => m.email !== anna.email),
+      // R176 · `KUKA-430`: a saját személyes kör léte is induló adat (a személyes fiók útmutatójához).
+      own_personal_book: Boolean(((await anna.api.get('/api/me')).body || {}).personal_book_id),
+    };
+    expect(`${adat.pending_invite} · ${adat.other_member} · ${adat.own_personal_book}`,
+      'MÉRVE: függő meghívás NINCS (Berta elfogadta), másik tag VAN, és saját személyes kör is VAN').toBe('false · true · true');
+    const DEKLARALT = Object.keys(TOURS);
+    const valtosBemutato = (id) => actorSwitchSteps(TOURS[id]).length > 0;
+    const kiszolgalt = DEKLARALT.filter((id) => TOURS[id].requires_anonymous !== true
+      && TOURS[id].requires_invite !== true
+      && (!TOURS[id].requires_story_data || adat[TOURS[id].requires_story_data] === true));
+    // ELLENPÁR A KIZÁRÁSHOZ: ha a regiszterből eltűnne minden `switch_actor` lépés, ez az állítás
+    // azonnal pirosra vált — a kizárás így nem lehet néma üres halmaz (KUKA-216). És MINDKETTŐ
+    // kimondja az induló adatát: a horgony-változás után ez tartja távol a végig nem vihetőt.
+    expect(DEKLARALT.filter(valtosBemutato).sort(), 'a regiszter KÉT szereplő-váltó bemutatót deklarál')
+      .toEqual(['tour.inviteRevoke', 'tour.reentry']);
+    expect(DEKLARALT.filter(valtosBemutato).filter((id) => !TOURS[id].requires_story_data).join(',') || 'nincs',
+      'és MINDKETTŐ kimondja a saját INDULÓ adatát').toBe('nincs');
+    expect(tours.map((t) => t.id).sort(), 'a határ PONTOSAN a regiszter deklarált készletét adja ki')
+      .toEqual(kiszolgalt.slice().sort());
     const byId = Object.fromEntries(tours.map((t) => [t.id, t]));
 
-    const simple = ['tour.shell', 'tour.stock', 'tour.language', 'tour.help', 'tour.plan'];
+    const simple = ['tour.shell', 'tour.stock', 'tour.language', 'tour.help', 'tour.plan',
+      // R164/3 — AZ ÚJ, OLVASÓ NÉZETEK ÚTMUTATÓI. Mind a három engedély nélkül megnyíló lapon áll
+      // (a fiók mintaadatát, illetve a fiók saját adatait rajzolja), feladat-lépés nélkül — tehát
+      // ugyanazon az egyszerű úton járható be, mint a héj- és a készlet-bemutató.
+      'tour.warehouses', 'tour.processes', 'tour.accountSettings'];
     for (const id of simple) {
       await startTourFor(anna.page, byId[id].feature);
       verdict[id] = await walkTourLogged(anna.page, id, {
@@ -211,90 +301,53 @@ test('R93-01/02/03 — MINDEN bemutató VÉGIGVIHETŐ, a cégalapítás a fiókv
     });
     await closeTourPanel(anna.page);
 
-    // ── R132/1 — A MEGHÍVÁS VISSZAVONÁSA: a lépés CSAK tényleges visszavonás után halad (TUR-01).
-    //    A FÜGGŐ meghívó a `tour.invite` lépésében született (cili) — a próba a SAJÁT előfeltételét
-    //    használja, nem egy másik próbától örökölt állapotot (KUKA-239).
-    await gotoPage(anna.page, 'overview');
-    await startTourFor(anna.page, byId['tour.inviteRevoke'].feature);
-    verdict['tour.inviteRevoke'] = await walkTourLogged(anna.page, 'tour.inviteRevoke', {
-      // A LÉPÉS-KEZELŐ ÁLLAPOT-TUDATOS, és ez SZÁNDÉKOS: a járó a feladathoz kötött lépésen
-      // TÖBBSZÖR is meghívja (előbb a „feltárásra vár", majd a „feladat hiányzik" állapotban) —
-      // ugyanaz az alak, mint a `tour.grant` kezelőjénél. Minden hívás a MAI DOM-ból dönt, nem egy
-      // korábbi feltevésből (KUKA-228 · KUKA-209).
-      //
-      // A FELADAT A NEGYEDIK LÉPÉSEN ÁLL: a harmadik a LISTÁT emeli ki (ő a negyedik feltárója), a
-      // negyedik a megerősítő panelt. A kulcs ezért `s4` — a bemutató SAJÁT lépés-azonosítója, nem
-      // egy sorszám-tipp (a járó a buborék aria-current állapotából olvassa).
-      s4: async () => {
-        if (await anna.page.getByTestId('invite-revoke-confirm').count()) {
-          await anna.page.getByTestId('invite-revoke-confirm').click();
-          await expect(anna.page.getByTestId('members-result')).toContainText(allando(HU.TPL.inviteRevoked));
-          return;
-        }
-        if (!(await anna.page.getByTestId('invites-list').count())) {
-          await anna.page.getByTestId('members-tab-invites').click();
-          await expect(anna.page.getByTestId('invites-list')).toBeVisible();
-        }
-        const row = anna.page.locator('tr[data-testid^="invite-row-"]').filter({ hasText: w.email('cili') }).first();
-        await expect(row).toBeVisible();
-        // A GOMBOT A SORHOZ KÉPEST keressük, nem egy KORÁBBAN kiolvasott azonosítóval: a lista a
-        // fül-váltás és az adat megérkezése között ÚJRARAJZOLÓDIK, és egy előre eltett `data-testid`
-        // a régi DOM-ra mutat (KUKA-228: amit a próba nem nyom meg helyettünk, arra VÁRNI kell).
-        const gomb = row.locator('[data-action="invite-revoke-start"]');
-        // HA A SOR MÁR VISSZAVONT, A MUNKA KÉSZ: a járó a feladat-lépést többször hívja, és a
-        // művelet UTÁNI hívásban nincs több gomb — ez nem hiba, hanem a végállapot (KUKA-129).
-        if (!(await gomb.count())) {
-          await expect(row.getByTestId('invite-state-revoked')).toBeVisible();
-          return;
-        }
-        await expect(gomb).toBeVisible();
-        await gomb.click();
-        await expect(anna.page.getByTestId('invite-revoke-lead')).toBeVisible();
-      },
-    });
-    await closeTourPanel(anna.page);
-    // A LEZÁRÓ BUBORÉK ELPAKOLÁSA MÉRVE, NEM FELTÉTELEZVE. A buborék a megerősítő PÁRBESZÉDBE
-    // költözött (`hostTour`), és annak bezárása után a `tour-close` nem feltétlenül kattintható —
-    // mérve: a befejező kártya a lapon maradt, és elfogta a következő művelet kattintását. A
-    // takarítás ezért ÁLLÍT: ha a kártya még ott van, a lap újratöltésével pakolunk el (ez a
-    // felhasználó számára is kézenfekvő út). A takarítás NEM mérés — a verdiktet a `walkTour` adta
-    // (KUKA-216), de a takarítás HIÁNYA a KÖVETKEZŐ mérést rontaná el (KUKA-120).
-    if (await anna.page.getByTestId('tour').isVisible().catch(() => false)) {
-      await anna.page.reload();
-      await expect(anna.page.getByTestId('header-subject')).toContainText('@');
-    }
-    await expect(anna.page.getByTestId('tour')).toBeHidden();
+    // ── R132/1-2 — A VALÓDI MŰVELETEK A HATÁRON, BEMUTATÓ NÉLKÜL (R164/3) ────────────────────
+    //
+    // MI VOLT ITT, ÉS MIÉRT MÁS MOST. Ez a szakasz a `tour.inviteRevoke` és a `tour.reentry`
+    // VÉGIGJÁRÁSA volt az alkalmazás-héjban — csak épp nem lehetett végigjárni: a hatodik, illetve
+    // ötödik lépés „váltás a másik nézetére" vezérlőt kér, ami ezen a felületen nem létezik. A
+    // kiszolgáló mégis felkínálta őket, a próba pedig a megszakadást írta ELVÁRT eredménynek. A
+    // felkínálás ma a FELÜLET horgonyaihoz kötött, tehát a héj ezt a kettőt meg sem kapja.
+    //
+    // AMI VISZONT NEM VESZHET EL (R164/3 kikötése): a bemutató LÉPÉSEI három VALÓDI műveletet
+    // mértek a valódi felületen és a valódi határon — meghívó visszavonása · tag eltávolítása ·
+    // visszahívás —, a nyugtájukkal együtt. Ezeket a bemutató keretétől FÜGGETLENÜL végezzük el, és
+    // ugyanazokat a nyugtákat állítjuk: a hiba-elkapó erő megmarad, a hamis elvárás eltűnik.
+    // A HÁROM MŰVELET A BEMUTATÓ LÉPÉSEIKÉNT is mérve van — a bemutató LAPJÁN (`proof:demo-walk`).
 
-    // ── R132/2 — AZ ÚJBÓLI BELÉPÉS: előbb VALÓDI eltávolítás (a bemutató előfeltétele), majd a
-    //    visszahívás. A lépés CSAK tényleges elküldés után halad.
-    await gotoPage(anna.page, 'overview');
-    // VISSZA A TAG-FÜLRE: a fül-választás a lap ÁLLAPOTA, és az előző bemutató a meghívó-fülön
-    // hagyta — a `members-list` horgony (a következő bemutató 2. lépésének célja) csak a tag-fülön
-    // létezik (KUKA-218: minden nézethez kötött állapotot egy helyen kell rendezni).
+    // (1) A MEGHÍVÓ VISSZAVONÁSA. A függő meghívó a `tour.invite` lépésében született (cili) — a
+    //     próba a SAJÁT előfeltételét használja, nem egy másik próbától örökölt állapotot (KUKA-239).
     await gotoPage(anna.page, 'members');
+    await anna.page.getByTestId('members-tab-invites').click();
+    await expect(anna.page.getByTestId('invites-list')).toBeVisible();
+    const inviteRow = anna.page.locator('tr[data-testid^="invite-row-"]').filter({ hasText: w.email('cili') }).first();
+    await expect(inviteRow).toBeVisible();
+    // A GOMBOT A SORHOZ KÉPEST keressük, nem egy KORÁBBAN kiolvasott azonosítóval: a lista a
+    // fül-váltás és az adat megérkezése között ÚJRARAJZOLÓDIK, és egy előre eltett `data-testid` a
+    // régi DOM-ra mutat (KUKA-228: amit a próba nem nyom meg helyettünk, arra VÁRNI kell).
+    await expect(inviteRow.locator('[data-action="invite-revoke-start"]')).toBeVisible();
+    await inviteRow.locator('[data-action="invite-revoke-start"]').click();
+    await expect(anna.page.getByTestId('invite-revoke-lead')).toBeVisible();
+    await anna.page.getByTestId('invite-revoke-confirm').click();
+    // A NYUGTA A SZÓTÁRBÓL mért ÁLLANDÓ szakaszára vár (KUKA-237: a próba se égessen be feliratot).
+    await expect(anna.page.getByTestId('members-result')).toContainText(allando(HU.TPL.inviteRevoked));
+    await expect(inviteRow.getByTestId('invite-state-revoked')).toBeVisible();
+
+    // (2) A TAG ELTÁVOLÍTÁSA — valódi művelet, valódi nyugtával.
     await anna.page.getByTestId('members-tab-members').click();
     await expect(anna.page.getByTestId('members-list')).toBeVisible();
     await revokeUI(anna.page, berta.subjectId);
     await expect(anna.page.getByTestId(`member-removed-${berta.subjectId}`)).toBeVisible();
-    await gotoPage(anna.page, 'overview');
-    await startTourFor(anna.page, byId['tour.reentry'].feature);
-    verdict['tour.reentry'] = await walkTourLogged(anna.page, 'tour.reentry', {
-      s3: async () => {
-        if (await anna.page.getByTestId('reinvite-confirm').count()) {
-          await anna.page.getByTestId('reinvite-confirm').click();
-          // A NYUGTA A SZÓTÁRBÓL mért ÁLLANDÓ szakaszára várunk (KUKA-237).
-          await expect(anna.page.getByTestId('members-result')).toContainText(allando(HU.TPL.reinviteSent));
-          return;
-        }
-        if (!(await anna.page.getByTestId('members-list').count())) {
-          await anna.page.getByTestId('members-tab-members').click();
-        }
-        await openMemberPanel(anna.page, berta.subjectId);
-        await anna.page.getByTestId(`member-reinvite-${berta.subjectId}`).click();
-        await expect(anna.page.getByTestId('reinvite-form')).toBeVisible();
-      },
-    });
-    await closeTourPanel(anna.page);
+
+    // (3) A VISSZAHÍVÁS. És a megerősítés CSAK akkor művelet, ha LÁTSZIK: a `count()` a DOM-ot
+    //     számolja, a rejtett gomb „megvan"-nak látszott, a kattintás pedig időtúllépéssel bukott —
+    //     a mérő hibájáról beszélt a lelet helyett (KUKA-215).
+    await openMemberPanel(anna.page, berta.subjectId);
+    await anna.page.getByTestId(`member-reinvite-${berta.subjectId}`).click();
+    await expect(anna.page.getByTestId('reinvite-form')).toBeVisible();
+    await expect(anna.page.getByTestId('reinvite-confirm')).toBeVisible();
+    await anna.page.getByTestId('reinvite-confirm').click();
+    await expect(anna.page.getByTestId('members-result')).toContainText(allando(HU.TPL.reinviteSent));
 
     // ── A CÉGALAPÍTÁS: a bemutató a SAJÁT sikerétől vesztette el az elszámolását (F93-01).
     await gotoPage(anna.page, 'overview');
@@ -350,17 +403,84 @@ test('R93-01/02/03 — MINDEN bemutató VÉGIGVIHETŐ, a cégalapítás a fiókv
     await expect(anon.getByTestId('auth'), 'a belépés előtti képernyőn maradtunk').toBeVisible();
     await expect(anon.getByTestId('app')).toBeHidden();
 
-    // ── AZ ELSZÁMOLÁS: MIND A TIZENEGY végigvihető. Az „elindult" nem eredmény.
-    //    R132: a lista a MEGHÍVÁS VISSZAVONÁSÁVAL és az ÚJBÓLI BELÉPÉSSEL bővült — és nem a szám
-    //    nőtt, hanem a VÉGIGJÁRT bemutatók halmaza (a verdikt-tábla alább mindegyikre „befejezve"-t
-    //    követel, tehát a lista bővítése nem tud üres pipává válni — KUKA-041 · KUKA-045).
-    const expected = ['tour.shell', 'tour.stock', 'tour.language', 'tour.help', 'tour.plan',
-      'tour.invite', 'tour.grant', 'tour.scopeLifecycle', 'tour.inviteRevoke', 'tour.reentry',
-      'tour.addBusiness', 'tour.register'];
-    expect(Object.keys(verdict).sort(), 'minden deklarált bemutató végig lett járva').toEqual([...expected].sort());
-    expect(verdict, 'minden bemutató BEFEJEZVE — megszakadás és elakadás nem elfogadás').toEqual(
-      Object.fromEntries(expected.map((id) => [id, 'befejezve'])),
+    // ── AZ ELSZÁMOLÁS — ÉS A HATÓKÖR KIMONDVA (R164/3 · KUKA-216 · KUKA-227) ─────────────────
+    //
+    // MINDEN bemutató, amit a VALÓDI ALKALMAZÁS-HÉJ MEGKAP, VÉGIG LETT JÁRVA, és a verdiktje
+    // `befejezve` — nem „elindult" és nem „megszakadt". A mérce itt EGY, nem kettő.
+    //
+    // MI VÁLTOZOTT A R164/3-BAN, ÉS MIÉRT. Eddig ez a próba KÉT osztályt vezetett: tíz „befejezve",
+    // és KETTŐ (`tour.inviteRevoke` · `tour.reentry`), aminél az ELVÁRT eredmény a
+    // `megszakadt:targetMissing` volt. A külső review ezt nevezetten kimondta: a próba így a HIBÁT
+    // szentesítette — a kiszolgáló felkínált két olyan bemutatót, amit ezen a felületen semmi nem
+    // tud végigvinni, a kötelező böngésző-kapu pedig emellett zöld maradt.
+    //
+    // A JAVÍTÁS A FELKÍNÁLÁS OLDALÁN VAN, nem itt: a kapu a BETÖLTÖTT FELÜLET horgonyaihoz kötött
+    // (`surface_anchors`), tehát a héj ezt a kettőt MEG SEM KAPJA. Így itt nincs mit „elvárt
+    // megszakadásként" leírni — a kizárást a fenti készlet-állítás méri, a végigvitelüket pedig a
+    // bemutató LAPJÁN mérjük.
+    //
+    // HOL VAN A KETTŐ BIZONYÍTÉKA — ÉS MIT NEM ÁLLÍT. A `npm run proof:demo-walk` a bemutató lapján
+    // (ahol a váltó vezérlő LÉTEZIK) mindkét történetet VÉGIG viszi, kétszer, végállapot-
+    // ellenőrzéssel; a lánc a KÖTELEZŐ böngésző-kapu része (`npm run verify:browser-gate`). És a
+    // lista, amit az a lap mutat, a VALÓDI kiszolgálóról származik (`npm run demo:knowledge` →
+    // `demo-assistant.json`, `surface=demo`), tehát amit a termék a bemutató-felületnek felkínál,
+    // azt ott végig is viszik. AMIT AZ A TANÚ NEM ÁLLÍT: a háttere a SZIMULÁLT bemutató-adapter,
+    // tehát nem HTTP- és nem tároló-bizonyíték (KUKA-227).
+    const appShell = ['tour.shell', 'tour.stock', 'tour.language', 'tour.help', 'tour.plan',
+      'tour.invite', 'tour.grant', 'tour.scopeLifecycle', 'tour.addBusiness', 'tour.register',
+      // R164/3 (a külső review P1-es leletére): a három ÚJ útmutató is az alkalmazás-héjban
+      // VÉGIGVIHETŐ — nem elég felvenni a listára, a verdiktjük is `befejezve` kell legyen.
+      'tour.warehouses', 'tour.processes', 'tour.accountSettings'];
+    /**
+     * A „MINDEN DEKLARÁLT BEMUTATÓ VÉGIG LETT JÁRVA" MONDAT A REGISZTERHEZ MÉRVE DŐL EL (R164/3).
+     *
+     * Eddig a kézi lista ÖNMAGÁHOZ volt mérve: ha egy új bemutató se a listára, se a bejárásba nem
+     * került, ez az állítás ZÖLD maradt — a mondat mégsem volt igaz (KUKA-216). A bejárandó készlet
+     * ezért a regiszterből jön, és a kézi listának PONTOSAN azt kell lefednie.
+     *
+     * A KÉT NEVEZETT KIZÁRÁS, MINDKETTŐ A REGISZTER ADATÁBÓL (nem itteni döntés):
+     *   · `requires_invite` — a meghívás elfogadása érvényes meghívó-hivatkozást kér; mesterséges
+     *     meghívót nem gyártunk hozzá;
+     *   · `switch_actor` — a szereplő-váltó történetek a bemutató LAPJÁN járhatók végig (fent).
+     */
+    const bejarando = DEKLARALT.filter((id) => TOURS[id].requires_invite !== true && !valtosBemutato(id));
+    /**
+     * A LEFEDÉS KÉT TANÚ ÖSSZEGE, ÉS MINDKETTŐ NEVEZETT (R166 §3).
+     *
+     * Az R166 §3 tizenkét pótolt útmutatót adott, és azokat SAJÁT lapja járja végig
+     * (`v3app-r166-utmutatok.spec.mjs` U0–U3: belépés előtt, belépve és 390 px-en is). A listát
+     * onnan IMPORTÁLJUK, tehát nem két névsor áll egymás mellett — ha egy új útmutató EGYIK tanúba
+     * sem kerül be, ez az állítás pirosra vált. A szabály tehát nem lazult: „új bemutató nem
+     * maradhat ki némán" továbbra is mérve, csak a tanúk SZÁMA kettő (KUKA-216: a verdikt nem
+     * mutathat a mérés hatókörén túl).
+     */
+    const masTanu = bejarando.filter((id) => UJ_UTMUTATOK.includes(id));
+    expect([...appShell, ...masTanu].slice().sort(), 'a bejárási lista a regiszter készletét fedi — új bemutató nem maradhat ki némán')
+      .toEqual(bejarando.slice().sort());
+    expect([...Object.keys(verdict), ...masTanu].sort(), 'minden bejárandó bemutató végig lett járva (a NEVEZETT másik tanúval együtt)').toEqual(
+      bejarando.slice().sort(),
     );
+    for (const id of appShell) {
+      expect(verdict[id], `${id}: az alkalmazás-héjban VÉGIGVIHETŐ`).toBe('befejezve');
+    }
+    /**
+     * ÉS A KÉT SZEREPLŐ-VÁLTÓ TÖRTÉNET ITT NEM INDULT EL — DE MÁS OKBÓL, MINT AZ R164/3-BAN.
+     *
+     * A váltó vezérlő ma MEGVAN a valódi héjban (az R176 §1 a kijelentkezésre horgonyozta), tehát a
+     * felkínálás ma az INDULÓ ADATON áll: a visszavonás története FÜGGŐ meghívás nélkül nem jár, az
+     * újbóli belépés története a VALÓDI tag miatt JÁR. A két tény KÜLÖNBÖZIK — ez az ellenpár.
+     *
+     * BEJÁRNI egyiket sem ITT kell: a két szereplős végigvitelnek SAJÁT, nevezett tanúja van a
+     * VALÓDI felületen (`tests/e2e/v3app-r176-ket-szereplo.spec.mjs` — K1 19/19 · K2 18/18 · K3 390
+     * px-en, újraindítással). Ez tehát nem „kihagyás", hanem KIMONDOTT hatókör (KUKA-093 · KUKA-216).
+     */
+    for (const id of DEKLARALT.filter(valtosBemutato)) {
+      const vart = adat[TOURS[id].requires_story_data] === true;
+      expect(Boolean(byId[id]),
+        `${id}: a felkínálás az INDULÓ adatot követi (${TOURS[id].requires_story_data} = ${vart})`).toBe(vart);
+      expect(Object.prototype.hasOwnProperty.call(verdict, id),
+        `${id}: a két szereplős bejárás NEM itt fut, hanem a saját tanújában (R176-K1/K2/K3)`).toBe(false);
+    }
   } finally { await w.close(); }
 });
 

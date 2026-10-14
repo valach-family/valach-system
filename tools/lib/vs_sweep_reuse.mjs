@@ -26,6 +26,26 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { digestOfBundle } from '../../v3ref/bundleDigest.mjs';
+// AZ MBX-01 SAJÁT FÜGGŐSÉG-LISTÁJA — EGY otthon, hogy a lánc-bemenet ne csúszhasson el tőle
+// (R200 §2 · KUKA-003). Az MBX maga nevezi meg, mit számít a futtatójához.
+import { BATCH_EXTRA_FILES } from '../../v3ref/mutationBatch.mjs';
+// A FÜGGETLENÜL ELVÁRT program-/esetkészlet és az EXS elfogadási szabály (R200 §2).
+// A SZABÁLYT NEM ÍRJUK ÚJRA: a sorozat teljességét és érvényességét UGYANAZ a `verifySeries` dönti el,
+// ami a kaput is (`npm run verify:external-checks:series`) — egy szabály, egy otthon (KUKA-003 · KUKA-029).
+import { PROGRAMS } from '../../v3ref/external-checks/case-manifest.mjs';
+import { verifySeries, evidenceDigest, BINDING_ANCHOR_FILE } from '../../v3ref/external-checks/seriesLedger.mjs';
+/**
+ * AZ ELFOGADÁSI PROFIL (PRF-01 · R202 §1) — A SÖPRÉS A MAI PROFILHOZ MÉR.
+ *
+ * A SPEC kimondja: *„A saját elfogadási parancs és a saját söprés az új profilt ne keverje a régi
+ * lánccal."* Ezért a lánc teljességének mércéje a MAI, 17-programos elfogadási profil — nem a
+ * 19-programos történeti regiszter —, és egy történeti sorozat NEM fogadható el a mai lánc
+ * bizonyítékaként, akkor sem, ha a saját mércéjéhez képest teljes.
+ */
+import {
+  ACCEPTANCE_PROFILE, resolveProfile, profileProgramRows, profileCaseKeys,
+  measureProfileFiles, profileDigest,
+} from '../../v3ref/external-checks/acceptanceProfile.mjs';
 
 export const SRU_CONTRACT_ID = 'SRU-01';
 export const REUSE_STATUS = Object.freeze(['reused', 'unverified']);
@@ -48,9 +68,20 @@ export const CHAINS = Object.freeze({
     cheap_part: null,
   }),
   'verify:v3ref': Object.freeze({
-    // a mag-battéria a FELSŐ szintű v3ref/*.mjs fájlokat futtatja (a `run.mjs` és a mutációk otthona) —
-    // az external-checks/ alkönyvtár a MÁSIK lánc bemenete
-    inputs: Object.freeze([':(glob)v3ref/*.mjs']),
+    /**
+     * A MAG-BATTÉRIA BEMENETE A FELSŐ SZINTŰ `v3ref/*.mjs` — **PLUSZ AZ MBX-01 SAJÁT FÜGGŐSÉGEI**
+     * (R200 §2, a chatgpt-v3 lelete).
+     *
+     * A régi lista csak a felső szintet fedte, azzal az indoklással, hogy „az external-checks/
+     * alkönyvtár a MÁSIK lánc bemenete". Ez az `MBX-01` óta NEM igaz: a batch-szerződés maga nevezi
+     * meg az `external-checks/batteryUnits.mjs`-t a futtató részének (`BATCH_EXTRA_FILES`), tehát
+     * annak változása a mutációs mérést is érvényteleníti. A listát ezért az MBX SAJÁT
+     * deklarációjából vesszük — nem másolatból, ami az első szerkesztésnél elcsúszna (`KUKA-003`).
+     */
+    inputs: Object.freeze([
+      ':(glob)v3ref/*.mjs',
+      ...BATCH_EXTRA_FILES.map((f) => `v3ref/${f}`),
+    ]),
     evidence_path: 'v3ref/v3ref-mutation-result.json',
     identity: 'bundle_digest', // a mutációs eredmény a forrás-köteg TARTALMI lenyomatát hordozza
     cheap_part: 'node v3ref/run.mjs', // a próbák nem hagynak tartós bizonyítékot — lefutnak
@@ -75,6 +106,251 @@ export function evidenceCommitOf(root, commit, path) {
 
 function showAt(root, commit, path) {
   try { return git(root, ['show', `${commit}:${path}`]); } catch { return null; }
+}
+
+/**
+ * A bizonyíték-fájl NYERS BÁJTJAI a commitból — a lenyomat bájton mér, nem szövegen.
+ *
+ * A PUFFER MÉRETE NEM MELLÉKES, ÉS A HIBA NEM LEHET NÉMA (R202, MÉRVE).
+ *
+ * A LELET, a saját kódomban: ez a függvény az `execFileSync` ALAPÉRTELMEZETT, 1 MB-os kimeneti
+ * pufferével futott, és a hibát `catch { return null; }`-lal elnyelte. A külső programok részletes
+ * bizonyítéka viszont nagy: MÉRVE az `r57a` **15,4 MB**, az `r59a` **7,4 MB** — mindkettő `ENOBUFS`-ra
+ * futott, és a hívó ezt „a bizonyíték-fájl NEM TALÁLHATÓ"-ként olvasta. Következmény: egy TELJES,
+ * ELFOGADOTT, 17/17-es sorozat a söprésben **15/17 „MÉRT BUKÁS"-ként** jelent meg. A méret-korlát
+ * így NEM hiányzó bizonyítékká változott (`KUKA-051`: a néma visszaesés; `KUKA-485`: a néma kihagyás).
+ *
+ * MA: a puffer a valódi mérethez szabott, és az olvasási hiba NEVEZETTEN tér vissza — a hívó
+ * megkülönbözteti a „nincs fájl"-t a „nem tudtam elolvasni"-tól.
+ */
+const EVIDENCE_MAX_BUFFER = 512 * 1024 * 1024;
+function showBytesAt(root, commit, path) {
+  try {
+    return {
+      ok: true,
+      bytes: execFileSync('git', ['show', `${commit}:${path}`], {
+        cwd: root, stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: EVIDENCE_MAX_BUFFER,
+      }),
+    };
+  } catch (e) {
+    const code = String((e && e.code) || '');
+    return {
+      ok: false,
+      why: code === 'ENOBUFS'
+        ? `a bizonyíték-fájl NEM OLVASHATÓ BE: a kimenet túllépte a(z) ${EVIDENCE_MAX_BUFFER} bájtos puffert `
+          + '(ez NEM azt jelenti, hogy a fájl hiányzik)'
+        : `a bizonyíték-fájl nem olvasható a commitból: ${String((e && e.message) || e).slice(0, 160)}`,
+    };
+  }
+}
+
+/** A SOROZATOK OTTHONA — ugyanaz az út, amit a futtató ír és a kapu olvas. */
+export const EXTERNAL_SERIES_BASE = 'v3ref/external-checks/results/series';
+
+/**
+ * A SOROZAT A HIVATKOZOTT COMMITBÓL — ugyanaz a betöltési alak, mint a kapué, csak git-ből olvas.
+ *
+ * MIÉRT A COMMITBÓL. Az SRU-01 (2) szabálya szerint a bizonyítéknak a HIVATKOZOTT COMMITBAN kell
+ * állnia; a munkafán álló sorozat bármikor írható, tehát nem bizonyíték. A horgony NEM rekord
+ * (R196 §1), az `evidence/` a sorozat SAJÁT példánya — a rekord lenyomata ahhoz szól.
+ */
+export function seriesAtCommit(root, commit) {
+  let names = [];
+  try {
+    names = git(root, ['ls-tree', '-r', '--name-only', commit, '--', EXTERNAL_SERIES_BASE])
+      .split('\n').map((x) => x.trim()).filter(Boolean);
+  } catch { return []; }
+  const want = new Set(PROGRAMS.map((p) => String(p.id)));
+  const bySid = new Map();
+  const ensure = (sid) => {
+    if (!bySid.has(sid)) bySid.set(sid, { sid, anchor: null, records: [], evidenceDigests: new Map(), readProblems: [] });
+    return bySid.get(sid);
+  };
+  for (const full of names) {
+    if (!full.startsWith(`${EXTERNAL_SERIES_BASE}/`)) continue;
+    const rest = full.slice(EXTERNAL_SERIES_BASE.length + 1);
+    const cut = rest.indexOf('/');
+    if (cut <= 0) continue;
+    const e = ensure(rest.slice(0, cut));
+    const tail = rest.slice(cut + 1);
+    if (tail === BINDING_ANCHOR_FILE) {
+      const raw = showAt(root, commit, full);
+      try { e.anchor = JSON.parse(raw); } catch { e.anchor = { contract: 'OLVASHATATLAN' }; }
+    } else if (tail.startsWith('evidence/')) {
+      const id = tail.slice('evidence/'.length).replace(/\.json$/, '');
+      if (!want.has(id)) continue;
+      const r = showBytesAt(root, commit, full);
+      // A HIBA NEVEZETTEN UTAZIK: a hívó NEM hiheti azt, hogy a bizonyíték hiányzik (R202).
+      if (r.ok) e.evidenceDigests.set(id, evidenceDigest(r.bytes));
+      else e.readProblems.push(`[${id}] ${r.why}`);
+    } else if (!tail.includes('/') && tail.endsWith('.json')) {
+      const raw = showAt(root, commit, full);
+      try { e.records.push(JSON.parse(raw)); } catch { e.records.push(`OLVASHATATLAN: ${tail}`); }
+    }
+  }
+  return [...bySid.values()];
+}
+
+/**
+ * A TELJESSÉG — A FÜGGETLENÜL ELVÁRT KÉSZLETHEZ MÉRVE, NEM A BEMENETBŐL (R200 §2).
+ *
+ * A LELET, a chatgpt-v3-tól: a söprés `verify:external-checks` ága KIZÁRÓLAG `verdict.ok === true`-t
+ * és a tiszta forrást nézte. A mai bizonyíték viszont EGYETLEN RÉSZPROGRAM eredménye
+ * (`{ ok: true, complete_evidence: false, green: 1, of: 1 }`), és a söprés ezt a TELJES lánc
+ * újrahasznált bizonyítékaként fogadta el: a `of` a BEMENETBŐL jött, tehát a bizonyíték a SAJÁT
+ * hatókörét nevezte teljesnek (KUKA-121 · KUKA-206). Az R199 szöveges „csak 1/1" pontosítása a GÉPI
+ * döntést nem javította.
+ *
+ * KÉT ELFOGADOTT ALAK VAN, és MINDKETTŐ a kívülről elvárt 19 programhoz szól:
+ *   (a) EGYETLEN FUTÁS, ami maga is teljes: a hatóköre teljes, és a 19 program MINDEN elvárt esete
+ *       ott van, zölden;
+ *   (b) A SOROZAT, a MEGLÉVŐ EXS elfogadási szabállyal (`verifySeries` → `verdict.accepted`) — ez az
+ *       az út, amin a programonként mért 19 program EGY kötés alatt teljessé áll össze.
+ * Egy sikeres részprogram megmaradhat részprogram-eredménynek; a láncot NEM helyettesíti.
+ *
+ * A FRISSESSÉGET itt NEM mérjük újra (`live` nélkül hívunk): az az SRU-01 (3) szabálya, és a feloldó
+ * maga végzi — a munkafát a bizonyíték forrás-commitjához mérve. A futtató konfigurációját NEM
+ * másoljuk ide, mert a másolat az első szerkesztésnél elcsúszna (KUKA-003).
+ */
+export function externalCompleteness(root, commit, j) {
+  /**
+   * A MÉRCE A MAI ELFOGADÁSI PROFIL (PRF-01 · R202 §1), NEM A TELJES REGISZTER.
+   *
+   * Az R200-ban a független mérce a 19-programos manifeszt volt. Az R202 döntése után a mai lánc
+   * elfogadási mércéje a 17-programos `today-17` profil: az eredeti `r57`/`r59` TÖRTÉNETI
+   * diagnosztika, és a bukásuk nem blokkolja a mai elfogadást — de a helyettesítőik (`r57a` · `r59a`)
+   * hiánya vagy pirosa IGEN, és azt az eredeti sikere SEM pótolja.
+   */
+  const prof = resolveProfile(ACCEPTANCE_PROFILE);
+  if (!prof.ok) return { complete: false, basis: null, source_commit: null, state: 'no_valid_measurement', why: `a mai profil nem oldható fel: ${prof.why}` };
+  const PROFILE = prof.profile;
+  const PROFILE_FILES = measureProfileFiles(join(root, 'v3ref/external-checks'), PROFILE, PROGRAMS);
+  const PROFILE_DIGEST = profileDigest({ profile: PROFILE, programs: PROGRAMS, fileDigests: PROFILE_FILES });
+  const PROFILE_ROWS = profileProgramRows(PROFILE, PROGRAMS).filter(Boolean);
+  const want = PROFILE_ROWS.map((p) => String(p.id));
+  const why = [];
+
+  // ── (a) EGYETLEN FUTÁS, ami maga is teljes ──────────────────────────────────────────────────────
+  const v = j.verdict || {};
+  const scope = j.scope || {};
+  const rows = Array.isArray(j.programs) ? j.programs : [];
+  const byId = new Map(rows.filter((r) => r && r.id).map((r) => [String(r.id), r]));
+  const singleWhy = [];
+  if (v.complete_evidence !== true) {
+    singleWhy.push(`a futás bizonyítéka NEM teljes (complete_evidence=${JSON.stringify(v.complete_evidence)})`);
+  }
+  if (scope.complete !== true) {
+    const sk = Array.isArray(scope.skipped) ? scope.skipped : [];
+    singleWhy.push(`a futás hatóköre RÉSZLEGES (${JSON.stringify(scope.scope)}): ${sk.length} program nem futott`
+      + `${sk.length ? ` (${sk.slice(0, 4).join(' · ')}${sk.length > 4 ? ' …' : ''})` : ''}`);
+  }
+  const missingProg = want.filter((id) => !byId.has(id));
+  if (missingProg.length) {
+    singleWhy.push(`a FÜGGETLENÜL elvárt program-készletből HIÁNYZIK ${missingProg.length}/${want.length}: `
+      + `${missingProg.slice(0, 5).join(' · ')}${missingProg.length > 5 ? ' …' : ''}`);
+  }
+  const notOk = want.filter((id) => byId.has(id) && byId.get(id).ok !== true);
+  if (notOk.length) singleWhy.push(`nem zöld program (${notOk.length}): ${notOk.slice(0, 5).join(' · ')}`);
+  // ÉS AZ ESETEK IS: a program-szintű zöld nem fedi az eset-szintű hiányt (KUKA-206).
+  const caseGaps = [];
+  for (const pr of PROFILE_ROWS) {
+    const r = byId.get(String(pr.id));
+    if (!r) continue;
+    const got = new Map((Array.isArray(r.case_rows) ? r.case_rows : [])
+      .filter((c) => c && c.id !== undefined).map((c) => [String(c.id), c]));
+    const bad = (pr.cases || []).map(String).filter((id) => !got.has(id) || got.get(id).pass !== true);
+    if (bad.length) caseGaps.push(`${pr.id}(${bad.length})`);
+  }
+  if (caseGaps.length) {
+    singleWhy.push(`eset-szintű hiány vagy bukás ${caseGaps.length} programban: ${caseGaps.slice(0, 5).join(' · ')}`);
+  }
+  if (!singleWhy.length) {
+    return { complete: true, basis: `egyetlen TELJES futás (profil ${PROFILE.id})`, source_commit: null, state: 'reused_ok', why: '' };
+  }
+
+  // ── (b) VAGY A SOROZAT — a MEGLÉVŐ EXS elfogadási szabállyal ────────────────────────────────────
+  const all = seriesAtCommit(root, commit);
+  /**
+   * KÉT INDOK-LISTA, MERT A KETTŐ MÁST MOND (R202, mérve).
+   *
+   * `todayWhy`: a MAI profil alatt született sorozatok indoka — EZ a releváns, és ez megy ki ELŐL,
+   * csonkítás nélkül. `otherWhy`: a más profilú (történeti) sorozatok — ezek tájékoztatás.
+   * A korábbi alak egyetlen listát vágott `slice(0, 2)`-vel, és MÉRVE épp a mai sorozat indokát
+   * dobta el: a nevezett lelet nem jutott el az olvasóig (`KUKA-050` · `KUKA-064`).
+   */
+  const todayWhy = [];
+  const otherWhy = [];
+  // HÁROM ÁLLAPOT, NEM KETTŐ (R202 §3): a „mért bukás" nem ugyanaz, mint a „nincs érvényes mérés".
+  let measuredFailure = false;
+  for (const e of all) {
+    /**
+     * A SOROZAT CSAK A MAI PROFIL ALATT SZÁMÍT MAI BIZONYÍTÉKNAK (R202 §1).
+     *
+     * Egy `historical-19` sorozat a saját mércéjéhez képest lehet teljes és zöld — a MAI, 17-programos
+     * elfogadás bizonyítéka ettől NEM lesz. A horgony profil-neve és -lenyomata dönt, nem a rekordok
+     * száma (`KUKA-121`).
+     */
+    const anchorProfile = String(((e.anchor || {}).binding || {}).profile_id || '');
+    if (anchorProfile !== PROFILE.id) {
+      otherWhy.push(`${e.sid}: MÁS PROFIL (${anchorProfile || 'nincs megnevezve — PRF-01 előtti kötés'}) `
+        + `≠ a mai ${PROFILE.id} — történeti eredmény nem mai profilbizonyíték`);
+      continue;
+    }
+    const claimed = String(((e.anchor || {}).binding || {}).profile_digest || '');
+    if (claimed !== PROFILE_DIGEST) {
+      todayWhy.push(`${e.sid}: a horgony PROFIL-lenyomata ${claimed || '(nincs)'}, a repóból ÚJRASZÁMOLVA `
+        + `${PROFILE_DIGEST} — a profil megváltozott a mérés óta`);
+      continue;
+    }
+    /**
+     * AZ OLVASÁSI HIBA NEM BIZONYÍTÉK-HIÁNY (R202, MÉRVE). Ha a sorozat bizonyíték-fájljai közül
+     * bármelyiket nem tudtuk BEOLVASNI, azt NEVEZETTEN mondjuk ki, és a lánc állapota „nincs érvényes
+     * mérés" — NEM „mért bukás". A kettő összemosása épp azt hallgatta volna el, hogy a mérés megvan.
+     */
+    if ((e.readProblems || []).length) {
+      todayWhy.push(`${e.sid}: a bizonyíték NEM OLVASHATÓ BE (${e.readProblems.length}): `
+        + `${e.readProblems.slice(0, 2).join(' · ')}`);
+      continue;
+    }
+    const { verdict } = verifySeries({
+      records: e.records, programs: PROFILE_ROWS, expected: e.anchor, evidenceDigests: e.evidenceDigests,
+    });
+    if (verdict.accepted === true) {
+      const prov = (e.anchor && e.anchor.provenance) || {};
+      return {
+        complete: true,
+        basis: `SOROZAT ${e.sid} · profil ${PROFILE.id} (${verdict.green}/${verdict.of}, EXS elfogadva)`,
+        source_commit: typeof prov.commit === 'string' ? prov.commit : null,
+        state: 'reused_ok',
+        why: '',
+      };
+    }
+    // A MAI PROFIL ALATT, TELJES KÉSZLETTEL, DE NEM ZÖLD → ez MÉRT BUKÁS, nem „nincs mérés".
+    if (verdict.complete === true) measuredFailure = true;
+    todayWhy.push(`${e.sid} (profil ${PROFILE.id}): ${verdict.why}`);
+  }
+  why.push(...singleWhy.map((x) => `EGYETLEN FUTÁS — ${x}`));
+  if (!all.length) {
+    why.push(`a commitban EGYETLEN SOROZAT SINCS (${EXTERNAL_SERIES_BASE}) — a teljes lánc bizonyítéka hiányzik`);
+  } else if (todayWhy.length) {
+    // A MAI PROFIL SOROZATAINAK INDOKA TELJES EGÉSZÉBEN KIMEGY — ez a releváns lelet.
+    why.push(`a mai ${PROFILE.id} profil ${todayWhy.length} sorozatát az EXS szabály NEM fogadja el: `
+      + `${todayWhy.join(' | ')}`);
+    if (otherWhy.length) why.push(`(a commit további ${otherWhy.length} sorozata MÁS profilú — tájékoztatás)`);
+  } else {
+    why.push(`a commitban NINCS a mai ${PROFILE.id} profil alatt született sorozat: `
+      + `${otherWhy.slice(0, 2).join(' | ')}${otherWhy.length > 2 ? ' | …' : ''}`);
+  }
+  return {
+    complete: false,
+    basis: null,
+    source_commit: null,
+    // A HÁROM ÁLLAPOT (R202 §3): ha a mai profil alatt TELJES készlet mérődött, de nem zöld, akkor a
+    // lánc állapota MÉRT BUKÁS — azt nem nevezzük „nincs érvényes mérés"-nek, mert az elhallgatná,
+    // hogy TUDJUK az eredményt (`KUKA-206`).
+    state: measuredFailure ? 'measured_failure' : 'no_valid_measurement',
+    why: why.join(' · '),
+  };
 }
 
 /** A lánc szkriptjei a package.json-ból (csak a lánc által futtatott előtagok). */
@@ -125,14 +401,52 @@ export function evidenceOf(root, commit, chain) {
   if (raw === null) return { present: false, green: false, why: `nincs bizonyíték-fájl a(z) ${commit.slice(0, 7)} commitban (${c.evidence_path})` };
   let j; try { j = JSON.parse(raw); } catch { return { present: true, green: false, why: 'a bizonyíték-fájl nem értelmezhető JSON' }; }
   if (chain === 'verify:external-checks') {
-    const v = j.verdict || {}; const s = j.source || {};
-    const srcCommit = typeof s.commit === 'string' ? s.commit : '';
-    const dirty = s.clean !== true || /\+uncommitted$/.test(srcCommit);
-    const green = v.ok === true;
+    /**
+     * A TELJES LÁNC ÚJRAHASZNÁLATA A FÜGGETLENÜL ELVÁRT KÉSZLETHEZ KÖTVE (R200 §2).
+     *
+     * A LELET, a chatgpt-v3-tól: ez az ág KIZÁRÓLAG `v.ok === true`-t és a tiszta forrást nézte, a
+     * TELJESSÉGET meg sem kérdezte. A mai bizonyíték-fájl viszont ezt mondja magáról:
+     *   `verdict = { ok: true, complete_evidence: false, green: 1, env_skipped: 0, of: 1 }`
+     * — egyetlen RÉSZPROGRAM eredménye —, és a söprés ezt a TELJES `verify:external-checks` lánc
+     * újrahasznált bizonyítékaként fogadta el: a `of` a BEMENETBŐL jött, tehát a bizonyíték a SAJÁT
+     * hatókörét nevezte teljesnek (KUKA-121 · KUKA-206). Az R199 szöveges „csak 1/1" pontosítása a
+     * GÉPI döntést nem javította.
+     *
+     * A teljesség mércéje innentől KÍVÜLRŐL jön, és NEM itt dől el: `externalCompleteness`.
+     */
+    const v = j.verdict || {}; const src = j.source || {};
+    const srcCommit = typeof src.commit === 'string' ? src.commit : '';
+    const dirty = src.clean !== true || /\+uncommitted$/.test(srcCommit);
     const why = [];
-    if (!green) why.push(`a verdikt nem zöld (ok=${JSON.stringify(v.ok)}, ${v.green}/${v.of}, env-kihagyás ${v.env_skipped})`);
-    if (dirty) why.push(`a bizonyíték NEM tiszta forráson készült (${srcCommit || 'nincs forrás-commit'})`);
-    return { present: true, green: green && !dirty, at: j.at || null, node: j.node || null, source_commit: dirty ? null : srcCommit, summary: `${v.green}/${v.of}, env-kihagyás ${v.env_skipped}`, why: why.join(' · ') };
+    if (v.ok !== true) why.push(`a verdikt nem zöld (ok=${JSON.stringify(v.ok)}, ${v.green}/${v.of}, env-kihagyás ${v.env_skipped})`);
+    const comp = externalCompleteness(root, commit, j);
+    if (!comp.complete) why.push(comp.why);
+    /**
+     * A FORRÁS, AMIHEZ AZ SRU-01 (3) A MUNKAFÁT MÉRI. Ha a teljességet a SOROZAT adja, akkor a lánc
+     * bizonyítéka a sorozat, tehát a forrás a HORGONY származása — nem a `results/` alatti, minden
+     * futással FELÜLÍRT egyfutás-fájl commitja. Különben egy részleges mai futás commitja
+     * hitelesítene egy MÁS forráson született sorozatot (KUKA-051).
+     */
+    const viaSeries = comp.complete && Boolean(comp.source_commit);
+    const bindCommit = viaSeries ? comp.source_commit : srcCommit;
+    const bindDirty = viaSeries ? /\+uncommitted$/.test(comp.source_commit) : dirty;
+    if (bindDirty) why.push(`a bizonyíték NEM tiszta forráson készült (${bindCommit || 'nincs forrás-commit'})`);
+    const green = why.length === 0;
+    const profileRows = (() => {
+      const pr = resolveProfile(ACCEPTANCE_PROFILE);
+      return pr.ok ? profileProgramRows(pr.profile, PROGRAMS).filter(Boolean).length : 0;
+    })();
+    return {
+      present: true, green, at: j.at || null, node: j.node || null,
+      source_commit: bindDirty ? null : bindCommit,
+      // A HÁROM ÁLLAPOT ÁTVEZETVE (R202 §3) — a söprés sora ebből írja ki, MI történt.
+      state: green ? 'reused_ok' : (comp.state || 'no_valid_measurement'),
+      summary: comp.complete
+        ? `${comp.basis} — a MAI profil elvárt készlete: ${profileRows} program`
+        : `${v.green}/${v.of} (a MAI profil elvárt készlete: ${profileRows} program), `
+          + `complete_evidence=${JSON.stringify(v.complete_evidence)}`,
+      why: why.join(' · '),
+    };
   }
   // verify:v3ref — a mutációs fél
   const mr = Array.isArray(j.mutation_results) ? j.mutation_results : [];
@@ -190,15 +504,32 @@ function finish(out) {
   const bad = out.checks.filter((k) => !k.ok);
   out.status = bad.length ? 'unverified' : 'reused';
   out.why = bad.map((k) => `${k.name}: ${k.why}`).join(' · ');
+  /**
+   * A HÁROM ÁLLAPOT (R202 §3): a SPEC kimondja, hogy a söprés kiírása különböztesse meg a
+   * „most nem futott, korábbi bizonyíték ÚJRAHASZNÁLT", a „MÉRT BUKÁS" és a „NINCS ÉRVÉNYES MÉRÉS"
+   * állapotot. A régi alak kettőt ismert (`reused` · `unverified`), és a mért bukást is „nem
+   * igazolt"-nak nevezte — ami elhallgatja, hogy TUDJUK az eredményt (`KUKA-206`).
+   */
+  out.state = out.status === 'reused'
+    ? 'reused_ok'
+    : ((out.evidence && out.evidence.state) || 'no_valid_measurement');
   return out;
 }
 
 /** A söprés két kimeneti sora — EGY helyen, hogy a próba és a söprés ugyanazt írja. */
 export function reuseLine(a) {
   if (a.status === 'reused') {
-    return `ÚJRAHASZNÁLT BIZONYÍTÉK — ${a.chain}: a(z) ${a.commit.slice(0, 7)} commit bizonyítéka ZÖLD (${a.evidence.summary}, ${a.evidence.at}), azonosság MÉRVE: ${a.checks.map((k) => k.name).join(' · ')}${a.cheap_part ? ` · az olcsó fele lefutott (${a.cheap_part})` : ''}`;
+    return `ÚJRAHASZNÁLT BIZONYÍTÉK — ${a.chain}: MOST NEM FUTOTT, a(z) ${a.commit.slice(0, 7)} commit bizonyítéka ZÖLD (${a.evidence.summary}, ${a.evidence.at}), azonosság MÉRVE: ${a.checks.map((k) => k.name).join(' · ')}${a.cheap_part ? ` · az olcsó fele lefutott (${a.cheap_part})` : ''}`;
   }
-  return `NEM FUTOTT — NEM IGAZOLT — ${a.chain}: ${a.why || 'a kihagyás feltételei nem teljesülnek'}. Az összverdikt ettől NEM zöld; a lánc futtatása: npm run ${a.chain}`;
+  /**
+   * A MÉRT BUKÁS KÜLÖN SOR (R202 §3). A „nincs érvényes mérés" azt állítja, hogy nem tudjuk; a
+   * „mért bukás" azt, hogy TUDJUK, és piros. A kettőt nem mossuk össze.
+   */
+  if (a.state === 'measured_failure') {
+    return `MÉRT BUKÁS — ${a.chain}: a mai profil alatt a készlet TELJES, de a verdikt NEM ZÖLD — ${a.why || 'nevezett lelet'}. `
+      + `Ez NEM „nincs mérés": az eredmény MEGVAN és piros. Az összverdikt ettől nem zöld.`;
+  }
+  return `NINCS ÉRVÉNYES MÉRÉS — ${a.chain}: ${a.why || 'a kihagyás feltételei nem teljesülnek'}. Az összverdikt ettől NEM zöld; a lánc futtatása: npm run ${a.chain}`;
 }
 
 export const SRU_CONTRACT = Object.freeze({

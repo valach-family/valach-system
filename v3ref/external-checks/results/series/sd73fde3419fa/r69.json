@@ -1,0 +1,43 @@
+{
+  "contract": "EXS-01",
+  "series": "sd73fde3419fa",
+  "binding": {
+    "commit": "1f42ae68c031dd730bb054036ce7f123b0740591",
+    "clean": true,
+    "config_digest": "f0ce4e38338ca820",
+    "programs_digest": "e9622db45921f4bedcc0857f44aa86b520beef401ab6a709afb85584c87d3123",
+    "runner_digest": "6ceadaea89e9f0330a2dcb5e421b1fdc0c5faa96ddc159d2b0550c585bee0e71"
+  },
+  "program": "r69",
+  "program_digest": "967712841ffa61cd393abbe20b1992d542a51c5341d8febb255a1619874e009c",
+  "exit": 0,
+  "ok": true,
+  "cases": [
+    {
+      "id": "C01-suspension-lift-preserves-history",
+      "pass": true
+    },
+    {
+      "id": "C02-corrupt-content-not-disclosed",
+      "pass": true
+    },
+    {
+      "id": "F01-corrupt-content-cannot-be-resolved",
+      "pass": true
+    },
+    {
+      "id": "F02-missing-content-cannot-be-resolved",
+      "pass": true
+    },
+    {
+      "id": "F03-distinct-channel-cannot-be-blocked-by-spoofed-ref",
+      "pass": true
+    }
+  ],
+  "evidence_digest": "7ae53b0d69b4a10b836b5093a60911001039ecd16f96ab9f5726dc4ffa29c928",
+  "failure_kind": "unknown",
+  "failure_why": "nincs mért környezeti akadály a nyers eredményben",
+  "ms": 242,
+  "at": "2026-10-11T15:46:06.158Z",
+  "env_skipped": false
+}

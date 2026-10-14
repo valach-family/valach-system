@@ -1,0 +1,144 @@
+{
+  "program": "restated.mjs",
+  "source_commit": "579498f630553396882ba01c33813bcd65fadcf2",
+  "node": "v22.22.0",
+  "at": "2026-10-12T15:35:41.016Z",
+  "cases": [
+    {
+      "id": "C11-restated",
+      "expectation": "Az offset-zónás, MÁR LEJÁRT meghívó nem ad tagságot; a nyitott ablakú IGEN.",
+      "pass": true,
+      "expired": {
+        "result": {
+          "ok": false,
+          "error": "invite_not_actionable",
+          "reason": "invite_expired"
+        },
+        "membership": null
+      },
+      "open": {
+        "result": {
+          "ok": true,
+          "shape": "membership_only",
+          "outcome": "granted",
+          "subject_id": "holder",
+          "book_id": "A",
+          "read_scope_granted": null,
+          "reentry": null
+        },
+        "membership": {
+          "subject_id": "holder",
+          "book_id": "A",
+          "role": "user",
+          "granted_at": "2026-09-10T10:00:00.000Z",
+          "revoked_at": null
+        }
+      }
+    },
+    {
+      "id": "N10-restated",
+      "expectation": "A lefokozás írása elutasított; őrök NÉLKÜL a beváltás fogja meg, admin SEHOL.",
+      "pass": true,
+      "with_guards": {
+        "rejected": "invite: a KIADOTT ajanlat nem irhato at - visszavonas + uj meghivo kell",
+        "result": {
+          "ok": true,
+          "shape": "membership_only",
+          "outcome": "granted",
+          "subject_id": "holder",
+          "book_id": "A",
+          "read_scope_granted": null,
+          "reentry": null
+        },
+        "membership": {
+          "subject_id": "holder",
+          "book_id": "A",
+          "role": "user",
+          "granted_at": "2026-09-10T10:00:00.000Z",
+          "revoked_at": null
+        }
+      },
+      "without_guards": {
+        "result": {
+          "ok": false,
+          "error": "invite_terms_changed",
+          "reason": "invite_terms_changed",
+          "message": "a meghívó feltételei a kiadás óta megváltoztak — kérj új meghívót"
+        },
+        "memberships": 0
+      }
+    },
+    {
+      "id": "F01-restated",
+      "expectation": "A kiadott token szerepe nem írható át; a beváltás `user` tagságot ad.",
+      "pass": true,
+      "rejected": "invite: a KIADOTT ajanlat nem irhato at - visszavonas + uj meghivo kell",
+      "issued": {
+        "offered_role": "user"
+      },
+      "sealed": {
+        "offered_role": "user"
+      },
+      "result": {
+        "ok": true,
+        "shape": "membership_only",
+        "outcome": "granted",
+        "subject_id": "holder",
+        "book_id": "A",
+        "read_scope_granted": null,
+        "reentry": null
+      },
+      "membership": {
+        "subject_id": "holder",
+        "book_id": "A",
+        "role": "user",
+        "granted_at": "2026-09-10T10:00:00.000Z",
+        "revoked_at": null
+      }
+    },
+    {
+      "id": "N04-restated",
+      "expectation": "Az M32 futása nem buktatja az A-REV-N1b állítást; az M47/M48/M49 futása igen.",
+      "pass": true,
+      "m32": {
+        "id": "M32",
+        "probe_status": "FAIL",
+        "target_assertion": true
+      },
+      "new_controls": [
+        {
+          "id": "M47",
+          "probe_status": "FAIL",
+          "target_assertion": false
+        },
+        {
+          "id": "M48",
+          "probe_status": "FAIL",
+          "target_assertion": false
+        },
+        {
+          "id": "M49",
+          "probe_status": "FAIL",
+          "target_assertion": false
+        }
+      ],
+      "final_credit_line": "FEDVE  REV-N1b → A-REV-N1b-earlier-record-and-decision-survive @ P-CMD-finalize-gate · falszifikálta: M47"
+    },
+    {
+      "id": "D01-restated",
+      "expectation": "A K01 címének változása MEGVÁLTOZTATJA a szerződés- és az együttes lenyomatot; az INDEX lenyomatát nem.",
+      "pass": true,
+      "before": {
+        "contract": "sha256:d6ef5ed707b83e3da8502819c7f6bf294c46c1985afefc2716b29aff20c0bdb5",
+        "index": "sha256:df8da7f33a19dadd539c8e3b15d1b2bc99b00df6c532206dc1a846400cc7053c",
+        "combined": "sha256:c1b0f479a4ac69eedc93b50a08447ec4f207c45dae193a885231046e7f1ccff6"
+      },
+      "after": {
+        "contract": "sha256:6f69c810203ba0df51a06614c15266a4639b5821c7b49b0f2e88cc06a132256d",
+        "index": "sha256:df8da7f33a19dadd539c8e3b15d1b2bc99b00df6c532206dc1a846400cc7053c",
+        "combined": "sha256:cdb8144a30cb635f07fc02328e492cf9d3492cfa715a3884ebeece43ce089ffe"
+      },
+      "note": "a szerződés és az index KÜLÖN artefaktum: a címjegyzék változása az elsőt érinti, a másodikat nem — és az együttes lenyomat mindkettőt hordozza"
+    }
+  ]
+}

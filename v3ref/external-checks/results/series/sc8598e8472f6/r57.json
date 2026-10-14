@@ -1,0 +1,62 @@
+{
+  "contract": "EXS-01",
+  "series": "sc8598e8472f6",
+  "binding": {
+    "bundle_digest": "0f9de36606d0298237ba28c76a33a13658330c0b163f1e748140cd2cfe49eefd",
+    "programs_digest": "e9622db45921f4bedcc0857f44aa86b520beef401ab6a709afb85584c87d3123",
+    "runner_digest": "e859b6cdaca6034936332536476e46ae78e8081d3405987efa5c82fc96243b77",
+    "config_digest": "f0ce4e38338ca820",
+    "clean": true
+  },
+  "provenance": {
+    "commit": "19ba12fcdedf43316895eb32bca5601daf98b5c2"
+  },
+  "program": "r57",
+  "program_digest": "5ce2ad7bafd1ca0154a580c1673259586b75e086efb53d130ada1336b6b490e5",
+  "exit": 0,
+  "ok": false,
+  "cases": [
+    {
+      "id": "T01",
+      "pass": false
+    },
+    {
+      "id": "T02",
+      "pass": false
+    },
+    {
+      "id": "T03",
+      "pass": true
+    },
+    {
+      "id": "T04",
+      "pass": true
+    },
+    {
+      "id": "T05",
+      "pass": false
+    },
+    {
+      "id": "E01",
+      "pass": true
+    },
+    {
+      "id": "E02",
+      "pass": false
+    },
+    {
+      "id": "E03",
+      "pass": false
+    },
+    {
+      "id": "E04",
+      "pass": true
+    }
+  ],
+  "evidence_digest": "8f290c107bc7affeb1927fd871c33a0e83d023f8c95036c67f1ded0aa9bed1e3",
+  "failure_kind": "wall_clock_timeout",
+  "failure_why": "MÉRT időtúllépés (2 eset: E02 · E03) — minden más eset zöld (kivéve a bejelentett szabályváltás miatt bukó T01 · T02 · T05 — R63, ok: invite_without_basis), és a mért futásidő (52220 ms) elérte a bejelentett belső korlátot (15000 ms)",
+  "ms": 52220,
+  "at": "2026-10-12T15:35:39.393Z",
+  "env_skipped": false
+}

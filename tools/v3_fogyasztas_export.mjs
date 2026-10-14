@@ -22,7 +22,8 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { homedir } from 'node:os';
-import { join, resolve, dirname } from 'node:path';
+import { transcriptsOf } from './v3_fogyasztas_meres.mjs';
+import { join, resolve, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { callOf, dedupe, windowOf, inWindow, triggerOf } from './v3_fogyasztas_meres.mjs';
 
@@ -30,17 +31,236 @@ const HERE = dirname(fileURLToPath(import.meta.url)); const ROOT = resolve(HERE,
 const flag = (n) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv[i + 1] : null; };
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 const bytes = (s) => Buffer.byteLength(typeof s === 'string' ? s : JSON.stringify(s ?? ''), 'utf8');
-const safePath = (p) => {
+/**
+ * A KÖNYVTÁR-HATÁRT MEG KELL KÖVETELNI (R164, KÜLSŐ REVIEW, Codex, P2).
+ *
+ * A LELET: a HOME-felismerés puszta szöveg-kezdetet vizsgált (`abs.startsWith(homedir())`). Egy
+ * `/home/user` HOME mellett a `/home/user-customer/private/run.jsonl` út tehát „HOME-on belülinek"
+ * számított, és a kimenet `~-customer/private/run.jsonl` lett a REJTETT tartalék helyett — vagyis a
+ * telepítési vagy ÜGYFÉL-könyvtár neve mégis kikerült, mind az exportált `source.path`-ban, mind a
+ * hiba-ágak diagnosztikájában. Ugyanez a repó-gyökérre: ott a `ROOT + '/'` alak már helyes volt.
+ *
+ * A SZABÁLY: egy út CSAK akkor van egy könyvtáron belül, ha AZONOS vele, vagy a könyvtár + `/`
+ * előtaggal kezdődik. A szöveg-kezdet nem könyvtár-tartalmazás (a KUKA-239 osztálya: hatókör nélküli
+ * minta a szomszédot igazolja).
+ */
+const belul = (abs, dir) => abs === dir || abs.startsWith(dir.endsWith('/') ? dir : `${dir}/`);
+const safePath = (p, kivul = '(repón kívüli út — nem exportált)') => {
   if (typeof p !== 'string') return null;
-  const abs = p.startsWith('/') ? p : join(ROOT, p);
-  if (abs.startsWith(ROOT + '/')) return abs.slice(ROOT.length + 1);
-  if (abs.startsWith(homedir())) return '~' + abs.slice(homedir().length);
-  return '(repón kívüli út — nem exportált)';
+  /**
+   * AZ ABSZOLÚT UTAT IS KANONIZÁLNI KELL A HATÁR-ELLENŐRZÉS ELŐTT (`KUKA-474` · külső review, P2).
+   *
+   * A LELET: a RELATÍV út a `join(ROOT, p)`-ben normálizálódott (a `..` szakaszok eltűntek), az
+   * ABSZOLÚT út viszont SZÓ SZERINT ment tovább. Egy `/<repó>/../customer/private.txt` alak tehát
+   * átment a `belul(abs, ROOT)` kapun — a szöveges előtag stimmelt —, és az export a REJTETT
+   * tartalék helyett a `../customer/private.txt` utat írta ki: vagyis egy repÓN KÍVÜLI,
+   * telepítési vagy ÜGYFÉL-könyvtár neve került a „tartalom nélküli" leltárba és a
+   * diagnosztikába. Ugyanaz az osztály, mint a `belul` saját javításánál (`KUKA-239`): a
+   * szöveg-előtag nem könyvtár-tartalmazás.
+   *
+   * A VÁLASZ: a határ-ellenőrzés KANONIZÁLT úton dönt (`resolve`), tehát a `..` és `.`
+   * szakaszok ELŐBB eltűnnek — mindkét ágon, mert egy tisztító, ami csak az egyik bemenetre igaz,
+   * nem tisztító (`KUKA-003` · `KUKA-039`).
+   *
+   * AMIT EZ NEM ÁLLÍT (`KUKA-216`): ez LEXIKÁLIS kanonizálás, nem symlink-feloldás. Egy repón
+   * BELÜLI jelképes lánc, ami kifelé mutat, ezzel NEM derül ki — a valós út feloldása (`realpath`)
+   * fájlrendszer-hozzáférést és nem létező útra kivétel-kezelést kíván: NEVEZETT, külön tétel.
+   */
+  const abs = resolve(p.startsWith('/') ? p : join(ROOT, p));
+  if (belul(abs, ROOT) && abs !== ROOT) return abs.slice(ROOT.length + 1);
+  if (belul(abs, homedir())) return `~${abs.slice(homedir().length)}`;
+  return kivul;
+};
+/**
+ * A DIAGNOSZTIKA IS A TISZTÍTÓN MEGY (F158-21, külső review, Codex, P2).
+ *
+ * A LELET: a `source.path`-ot átvezettem a tisztítón (F158-10), a HIBA-ÁGAK viszont nyers
+ * `replace(homedir(), '~')`-szal írták ki az utat — egy repón ÉS HOME-on kívüli `--transcript`
+ * teljes abszolút útja így a terminálra és a CI-naplóba került (telepítési, ügyfél- vagy
+ * munkaterületi könyvtárnév). Ugyanaz a szabály a MÁSIK úton: egy tisztító, amit csak az egyik
+ * olvasó használ, nem tisztító (KUKA-003 · KUKA-039 · KUKA-227).
+ *
+ * MIÉRT KÜLÖN SZÖVEG: az exportban a „nem exportált" a helyes mondat, egy HIBA-ÜZENETBEN viszont
+ * az, hogy az utat ELREJTETTÜK — a döntés ugyanaz, a megnevezése más. EGY feloldó, egy paraméter.
+ */
+const safeErrPath = (p) => safePath(p, '(repón és HOME-on kívüli út — ELREJTVE)');
+/**
+ * ÉS A KÉTÉRTELMŰSÉG LISTÁJÁNAK VÁLASZTHATÓNAK IS KELL LENNIE (KUKA-319 + F158-21 EGYÜTT).
+ *
+ * A `KUKA-319` azt kéri, hogy a kétértelmű átirat hibája NEVEZZE MEG a jelölteket — különben az
+ * operátor nem tud választani (KUKA-201: a nemleges válasz vigye a MŰKÖDŐ folytatást). Az F158-21
+ * viszont azt kéri, hogy a repón és HOME-on kívüli út ne kerüljön a naplóba. A kettő EGYÜTT: a
+ * jelöltet a `--projects` GYÖKÉRHEZ KÉPEST nevezzük meg — azt az utat a HÍVÓ adta meg, tehát nem
+ * mond neki újat, a választás viszont ettől működik.
+ */
+const pickPath = (p) => {
+  const biztonsagos = safePath(p, '');
+  if (biztonsagos) return biztonsagos;
+  const abs = String(p);
+  return abs.startsWith(projectsDir + '/')
+    ? `<--projects>/${abs.slice(projectsDir.length + 1)}`
+    : '(repón és HOME-on kívüli út — ELREJTVE)';
 };
 
 const session = flag('--session'); const w = windowOf(flag('--from'), flag('--to'));
-const file = join(homedir(), '.claude', 'projects', '-home-user', `${session}.jsonl`);
-if (!existsSync(file)) { console.error(`NINCS ÁTIRAT: ${file.replace(homedir(), '~')}`); process.exit(2); }
+/**
+ * A HIÁNYZÓ MUNKAMENET NEVEZETT ELAKADÁS, NEM NYERS KIVÉTEL (R164/4, SAJÁT LELET a záró átolvasáson).
+ *
+ * A LELET: `--session` nélkül (például `--help`-pel) az eszköz a mélyben hasalt el egy
+ * `ERR_INVALID_ARG_TYPE`-pal — a `transcriptsOf` a `null` munkamenetet útként próbálta összefűzni. Az
+ * operátor NEM fejlesztő: egy node-veremnyom neki nem információ, és nem is mondja meg, mit tegyen
+ * (KUKA-171: nevezd meg, mi állított meg · KUKA-201: a nemleges válasz vigye a MŰKÖDŐ folytatást).
+ */
+if (!session) {
+  console.error('A MUNKAMENET AZONOSÍTÓJA KÖTELEZŐ — enélkül nincs mit exportálni.');
+  console.error('Használat:');
+  console.error('  node tools/v3_fogyasztas_export.mjs --session <azonosító> [--from <ISO>] [--to <ISO>]');
+  console.error('                                      [--label <ablak neve>] [--transcript <fájl>] [--projects <út>]');
+  console.error('A futó folyamat saját azonosítója a CLAUDE_CODE_SESSION_ID környezeti értékben áll.');
+  process.exit(2);
+}
+
+/**
+ * AZ ÁTIRAT HELYÉT A MÉRŐVEL EGY FELOLDÓ ADJA (F154-24).
+ *
+ * A LELET, MÉRVE (saját, R154): ez a sor BEÉGETVE a `-home-user` projekt-könyvtárat kereste, a mérő
+ * (`transcriptsOf`) viszont VÉGIGNÉZI az összes projekt-könyvtárat. Ebben a környezetben a projekt
+ * `-home-user-valach-system`, ezért az export `NINCS ÁTIRAT`-tal elhasalt — miközben a mérő UGYANAZT
+ * az átiratot megtalálta és 315 hívást olvasott be belőle. Vagyis ugyanaz a tény (hol van az átirat)
+ * KÉT helyen élt, és csak az egyik volt helyes (KUKA-003 · KUKA-039).
+ *
+ * MIÉRT FONTOS: a tartalom nélküli fogyasztás-leltár ÁTADÁSI kötelezettség (CLAUDE.md 1. szakasz) —
+ * tehát ez a hiba pont az átadást blokkolta, és csak a repó egyetlen, `/home/user` alatti elhelyezése
+ * mellett nem látszott.
+ */
+const projectsDir = flag('--projects') || join(homedir(), '.claude', 'projects');
+/**
+ * A FELOLDÁS HÁROM ÚTJA, ÉS MINDHÁROM HASZNÁLHATÓ (F154-37, külső review, Codex, kilencedik kör).
+ *
+ * A LELET: a kétértelműség hibaüzenete azt tanácsolta, hogy „add meg a PROJEKT-GYÖKERET pontosan:
+ * --projects <út>" — csakhogy a `transcriptsOf` a kapott utat a projekt-könyvtárak SZÜLŐJÉNEK veszi.
+ * Ha az operátor a KIVÁLASZTOTT projekt-könyvtárat adta meg, az eszköz annak a TARTALMÁT kezdte
+ * projektekként nézni, és `NINCS ÁTIRAT`-tal elhasalt — tehát a nevezett elakadásnak NEM volt
+ * használható kiútja. Egy hibaüzenet, ami olyan megoldást ajánl, ami nem működik, rosszabb, mint
+ * a hallgatás (KUKA-201: a nemleges válasz vigye a MŰKÖDŐ folytatást).
+ *
+ * MOSTANTÓL: (1) `--transcript <fájl>` közvetlenül megadja az átiratot; (2) a `--projects` lehet a
+ * KIVÁLASZTOTT projekt-könyvtár is (ha `<út>/<munkamenet>.jsonl` ott van, az a találat); (3) különben
+ * a szülő-könyvtár minden projektje. A hibaüzenet mind a hármat megnevezi.
+ */
+const explicitFile = flag('--transcript');
+const directHit = join(projectsDir, `${session}.jsonl`);
+const found = explicitFile
+  ? [{ path: resolve(explicitFile), kind: 'main' }]
+  : (existsSync(directHit)
+    ? [{ path: directHit, kind: 'main' }]
+    : transcriptsOf(projectsDir, session).filter((f) => f.kind === 'main'));
+if (explicitFile && !existsSync(found[0].path)) {
+  console.error(`NINCS ILYEN ÁTIRAT-FÁJL: ${safeErrPath(found[0].path)} (--transcript)`);
+  process.exit(2);
+}
+/**
+ * A MEGADOTT FÁJL TÉNYLEG A KÉRT MUNKAMENETÉ (F154-40, külső review, Codex, tizedik kör).
+ *
+ * A LELET: a `--transcript` BÁRMELY létező fájlt elfogadott. Egy elgépelt út egy MÁS munkamenet
+ * átiratára is mutathatott, a kimenet viszont a parancssori azonosítót írta a fejlécbe — vagyis
+ * hihetőnek látszó, de HIBÁSAN ATTRIBUÁLT fogyasztás-leltár született. A leltár átadási bizonyíték:
+ * a rossz hozzárendelés rosszabb, mint a hiányzó leltár (ugyanaz az osztály, mint a KUKA-319).
+ *
+ * KÉT JELET FOGADUNK EL: a fájlnév a `<munkamenet>.jsonl`, VAGY a tartalom első sorainak
+ * `sessionId` mezője erre a munkamenetre mutat. Egyik sem áll → nevezett elakadás.
+ */
+if (explicitFile) {
+  /**
+   * ÉS A TARTALMAT AKKOR IS MEGKÉRDEZZÜK, HA A FÁJLNÉV EGYEZIK (R166, KÜLSŐ REVIEW, Codex, P2 · `KUKA-412`).
+   *
+   * A LELET: a fenti alak a fájlnév-egyezésnél KIHAGYTA a tartalom-ellenőrzést. Egy ÁTMÁSOLT,
+   * FELÜLÍRT vagy félrecímkézett fájl, aminek a neve véletlenül `<kért-munkamenet>.jsonl`, így
+   * átment — akkor is, ha a sorai KIMONDOTTAN más `sessionId`-t hordoztak. A leltár tehát MÁS
+   * munkamenet fogyasztását címkézte a kértnek: pontosan az a félre-attribuálás, amit ez az
+   * ellenőrzés megelőzni hivatott.
+   *
+   * A MÉRCE HÁROM ÁLLAPOTÚ, mert a fájl nem feltétlenül hordoz azonosítót:
+   *   · a tartalom CSAK a KÉRT azonosítót hordozza → elfogadva (a fájlnév nem is kell)
+   *   · a tartalom BÁRMILYEN MÁS azonosítót is hordoz → ELLENTMONDÁS, elakadás (a fájlnév NEM ment föl)
+   *   · a tartalom EGYETLEN azonosítót sem hordoz → a fájlnév dönt (visszafelé-kompatibilitás)
+   *
+   * ÉS A VEGYES ÁTIRAT IS ELLENTMONDÁS (R166, KÜLSŐ REVIEW, Codex, HETEDIK KÖR, P2 · `KUKA-415`).
+   *
+   * A LELET: az első alakom azt kérdezte, hogy a kért azonosító MEGVAN-E — és ha megvolt, nem
+   * kérdezte meg, hogy MÁS is megvan-e. Egy ÖSSZEFŰZÖTT vagy szennyezett átiratban (a kért
+   * azonosító ÉS egy másik is szerepel) a mérce tehát átengedett, az exportáló pedig a sorokat
+   * `sessionId` szerint NEM szűri: a MÁSIK munkamenet fogyasztása némán a kért munkamenet nevére
+   * került. Ugyanaz a félre-attribuálás, egy ággal beljebb.
+   *
+   * MOSTANTÓL a halmaznak ÜRESNEK vagy PONTOSAN a kért azonosítót tartalmazónak kell lennie —
+   * a kérdés nem „megvan-e a kért", hanem „VAN-E BENNE MÁS" (`KUKA-049`: a bizonytalanság nem a
+   * megengedő ág).
+   */
+  /**
+   * …ÉS A MÉRCE HATÓKÖRE AZ EXPORTÁLÓ HATÓKÖRE (R176, KÜLSŐ REVIEW, Codex, P2).
+   *
+   * A LELET: a `KUKA-415`-es javításom a KÉRDÉST helyre tette („van-e benne IDEGEN"), a MÉRÉS
+   * HATÓKÖRÉT viszont a régi alakból örökölte: csak az ELSŐ 50 nem üres sort nézte. Az exportáló
+   * ugyanakkor MINDEN sort feldolgoz, és `sessionId` szerint NEM szűr — egy összefűzött átirat,
+   * amiben a kért azonosító az elején áll, az idegen pedig KÉSŐBB, így némán átment, és a másik
+   * munkamenet fogyasztása a kért nevére került. Pontosan ugyanaz a félre-attribuálás, amit a
+   * `KUKA-415` megelőzni hivatott — egy ággal beljebb, a hatókörben.
+   *
+   * MOSTANTÓL a mérce MINDEN sort megnéz: amit az exportáló feldolgoz, azt az ellenőrzés is
+   * megvizsgálja (`KUKA-216`: a verdikt nem mutathat a mérés hatókörén túl · `KUKA-239`: a hatókör
+   * nélküli minta a szomszéd sort igazolja).
+   */
+  const elso = readFileSync(found[0].path, 'utf8').split('\n').filter((l) => l.trim());
+  const talaltAzonositok = new Set();
+  for (const l of elso) {
+    try { const v = JSON.parse(l).sessionId; if (typeof v === 'string' && v) talaltAzonositok.add(v); } catch { /* nem JSON sor */ }
+  }
+  const nevEgyezik = basename(found[0].path) === `${session}.jsonl`;
+  const tartalomEgyezik = talaltAzonositok.has(session);
+  const idegenAzonositok = [...talaltAzonositok].filter((x) => x !== session);
+  const tartalomEllentmond = idegenAzonositok.length > 0;
+
+  if (tartalomEllentmond) {
+    console.error(`A MEGADOTT ÁTIRAT ${tartalomEgyezik ? 'IDEGEN SOROKAT IS HORDOZ' : 'TARTALMA MÁS MUNKAMENETÉ'}: --session ${session}`);
+    console.error(`  a fájl: ${safeErrPath(found[0].path)}${nevEgyezik ? ' (a NEVE egyezik, a TARTALMA viszont nem csak ezé a munkamenetté — átmásolt, felülírt vagy ÖSSZEFŰZÖTT fájl)' : ''}`);
+    console.error(`  a fájl ${elso.length} sorában talált azonosító(k): ${[...talaltAzonositok].join(' · ')}`);
+    console.error(`  ebből IDEGEN: ${idegenAzonositok.join(' · ')}`);
+    console.error('  A fájlnév NEM ment föl, és a kért azonosító JELENLÉTE sem: az exportáló a sorokat');
+    console.error('  `sessionId` szerint NEM szűri, tehát az idegen sorok a kért munkamenet nevére kerülnének.');
+    process.exit(2);
+  }
+  if (!nevEgyezik && !tartalomEgyezik) {
+    console.error(`A MEGADOTT ÁTIRAT NEM A KÉRT MUNKAMENETÉ: --session ${session}`);
+    console.error(`  a fájl: ${safeErrPath(found[0].path)} (a neve nem \`${session}.jsonl\`, és a ${elso.length} sora között sincs ilyen \`sessionId\`)`);
+    console.error('  Ha tényleg ezt akarod exportálni, a --session értéke legyen ennek a munkamenetnek az azonosítója.');
+    process.exit(2);
+  }
+}
+/**
+ * A TÖBBES TALÁLAT NEVEZETT ELAKADÁS, NEM CSENDES VÁLASZTÁS (külső review, Codex, hatodik kör, P2).
+ *
+ * A LELET: ha ugyanaz a munkamenet-azonosító KÉT projekt-könyvtárban is szerepel (áthelyezett vagy
+ * átmásolt projekt), a `found[0]` azt exportálta, amit a könyvtár-bejárás épp előbb adott — a leltár
+ * tehát ELAVULT példányt is exportálhatott, miközben sikeresnek látszott. A mérő (FGY-01/3) ilyenkor
+ * MINDET beolvassa; itt viszont a hívás-sorok EGY fájlhoz tartoznak, és a kettő összefűzése más
+ * kérdés. Ezért a kétértelműség itt NEM eldönthető, és nem is döntjük el: megállunk, és megmondjuk,
+ * melyik utak között kell választani (KUKA-049 — a bizonytalanságot kimondjuk, nem elrejtjük).
+ */
+if (found.length > 1) {
+  console.error(`KÉTÉRTELMŰ ÁTIRAT: ${session} — ${found.length} projekt-könyvtárban van fő átirat ehhez az azonosítóhoz.`);
+  for (const f of found) console.error(`  · ${pickPath(f.path)}`);
+  console.error('  VÁLASZD KI, melyiket exportáljuk — és MINDKÉT út működik:');
+  console.error('    · --transcript <a fenti utak egyike>   (a legpontosabb: pont azt a fájlt exportálja)');
+  console.error('    · --projects <a KIVÁLASZTOTT projekt-könyvtár>   (ott közvetlenül keresi a <munkamenet>.jsonl-t)');
+  console.error('  (a mérő MINDET beolvassa; az export hívás-sorai EGY fájlhoz tartoznak, ezért itt választani kell)');
+  process.exit(2);
+}
+if (!found.length) {
+  console.error(`NINCS ÁTIRAT: ${session} (keresve: ${safeErrPath(projectsDir)} minden projekt-könyvtárában)`);
+  process.exit(2);
+}
+const file = found[0].path;
 const raw = readFileSync(file, 'utf8');
 const lines = raw.split('\n').filter((l) => l.trim());
 const recs = lines.map((l) => { try { return JSON.parse(l); } catch { return null; } });
@@ -140,7 +360,23 @@ if (flag('--leltar') && existsSync(flag('--leltar'))) {
   const mine = { calls: rows.length, input: rows.reduce((s, r) => s + r.input, 0), cache_write: rows.reduce((s, r) => s + r.cache_write, 0), cache_read: rows.reduce((s, r) => s + r.cache_read, 0), output: rows.reduce((s, r) => s + r.output, 0) };
   const theirs = { calls: ws.calls, ...(ws.totals || {}) };
   const diffs = Object.keys(mine).filter((k) => mine[k] !== theirs[k]).map((k) => `${k}: export ${mine[k]} ≠ leltár ${theirs[k]}`);
-  compare = { leltar: flag('--leltar'), leltar_window: L.window, export: mine, leltar_values: theirs, status: diffs.length ? `NEVEZETT ELTÉRÉS: ${diffs.join(' · ')}` : 'egyezik (hívás és a négy összeg)' };
+  /**
+   * A VERDIKT SZERKEZET, NEM EGY HOSSZÚ MONDAT (R164/4 — SAJÁT LELET, MÉRVE).
+   *
+   * A LELET. Az eltéréseket EGY sztringbe fűztem össze (`diffs.join(' · ')`), és a kimeneten futó
+   * TARTALOM-ŐR — ami helyesen tiltja a 200 karakternél hosszabb szöveges mezőt — ezen a SAJÁT
+   * verdikten bukott el: `túl hosszú szöveg: export.compare_with_leltar.status`. Vagyis az export
+   * NEM KÉSZÜLT EL, és nem azért, mert tartalom szivárgott, hanem mert a saját összegzésem nőtt
+   * hosszúra. Egy őr, ami a saját jelentésünket tiltja ki, a mérést akadályozza meg (KUKA-091
+   * fordítottja: nem az őrt lazítjuk, hanem a jelentést tesszük mérhető alakúra).
+   *
+   * A MEGOLDÁS NEM KIVÉTEL AZ ŐR ALÓL: az eltérések LISTA lesznek (mezőnként egy rövid elem), a
+   * `status` pedig rövid, gépi szó. Így az őr VÁLTOZATLAN szigorral áll, és a verdikt olvasható is.
+   */
+  compare = { leltar: flag('--leltar'), leltar_window: L.window, export: mine, leltar_values: theirs,
+    status: diffs.length ? 'NEVEZETT_ELTERES' : 'EGYEZIK',
+    status_note: diffs.length ? 'mezőnként lentebb (differences)' : 'hívás és a négy összeg egyezik',
+    differences: diffs };
 }
 
 // ── 6. ÖSSZESÍTŐ ──
@@ -165,7 +401,7 @@ const self = readFileSync(fileURLToPath(import.meta.url));
 const out = {
   export: 'V3_R71_FOGYASZTAS_EXPORT — egyszeri, célzott, tartalom nélküli (R71)',
   generated_at: new Date().toISOString(), session, window: { from: flag('--from'), to: flag('--to') },
-  source: { path: file.replace(homedir(), '~'), bytes_now: Buffer.byteLength(raw, 'utf8'), sha256_now: sha(raw), lines: lines.length, note: 'az átirat az export idejéig bővülhetett — a teljes fájl-hash jogosan tér el a korábbi pillanatképétől; az ablak zárt' },
+  source: { path: safePath(file), bytes_now: Buffer.byteLength(raw, 'utf8'), sha256_now: sha(raw), lines: lines.length, note: 'az átirat az export idejéig bővülhetett — a teljes fájl-hash jogosan tér el a korábbi pillanatképétől; az ablak zárt' },
   exporter: { file: 'tools/v3_fogyasztas_export.mjs', sha256: sha(self), meter: 'FGY-01/3 (callOf · dedupe · inWindow · triggerOf)' },
   mit_nem_tartalmaz: 'parancsszöveg · argumentum · felhasználói szöveg · eszközválasz-tartalom · rendszer-utasítás szövege · tokenbontás bájtból',
   bajt_nem_token: 'a blokk-bájtok UTF-8 méretek; tokent csak a usage-mezők hordoznak; a rejtett gondolkodás hiánya nem nulla',

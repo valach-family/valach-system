@@ -1,0 +1,62 @@
+{
+  "contract": "EXS-01",
+  "series": "sc8598e8472f6",
+  "binding": {
+    "bundle_digest": "0f9de36606d0298237ba28c76a33a13658330c0b163f1e748140cd2cfe49eefd",
+    "programs_digest": "e9622db45921f4bedcc0857f44aa86b520beef401ab6a709afb85584c87d3123",
+    "runner_digest": "e859b6cdaca6034936332536476e46ae78e8081d3405987efa5c82fc96243b77",
+    "config_digest": "f0ce4e38338ca820",
+    "clean": true
+  },
+  "provenance": {
+    "commit": "f8628c3868d5a7dbd45935f29da532f20ff99217"
+  },
+  "program": "r57a",
+  "program_digest": "6f6dd9cffe8461e4f88d1495421fd14733b16163e5a9b76cdac5b71698f1a4f3",
+  "exit": 0,
+  "ok": true,
+  "cases": [
+    {
+      "id": "T01",
+      "pass": true
+    },
+    {
+      "id": "T02",
+      "pass": true
+    },
+    {
+      "id": "T03",
+      "pass": true
+    },
+    {
+      "id": "T04",
+      "pass": true
+    },
+    {
+      "id": "T05",
+      "pass": true
+    },
+    {
+      "id": "E01",
+      "pass": true
+    },
+    {
+      "id": "E02",
+      "pass": true
+    },
+    {
+      "id": "E03",
+      "pass": true
+    },
+    {
+      "id": "E04",
+      "pass": true
+    }
+  ],
+  "evidence_digest": "e572a44833d27947cc2f9b0563a67e4d4d4a2d2a3eaabc14294c1a414272ae20",
+  "failure_kind": "unknown",
+  "failure_why": "nincs mért környezeti akadály a nyers eredményben",
+  "ms": 1088106,
+  "at": "2026-10-12T15:34:26.944Z",
+  "env_skipped": false
+}

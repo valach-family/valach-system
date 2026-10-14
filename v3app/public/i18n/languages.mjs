@@ -95,23 +95,136 @@ export function normalizeLanguage(input, { includeProbes = false } = {}) {
   return BASE_LANGUAGE;
 }
 
-/** Az `Accept-Language` fejléc első HASZNÁLHATÓ nyelve (q-súly szerint), különben az alapnyelv. */
-export function parseAcceptLanguage(header, opts = {}) {
+/**
+ * AZ `Accept-Language` FEJLÉC VÁLASZTÁSA — ÉS HOGY VOLT-E TALÁLAT (LNG-03, F154-05 · F154-06).
+ *
+ * KÉT MÉRT HIBA VOLT EBBEN AZ EGY FÜGGVÉNYBEN:
+ *
+ * F154-06 — A `q=0` ELFOGADÁSKÉNT SZÁMÍTOTT. Az RFC 7231 §5.3.1 kimondja: *„a 0 súly azt jelenti,
+ * hogy NEM elfogadható."* A régi alak a `q=0`-t egy sima, legkisebb súlyú ELŐNYBEN RÉSZESÍTÉSNEK
+ * vette, ezért MÉRVE: `Accept-Language: de;q=0` → `de`, és `en;q=0` → `en`. Vagyis aki kifejezetten
+ * KIZÁRTA a németet, pont németet kapott. A fájl fejléce szabványra hivatkozik (RFC 5646 · W3C) —
+ * egy hivatkozott szabványt viszont MEG IS KELL MÉRNI, különben csak idézet (KUKA-050).
+ *
+ * F154-05 — A TALÁLAT TÉNYE ELVESZETT. A függvény csak a KÓDOT adta vissza, és az alapnyelv
+ * kétértelmű: ugyanazt kapja a „magyart kért és magyart kapott" és a „franciát kért, nincs francia,
+ * ezért magyar". A hívó (`resolveLanguage`) ezért a `matched` mezőt HARDKÓDOLT `true`-ra tette a
+ * fejléc-úton — tehát a nyugta hazudott. Innentől a találat ténye a visszatérés RÉSZE.
+ *
+ * A `parseAcceptLanguage` szerződése NEM változik (a kódot adja), hogy a mai hívók érintetlenek
+ * maradjanak; a bővebb alakot a `pickFromAcceptLanguage` adja.
+ *
+ * @returns {{code:string, matched:boolean}} `matched` = a fejléc EGYIK címkéje tényleg erre mutatott
+ */
+export function pickFromAcceptLanguage(header, opts = {}) {
   const raw = String(header ?? '');
-  if (!raw.trim()) return BASE_LANGUAGE;
-  const tags = raw.split(',').map((part) => {
+  if (!raw.trim()) return Object.freeze({ code: BASE_LANGUAGE, matched: false });
+  const parsed = raw.split(',').map((part) => {
     const [tag, ...params] = part.split(';').map((s) => s.trim());
     const q = params.map((p) => /^q=([0-9.]+)$/i.exec(p)).find(Boolean);
     return { tag, q: q ? Number(q[1]) : 1 };
-  }).filter((x) => x.tag && Number.isFinite(x.q)).sort((a, b) => b.q - a.q);
-  for (const { tag } of tags) {
-    const wanted = normalizeLanguage(tag, opts);
+  }).filter((x) => x.tag && Number.isFinite(x.q));
+
+  /**
+   * A KIZÁRÁST MEG IS KELL TARTANI, ÉS A JOKERT IS ÉRTENI (F154-33, külső review, Codex, hetedik kör).
+   *
+   * A LELET a SAJÁT F154-06 javításom ára: a `q=0`-t kiszűrtem a listából — ezzel a kizárás TÉNYE
+   * elveszett. MÉRVE: `Accept-Language: hu;q=0, *;q=1` → `hu`, vagyis pont azt a nyelvet adtuk, amit
+   * a kérő KIFEJEZETTEN kizárt; és a `*` jokert sem vettük figyelembe, holott az mondja ki, hogy
+   * bármely más nyelv jó lenne. A szűrés tehát a hiba egyik felét javította, a másikat elrejtette.
+   *
+   * A MAI SZABÁLY: a `q=0` címkék KIZÁRÁST képeznek (`*;q=0` = minden más kizárva), a pozitív
+   * címkéket súly szerint járjuk be, a `*` a JEGYZÉK SORRENDJÉBEN ad egy nem kizárt nyelvet, és
+   * kizárt nyelvre még az alapnyelvre-esés sem vezethet. Ha MINDENT kizártak, a lapot akkor is ki
+   * kell rajzolni: az alapnyelv megy, de `matched: false`-szal — nem állítjuk, hogy teljesítettük a
+   * kérést (KUKA-049 · KUKA-129).
+   */
+  const zero = parsed.filter((x) => x.q === 0).map((x) => x.tag.toLowerCase().replace(/_/g, '-'));
+  /**
+   * A KIZÁRÁS A TELJES NYELVI TARTOMÁNYRA SZÓL, NEM AZ ELSŐ ALCÍMKÉRE (F154-43, külső review, Codex,
+   * tizedik kör). A LELET: minden `q=0` címkét az első alcímkéjére vágtam, ezért egy REGIONÁLIS
+   * kizárás az ÁLTALÁNOS nyelvet is elnémította — `Accept-Language: de-AT;q=0, de;q=1` esetén a
+   * német egésze kizártnak számított, és magyart adtunk vissza. Az RFC 4647 alap-illesztése szerint
+   * a `de-AT` tartomány a RÖVIDEBB `de` címkére NEM illeszkedik: a kizárás akkor áll, ha a kód maga
+   * a tartomány, vagy a tartomány + kötőjel kezdetű (`de` ⊄ `de-AT`, de `de-AT-x` ⊂ `de-AT`).
+   */
+  const excludedRanges = zero.filter((t) => t !== '*');
+  const excludesRest = zero.includes('*');
+  const inRange = (code, range) => { const c = String(code).toLowerCase().replace(/_/g, '-'); return c === range || c.startsWith(`${range}-`); };
+  const allowed = (code) => !excludedRanges.some((r) => inRange(code, r));
+  const firstAllowed = () => (enabledLanguages().map((l) => l.code).find((c) => allowed(c)) || null);
+  // A KIFEJEZETTEN MEGNEVEZETT TARTOMÁNYOK (a joker hatóköréhez, F158-09): minden `*`-tól eltérő
+  // címke, SÚLYTÓL FÜGGETLENÜL — a `q=0` kizárás és a kisebb súlyú pozitív említés EGYARÁNT „említés".
+  const mentionedRanges = parsed.filter((x) => x.tag !== '*').map((x) => x.tag.toLowerCase().replace(/_/g, '-'));
+  /**
+   * A POZITÍV TARTOMÁNY ARRA A NYELVRE IS „EMLÍTÉS", AMIRE FELOLDÓDIK (F158-23, külső review, Codex, P2).
+   *
+   * A LELET: egy `hu-HU;q=0.5, *;q=1` fejlécnél a normalizálás a `hu-HU`-t a bekapcsolt `hu`-ra oldja
+   * fel, a `mentioned('hu')` viszont csak az `inRange('hu', 'hu-hu')`-t vizsgálta — ami az RFC 4647
+   * szerint HAMIS (a rövidebb címke nem illeszkedik a hosszabb tartományra). A joker ezért a
+   * KIFEJEZETTEN 0,5-es súllyal kért magyart választotta 1-es súllyal, vagyis NÉMÁN felminősítette a
+   * kérő alacsonyabb preferenciáját. Ez ugyanaz a fél őr, mint az F158-09-ben, egy lépéssel beljebb.
+   *
+   * A VÁLASZ a reviewer megfogalmazása szerint: a joker jogosultságánál a POZITÍV tartományokat a
+   * bekapcsolt megfelelőjükre képezzük le — a `q=0` KIZÁRÁSOK pontossága (KUKA-330) VÁLTOZATLAN,
+   * azokat továbbra is a szigorú tartomány-illesztés dönti el.
+   *
+   * ÉS CSAK A TÉNYLEGES FELOLDÁS SZÁMÍT: a `normalizeLanguage` ismeretlen címkére az ALAPNYELVRE esik
+   * vissza — ha azt említésnek vennénk, egy ismeretlen `xx-YY` „említené" a magyart, és a joker
+   * elnémulna. Ezért itt csak a bekapcsolt jegyzékben MEGLÉVŐ kódot fogadjuk el (KUKA-238).
+   */
+  const feloldasa = (tag) => {
+    const t = String(tag).toLowerCase().replace(/_/g, '-');
+    const kodok = enabledLanguages().map((l) => l.code);
+    if (kodok.includes(t)) return t;
+    const primary = t.split('-')[0];
+    return kodok.includes(primary) ? primary : null;
+  };
+  const mentionedCodes = new Set(parsed.filter((x) => x.tag !== '*' && x.q > 0)
+    .map((x) => feloldasa(x.tag)).filter(Boolean));
+  const mentioned = (code) => mentionedRanges.some((r) => inRange(code, r)) || mentionedCodes.has(code);
+
+  const wanted = parsed.filter((x) => x.q > 0).sort((a, b) => b.q - a.q);
+  for (const { tag } of wanted) {
+    if (tag === '*') {
+      /**
+       * A JOKER A NEM EMLÍTETT NYELVEKRE SZÓL (F158-09, külső review, Codex, P2 — RFC 9110 §12.4.3).
+       *
+       * A LELET: a korábbi alak a jokerre az ALAPNYELVET adta, ha az nem volt `q=0`-val kizárva —
+       * akkor is, ha a kérés az alapnyelvet KIFEJEZETTEN kisebb súllyal nevezte meg.
+       * `Accept-Language: hu;q=0.5, *;q=1` esetén tehát magyart adtunk, holott a joker az EMLÍTÉS
+       * NÉLKÜLI nyelvekre szól: egy elérhető `en`/`de` 1-es súllyal megelőzi a 0,5-es magyart.
+       * Az előző kör (F154-43) csak a `q=0` kizárásokat vette számba — a POZITÍV, kisebb súlyú
+       * említést nem; ugyanaz a fél őr, egy lépéssel beljebb (KUKA-039).
+       *
+       * A joker jelöltje ezért MINDEN kifejezetten megnevezett tartományt kihagy. Ha így nem marad
+       * jelölt, a joker nem talál — és a sorozat a kisebb súlyú, KIFEJEZETT címkékkel folytatódik.
+       */
+      const jelolt = enabledLanguages().map((l) => l.code).filter((c) => allowed(c) && !mentioned(c));
+      const pick = jelolt.includes(BASE_LANGUAGE) ? BASE_LANGUAGE : (jelolt.length ? jelolt[0] : null);
+      if (pick) return Object.freeze({ code: pick, matched: true });
+      continue;
+    }
+    if (!allowed(tag)) continue;                       // UGYANEZT a tartományt máshol `q=0`-val kizárták
+    const asked = String(tag).toLowerCase().split(/[-_]/)[0];
+    const code = normalizeLanguage(tag, opts);
+    if (!allowed(code)) continue;                      // és az alapnyelvre-esés sem mehet kizárt nyelvre
     // A `normalizeLanguage` ismeretlennél az alapnyelvet adja — ez ITT nem találat, csak ha a
     // címke TÉNYLEG erre a nyelvre mutat (különben az első idegen címke „eltalálná" a magyart).
-    const asked = String(tag).toLowerCase().split(/[-_]/)[0];
-    if (wanted !== BASE_LANGUAGE || asked === BASE_LANGUAGE) return wanted;
+    if (code !== BASE_LANGUAGE || asked === BASE_LANGUAGE) return Object.freeze({ code, matched: true });
   }
-  return BASE_LANGUAGE;
+  // NINCS TALÁLAT. Az alapnyelv megy — kivéve, ha azt (vagy a `*`-gal mindent) kizárták.
+  if (allowed(BASE_LANGUAGE) && !excludesRest) return Object.freeze({ code: BASE_LANGUAGE, matched: false });
+  if (!excludesRest) {
+    const pick = firstAllowed();
+    if (pick) return Object.freeze({ code: pick, matched: false });
+  }
+  return Object.freeze({ code: BASE_LANGUAGE, matched: false });
+}
+
+/** Az `Accept-Language` fejléc első HASZNÁLHATÓ nyelve (q-súly szerint), különben az alapnyelv. */
+export function parseAcceptLanguage(header, opts = {}) {
+  return pickFromAcceptLanguage(header, opts).code;
 }
 
 /**
@@ -126,7 +239,12 @@ export function resolveLanguage({ explicit, stored, acceptLanguage } = {}, opts 
     return { code, source, matched: code === normalizeLanguage(raw, { includeProbes: true }) && Boolean(languageOf(raw) || languageOf(raw.toLowerCase().split(/[-_]/)[0])) };
   }
   if (String(acceptLanguage ?? '').trim()) {
-    return { code: parseAcceptLanguage(acceptLanguage, opts), source: 'accept_language', matched: true };
+    // A `matched` NEM HARDKÓDOLHATÓ (F154-05). A régi alak mindig `true`-t adott, ezért a
+    // `Accept-Language: fr-FR` → `hu` esetre is azt állította, hogy a KÉRT nyelvet kapta — miközben
+    // UGYANEZ a kérés `explicit: 'fr'`-ként helyesen `matched: false`-t adott. Egy kérdésre egy
+    // válasz: a találat tényét az oldja fel, aki a választást is (KUKA-238 · KUKA-129).
+    const got = pickFromAcceptLanguage(acceptLanguage, opts);
+    return { code: got.code, source: 'accept_language', matched: got.matched };
   }
   return { code: BASE_LANGUAGE, source: 'default', matched: true };
 }
