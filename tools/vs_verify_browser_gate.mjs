@@ -313,12 +313,15 @@ if (browserOk) {
    */
   const results = await runPlan(PLAN, {
     run: async (step) => {
-      const indult = Date.now();
+      // A LÉPÉS INDULÁSÁNAK IDŐPONTJA A TANÚ KÖTÉSE IS (F158-15): a jelentés és a lánc-kimenetek
+      // kezdő idejét EHHEZ hasonlítjuk, tehát egy visszacsempészett régi fájl nem mehet át. A név
+      // a kötést mondja ki, és a `verify:app-findings-r154` (X/x6) ERRE a kötésre áll.
+      const futasIndult = Date.now();
       lines.push(`  INDUL a \`${step.label}\` lánc — ${step.cmd || `npm run ${step.script}`}`);
       const r = await futtat(`npm run --silent ${step.script}`, step.label,
         step.report ? { VS_E2E_REPORT_PATH: REPORT } : null);
-      if (step.report) jelentesEllenorzes(indult);
-      kimenetSor(step, indult);
+      if (step.report) jelentesEllenorzes(futasIndult);
+      kimenetSor(step, futasIndult);
       return { ok: r.ok, ms: r.ms, detail: r.ok ? null : `kilépés ${r.r.exitCode}${r.r.timedOut ? ' (időtúllépés)' : ''}` };
     },
   });
