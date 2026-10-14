@@ -121,6 +121,32 @@ futás, kimondva).
 
 ---
 
+## 4b. A KÖTELEZŐ BÖNGÉSZŐ-KAPU — EGYSZER, A VÉGSŐ TERMÉK- ÉS KAPUKÓDON
+
+**EREDMÉNY: PASS** (`53ff719`, kilépés 0 · a teljes napló: `var/logs/r206_browser_gate2.log`).
+
+| lánc | indult | eredmény |
+|---|---|---|
+| `test:e2e + proof:core-ux` (egy futás fedi mind a kettőt) | IGEN | **ZÖLD, 652 s** — **157 helyzet · 0 bukott · 0 ingadozó · 0 kihagyott · mind a 27 próbafájl mérve** |
+| `proof:demo-walk` | IGEN | **ZÖLD, 485 s** · kimenet: `…_demo_walk.json` (10 kB) |
+| `docs:kiprobalas-kepek` | IGEN | **ZÖLD, 39 s** · kimenet: `…_v3app_bemutato.html` (2 189 kB) + `…_v3app_muszaki.html` (9 kB) |
+| `proof:bemutato-artifact` | IGEN | **ZÖLD, 24 s** · kimenet: `…_interaktiv_bemutato_manifeszt.json` (4 kB) |
+| záró sor | — | **„MINDEN deklarált lánc TÉNYLEGESEN elindult (nem csak a parancsalakja mért)"** |
+
+A 157 helyzet a korábbi 155 + a két új vezérelt sorrend (`R206-K2` · `R206-K3`). A chromium
+(141.0.7390.37) **elindult**, nem csak a lemezen volt.
+
+**ÉS A KAPU KÉTSZER FUTOTT — ezt ki kell mondanom.** Az első futás (`a34fa83`) **ugyanígy teljes
+zöld** volt (617 s · 157 helyzet · mind a négy lánc zöld). Utána a `verify:app-findings-r154`
+(X/x6) **pirosat adott**: az F206-04 átszervezésekor elcsúszott egy változónév, amire az F158-15
+szerkezeti pinje áll (a kapu tanú-kötése). A viselkedés nem változott — a jelentés törlése a
+futtatás ELŐTT és a kezdő idő kötése a MOSTANI futáshoz megvolt —, de **a nevet állítottam vissza,
+nem az őrt lazítottam** (`KUKA-091`). Mivel ezzel **a kapu SAJÁT kódja** változott, a kaput **újra
+futtattam**: a termékkód azonossága és a kapu azonossága két külön tény (a SPEC §2 kikötése). A
+fenti tábla a MÁSODIK, végső futás — a kapu, amit átadok, ugyanaz, amelyik zöldet adott.
+
+---
+
 ## 5. AZ INTERAKTÍV ÁTADÁS — ÉS A HÁROM DOLOG, AMI KÜLÖN ÁLL (D-VS-3269)
 
 **1. A megnyitható, interaktív bejárás (a címzettnek):**
@@ -205,3 +231,42 @@ tartalma mérve zöld. Helyi `var/` útvonal alapján nem állítom késznek az 
 
 > **A „nem futott" nem „zöld" és nem „részben"** (`KUKA-206`): a fenti négy sorról ez a jelentés
 > csak annyit állít, amennyit mér — hogy a **bemenetük** nem változott.
+
+### Újrahasznált bizonyíték: NINCS
+
+Ebben a körben **egyetlen** láncot sem hivatkoztam újrahasznált bizonyítékként (`SRU-01`): ami
+futott, az MOST futott; ami nem futott, az a fenti táblában áll, nevesítve. Az első kapu-futás
+eredményét sem hasznosítottam újra: a kapu kódja megváltozott, ezért a verdikt a MÁSODIK futásból
+származik.
+
+---
+
+## 8. A FOGYASZTÁS — EGY SOR
+
+**Mérve** (`meres:fogyasztas`, modellhívás nélkül · ablak: a parancs board-időbélyegétől a csomag
+záró pillanatáig, `2026-10-14T12:50:41Z → 15:04:50Z`): **234 hívás · kimenet 239 867 ·
+cache-olvasás 78 146 413 · ügynök-bemenet 0 (0 ügynök)** · fő-szál kontextus **medián 336 612,5**,
+max 560 905. A mérő sávja: **FIGYELMEZTETÉS (300–400 ezer)** — rövid állapotmérés a munkablokk
+határán; megállni nem kell, új beszélgetést nem kérek. A tartalom nélküli leltár a repóban:
+`docs/70_PLANNING/V3_R206_FOGYASZTAS_LELTAR.json` · a mérés gépi alakja
+`var/reports/…_150451_fogyasztas.json`.
+
+**Az ügynök-bemenet NULLA, és ez szándékos:** a SPEC §6 kimondottan kizárta az alügynököt („egy
+aktív író, alügynök nélkül"), ezért a környezet UltraCode-beállítása mellett sem indítottam
+al-ügynököt vagy workflow-t. A kísérleti jelző (> 40 M / csomag) ezzel a mérés szerint nem
+teljesült ügynök-bemenetre; a cache-olvasás a FŐ SZÁL saját összege.
+
+---
+
+## 9. A CSOMAG ÁTADÁSA
+
+**A kijelölt munkamenet-ág:** `claude/cmd-vs-300-002-002-r204-2l0dva` — minden commit ide készült,
+és innen megy a **fast-forward** a PR fejágára (`claude/r154-audit-fix`). Az ősviszonyt friss
+`git fetch` után igazoltam: a távoli PR-fej (`ea74d12`) a munkafa fejének **őse**, tehát a
+átvezetés valódi fast-forward — **force-push nem történt**, és ismeretlen távoli munkát nem írtam
+felül. A PR **frissítése nem a PR merge-elése**; merge, telepítés, CMD/PR lezárás nem történt.
+
+**A PR leírása** megnevezi az új fejet és a valós mérési hatókört (a mag `v3ref/` **0 fájl**;
+tároló, migráció, mentés, V2 és éles üzem **nem érintett**).
+
+**A ZÁRÓ PR-FEJ, a GitHubról visszaolvasva:** `__FINAL_SHA__`
