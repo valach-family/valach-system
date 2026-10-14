@@ -80,6 +80,14 @@ const CHAINS = [
   // futásban írta-e meg őket. Egy lefutott, de kimenet nélküli lánc nem átadás (KUKA-079).
   { script: 'docs:kiprobalas-kepek', expect: 'node tools/v3_kiprobalas_kepek.mjs', kind: 'node',
     outputs: ['v3app_bemutato', 'v3app_muszaki'] },
+  // R206 §3 — AZ INTERAKTÍV ÁTADÁS IS MÉRT LÁNC (ugyanaz a tanulság: KUKA-500 · KUKA-504).
+  //
+  // Ez a lánc azt a csomagot állítja elő és járja végig, amit az operátor MEGNYIT: a VALÓDI
+  // felületi forrást egy sima statikus kiszolgálóról, asztali szélességen ÉS 390 px-en. Ha a
+  // felület holnap új modult importál, vagy a javított út elromlik, ez a lánc vált pirosra —
+  // nem a címzett veszi észre.
+  { script: 'proof:bemutato-artifact', expect: 'node tools/v3_bemutato_artifact_proof.mjs', kind: 'node',
+    outputs: ['v3app_interaktiv_bemutato_manifeszt'] },
 ];
 /**
  * ══ ELLENPRÓBÁK (`--selftest`) — A KAPU SZŰK HÍVÁSI HATÁRÁN, BÖNGÉSZŐ NÉLKÜL ══════════════════

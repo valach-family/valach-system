@@ -175,12 +175,32 @@ function install() {
   };
   let S = load() || seed('inviteRevoke');
   const realFetch = window.fetch.bind(window);
+  /**
+   * A HÁLÓZATI HIBA UTÁNZÁSA — EGYSZER, ÉS CSAK KÉRÉSRE (R206 §3).
+   *
+   * MIÉRT VAN. Az R206 javítása egy HIBA-ÚTON látszik: ha a lap nem tudja ellenőrizni, KI ül a
+   * gépnél, akkor a harmadik állapotot mondja ki, és MŰKÖDŐ folytatást ad. Ezt egy bemutatón
+   * normál működés közben SOHA nem látná a néző — tehát a javítást nem tudná kipróbálni. Ez a
+   * kapcsoló a VALÓDI hálózati hiba alakját állítja elő: a `fetch` KIVÉTELT dob, amit az
+   * alkalmazás `api()`-ja `status: 0`-ként ad vissza. A választ NEM hamisítjuk: nincs kitalált
+   * siker és nincs kitalált üzleti eredmény (KUKA-220).
+   *
+   * MIT NEM TESZ: nem a termék kódja (ez a modul csak a bemutató-lapon telepszik, az
+   * `index.html` nem hivatkozza), nem kattint a felhasználó helyett, és nem állandó: EGYSZER
+   * nyeli el a következő állapot-ellenőrzést, aztán magától elfogy.
+   */
+  let elveszoMe = 0;
+
   window[DEMO_FLAG] = {
     /** A történet indítása / ÚJRAKEZDÉSE — csak a bemutató saját adatait állítja vissza. */
     restart(story) { S = seed(story || S.story); save(); },
     /** A NÉZŐ: a bemutató melyik szereplő munkamenetében áll. */
     actor() { return S.actor; },
     story() { return S.story; },
+    /** R206: a következő `n` állapot-ellenőrzés (`GET /api/me`) VESZIK EL — hálózati hiba alakjában. */
+    loseNextMe(n = 1) { elveszoMe = Math.max(0, Number(n) || 0); return elveszoMe; },
+    /** Mennyi van még belőle — a bemutató-lap ebből írja ki, hogy a kapcsoló ÉL. */
+    losingMe() { return elveszoMe; },
   };
 
   const tick = () => { S.now += 1000; return new Date(S.now).toISOString(); };
@@ -671,6 +691,11 @@ function install() {
     catch { path = String(url); }
     if (!path.startsWith('/api/') && !path.startsWith('/dev/')) return realFetch(input, init);
     const method = ((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+    // R206: A KÉRT HÁLÓZATI HIBA — a kérés EL SEM INDUL, ahogy egy valódi hálózati hiba esetén sem.
+    if (method === 'GET' && path === '/api/me' && elveszoMe > 0) {
+      elveszoMe -= 1;
+      throw new TypeError('Failed to fetch — a bemutató KÉRT hálózati hibája (R206 §3)');
+    }
     let body = null;
     const raw = (init && init.body) || null;
     if (raw) { try { body = JSON.parse(raw); } catch { body = null; } }

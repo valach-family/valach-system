@@ -16,6 +16,38 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3269 — AZ INTERAKTÍV ÁTADÁS A VALÓDI FELÜLETI FORRÁSBÓL ÁLL, ÉS MÉRT LÁNC (R206)
+
+> **Hatály:** V3 — a bemutató-lap és a bemutató-adapter (`v3app/public/`), két új szerszám
+> (`tools/v3_bemutato_artifact.mjs` · `..._proof.mjs`) és a kötelező böngésző-kapu lánc-listája.
+> **Termék-viselkedés nem változott; a bemutató-adapter kódja NEM része az éles lapnak.**
+
+**Dátum:** 2026-10-14 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 R206
+
+**1. A DÖNTÉS: amit az operátor megnyit, az a MEGLÉVŐ alkalmazásfelület.** A képes útmutató
+(`docs:kiprobalas-kepek`) megmarad, de az nem bejárás. Az átadott csomag a repó
+`v3app/public/` fájljaiból áll, VÁLTOZATLANUL (`app.js` · `tour.mjs` · `texts.mjs` · `style.css` ·
+`i18n/` · bemutató-adapter) — nincs kézzel készített alternatív UX, és nincs második kódpéldány: a
+fájl-lista az IMPORT-GRÁFBÓL jön, nem kézi felsorolásból. Ha a felület holnap új modult importál, a
+csomag hiánya NEVEZETT hiba (ez a `KUKA-504` osztálya ezen a szerszámon).
+
+**2. A HÁTTÉR SZIMULÁLT, ÉS EZT A LAP LÁTHATÓAN KIMONDJA.** Minden adat szintetikus, titok nincs, és
+a csomag nem HTTP- és nem tároló-bizonyíték (`KUKA-227`). A valódi szerveres/tárolós tanú változatlanul
+a `findings_*` battériákban, a Playwright-láncban és a `proof:demo-walk`-ban áll.
+
+**3. A JAVÍTÁS KIPRÓBÁLHATÓ, NEM CSAK LEÍRVA.** Az R206 javítása hiba-úton látszik, ezért a
+bemutató-lap EGY kapcsolót ad: a következő állapot-ellenőrzés elveszik (a VALÓDI hálózati hiba
+alakjában — kitalált üzleti válasz nincs). A néző így a meglévő felületen látja a harmadik állapotot
+és a működő folytatást. A kapcsoló a bemutató-adapterben él, ami az éles `index.html`-ből nem
+hivatkozott, és induláskor ki is mondja, ha nem telepszik.
+
+**4. ÉS AZ ÁTADÁS MÉRT LÁNC.** A `proof:bemutato-artifact` a csomagot egy sima statikus kiszolgálóról
+járja végig — asztali szélességen ÉS 390 px-en —, és a kötelező böngésző-kapu lánc-listájába is
+bekerült. Ugyanaz a tanulság, mint a `KUKA-500`-nál: ami a szállítást állítja elő, az is mért lánc.
+**Amit ez NEM állít:** a megnyithatóság nem elfogadás, és nem merge-engedély.
+
+---
+
 ## D-VS-3268 — A KÖTELEZŐ KAPU FUTTATÁSI TERVE A LÁNC-LISTÁBÓL SZÜLETIK (R206)
 
 > **Hatály:** V3 — a böngészős kapu (`tools/vs_verify_browser_gate.mjs`) és a terv-modul

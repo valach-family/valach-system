@@ -276,7 +276,15 @@ export const FEATURES = Object.freeze([
     // ELFOGADÁS képernyőjének a nemleges ága (KUKA-201 — a nemleges válasz vigye a MŰKÖDŐ
     // folytatást), nem önálló funkció. A kilépés-gombja a meglévő `logout` műveletet használja,
     // tehát azt az `auth.logout` mondja a magáénak — egy művelet, egy otthon (KUKA-003).
-    ui_actions: F(['redeem', 'invite-leave']),
+    //
+    // ÉS AZ ÁLLAPOT-ELLENŐRZÉS IS EHHEZ A FUNKCIÓHOZ TARTOZIK (R206 §2/F206-01 — ugyanaz az indok,
+    // mint a visszalépésnél). A `ctx-recheck` a NEM IGAZOLT elfogadás nemleges ágának MŰKÖDŐ
+    // folytatása: a szerver rögzítette a tagságot, de a lap nem tudta ellenőrizni, KI ül a gépnél
+    // — a gomb ezt kérdezi meg újra (`KUKA-201`). Nem önálló képesség: a kontextust ma EGYETLEN
+    // hívó teszi nem igazolttá, a beváltás; ha egy MÁSIK művelet is ilyen állapotot hagyna, a
+    // művelet otthona IDE is bejegyzést kér (`KUKA-003`: egy művelet, egy otthon). A funkció
+    // LEÍRÁSA nem változott, ezért a verzió sem — a nemleges ág vezérlője nem új képesség.
+    ui_actions: F(['redeem', 'invite-leave', 'ctx-recheck']),
     group: 'invite', scope: 'person', audience: 'public', screen: null, action: null, entry: 'section-invite',
     // A SZEMÉLYES TÉRBEN IS ÉRTELMES — és ez nem kényelmi kivétel, hanem a funkció LÉNYEGE (P109-01):
     // a meghívott ember MINDIG a személyes teréből indul, hiszen abban a vállalkozásban még nincs

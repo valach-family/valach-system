@@ -749,11 +749,12 @@ import { inviteNextKey } from './inviteText.mjs';
      * és amíg a kérdés fut, a gomb ezt KI IS MONDJA — a néma várakozás ugyanaz a hiba volna
      * (`KUKA-228`: amit a lap nem nyom meg helyettünk, arra VÁRNI kell).
      */
-    const recheck = byTest('ctx-recheck');
-    if (recheck) {
-      setText(recheck, state.ctxRechecking ? UI.contextRecheckRunning : UI.contextRecheck);
-      recheck.disabled = state.ctxRechecking === true;
-      show(recheck, unconfirmed);
+    const slot = byTest('ctx-recheck-slot');
+    if (slot) {
+      slot.innerHTML = unconfirmed
+        ? `<button type="button" class="plain" data-action="ctx-recheck" data-testid="ctx-recheck"
+            ${state.ctxRechecking ? 'disabled' : ''}>${esc(state.ctxRechecking ? UI.contextRecheckRunning : UI.contextRecheck)}</button>`
+        : '';
     }
 
     const personal = list.filter((w) => w.personal);
