@@ -174,7 +174,11 @@ fejágára (`claude/r154-audit-fix`), friss `git fetch` utáni ősviszony-igazol
 nélkül**. A PR frissítése nem a PR merge-elése; merge, telepítés, CMD/PR lezárás nem történt.
 A PR leírása az új fejet, a valós mérési hatókört **és a §1 helyesbítését** mondja.
 
-**A ZÁRÓ PR-FEJ, a GitHubról visszaolvasva:** `__FINAL_SHA__`
+**A ZÁRÓ PR-FEJ, a GitHubról visszaolvasva** (`pull_request_read` → `sha`):
+**`7726c225839c47604c32e23ec09cd6be861c1827`** — a fast-forward `2704602..7726c22`, tehát a PR feje
+az a commit, amelyik a MÉRT kódot (`566424c`) és ezt a jelentést is hordozza. Ezt a SHA-sort pótló
+dokumentum-commit ugyanezen a fast-forwardon megy utána; **kód attól nem változik**, és a tényleges
+záró fejet a board-kör meg a chat-üzenet nevezi meg.
 
 ---
 
