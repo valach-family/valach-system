@@ -110,6 +110,10 @@ try {
     A((await txt('header-subject')) === 'anna@mintamuhely.hu', 'a csomag MEGNYITVA feláll, és a bemutató Annával indul',
       String(await txt('header-subject')));
     A(hibak.length === 0, 'a lap betöltése közben NEM volt JavaScript-hiba', hibak.join(' | ') || 'nincs');
+    // ÉS A BETÖLTÉS-HIBA MONDATA NEM JELENIK MEG, AMIKOR MINDEN RENDBEN (a néma helyeslés párja:
+    // egy mindig kiírt figyelmeztetés ugyanolyan félrevezető volna — KUKA-049).
+    A((await page.getByTestId('demo-load-failed').count()) === 0,
+      'a betöltés-hiba mondata NEM jelenik meg működő csomagnál', 'demo-load-failed: nincs');
 
     // (2) A SZIMULÁLT HÁTTÉR LÁTHATÓAN JELÖLT (a SPEC §3 kikötése).
     A(await T('demo-marker').isVisible() && String(await txt('demo-bar-title')).length > 0,

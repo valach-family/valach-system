@@ -223,6 +223,28 @@
     if (rs) rs.addEventListener('click', restart);
     paint();
 
+    /**
+     * ÉS HA A FELÜLET FÁJLJAI NEM JÖNNEK MEG, AZT A LAP KIMONDJA — NEM ÜRES KÉPERNYŐT AD.
+     *
+     * MIÉRT (R206 §3). Ez a lap NEM csak a repóból nyílik meg: az átadott (publikált) alakja egy
+     * MÁSIK cím alatt szolgál ki, és ott a testvér-fájlok feloldása a befogadó oldal dolga. Ha
+     * ezen az úton a modulok nem töltődnek be, a néző egy fehér lapot látna, és nem tudná, mi
+     * történt — ez a némaság ugyanaz a hiba-osztály, amit a `KUKA-201` és a `KUKA-012` zár ki.
+     * A mérés a KÉSZ állapotot kérdezi (a héj felállt-e), nem a hálózatot figyeli (`KUKA-121`).
+     */
+    setTimeout(() => {
+      const fejlec = byTest('header-subject');
+      const felallt = Boolean(window.VS_DEMO) && Boolean(fejlec) && (fejlec.textContent || '').trim().length > 0;
+      if (felallt) return;
+      const box = document.createElement('p');
+      box.setAttribute('data-testid', 'demo-load-failed');
+      box.style.cssText = 'margin:0;padding:14px 16px;border-bottom:1px solid #d9d9e3;background:#fff4f4;color:#7a1212;font:14px/1.5 inherit';
+      box.textContent = 'A bemutató felületi fájljai nem töltődtek be ezen a címen, ezért a lap üres. '
+        + 'A csomag tartalma rendben van (a bejárás helyben zöld) — ez a megnyitás útjának hibája. '
+        + 'Jelezd a fejlesztői sávnak, és addig a helyi csomagból nyisd meg.';
+      document.body.insertBefore(box, document.body.firstChild);
+    }, 8000);
+
     // ÚJRATÖLTÉS UTÁN: ha a néző történetet választott, az app saját indító gombját nyomjuk meg.
     // Megvárjuk, hogy a felület felálljon (a bemutató-lista a segéd-csomagból jön).
     const auto = sessionStorage.getItem(AUTOSTART);
