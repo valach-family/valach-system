@@ -34,6 +34,11 @@ import { inviteNextKey } from './inviteText.mjs';
   const state = {
     me: null, page: 'overview', tabs: ['overview'], generation: 0, seq: 0,
     ctx: { subject: null, book: null, bookName: null }, noticeSeq: 0, selfInitiated: false, afterCreate: null,
+    // R204: a kontextus NEM IGAZOLHATO — a frissites nem alkalmazta a szerver igazsagat, tehat a
+    // lap NEM allithatja tovabb, hogy KI ul itt. Ez HARMADIK allapot: nem belepve es nem kilepve
+    // (KUKA-012: az ures es az elerhetetlen nem ugyanaz). A frissites torli, amint ujra
+    // alkalmazott igazsaga van.
+    ctxUnconfirmed: false,
     // A PANELEK TARTALMA ÁLLAPOT, NEM CSAK DOM — és a LEKÉRÉS NÉZETENKÉNT EGYSZER indul magától.
     // MÉRT LELET (R81, a saját böngésző-próbámon): a kötetlen válasz mondata után a lap
     // újrarajzolt, az újrarajzolás pedig ÚJRA kért — 700 ms alatt 33 kérés. A nemleges válasz
@@ -345,11 +350,32 @@ import { inviteNextKey } from './inviteText.mjs';
    *     `refreshMe` után dönt, és egy idegen nézőnek nem állítjuk vissza a futást.
    * A visszaállás IDEMPOTENS: átadás nélkül azonnal visszatér, tehát a plusz hívás nem költség.
    */
+  /**
+   * A FRISSÍTÉS VERDIKTJE — ÉS MIÉRT KELL (R204, MÉRVE a saját böngészőpróbámmal).
+   *
+   * A LELET. A `refreshMe`-nek KÉT korai kilépése van, és MINDKETTŐ úgy tér vissza, hogy a
+   * `state.me` a RÉGI emberé marad: a `seq`-eltérés (közben újabb frissítés indult) és a
+   * `status === 0` (az olvasó kérés nem jutott el). A hívó viszont nem tudta megkülönböztetni ezt
+   * a sikeres frissítéstől, és a `state.me`-ből döntött — tehát a RÉGI igazságból.
+   *
+   * MÉRVE (`tests/e2e/v3app-r204-kontextus.spec.mjs` R204-K1, vezérelt eseménysor): a beváltás
+   * válaszát visszatartva, közben MÁS ember belépve, és EGY `/api/me` kérést elvesztve a lap
+   * Dórának írta ki, hogy *„Elfogadtad a meghívást. Csatlakoztál ehhez a fiókhoz: Személyes
+   * fiók"* — egy műveletre, amit nem ő végzett —, és a fejlécben CARL címe állt. Pontosan az a
+   * hiba, amit az R112 a `state.me.subject_id !== r.subject_id` kapuval akart kizárni (KUKA-204):
+   * a kapu MEGVOLT, csak egy nem alkalmazott frissítés CARLT hasonlította CARLHOZ.
+   *
+   * MOSTANTÓL a frissítés KIMONDJA, alkalmazta-e a szerver igazságát. Aki a `state.me`-ből dönt,
+   * annak ELŐBB ezt kell megkérdeznie (KUKA-202: az őr ott álljon, ahol a kár keletkezik).
+   */
+  const NEM_FRISSULT = (why) => Object.freeze({ applied: false, why });
+  const FRISSULT = Object.freeze({ applied: true, why: null });
+
   async function refreshMe({ deferTourResume = false } = {}) {
     const seq = (state.seq += 1);
     const me = await api('GET', '/api/me');
-    if (seq !== state.seq) return;
-    if (me.status === 0) { notice(STATE.loadFailed, 'bad'); return; }
+    if (seq !== state.seq) return NEM_FRISSULT('superseded');
+    if (me.status === 0) { notice(STATE.loadFailed, 'bad'); return NEM_FRISSULT('unreachable'); }
     const prevSubject = state.ctx.subject;
     const prevBook = state.ctx.book;
     const prevBookName = state.ctx.bookName;
@@ -398,11 +424,13 @@ import { inviteNextKey } from './inviteText.mjs';
     }
     state.selfInitiated = false;
     state.me = me;
+    state.ctxUnconfirmed = false;   // van alkalmazott igazsag (R204)
     render();
     if (changed) loadPageData();      // ÚJ nézet ⇒ ÚJ adat; a rajzolás maga nem kérdez
     // A PÁR MÁSIK FELE (F142-01). A rajzolás UTÁN: a következő lépés célja (pl. `nav-stock`) csak
     // a kész képernyőn mérhető. Átadás nélkül ez azonnal visszatér.
     if (!deferTourResume) await resumeTourAfterSwitch();
+    return FRISSULT;
   }
 
   /** Létezik-e ez az oldal az ÚJ nézetben? (A tag nem lát Beállítások-oldalt — UX-09.) */
@@ -586,9 +614,21 @@ import { inviteNextKey } from './inviteText.mjs';
     const me = state.me;
     const loggedIn = !!(me && me.subject_id);
     const list = (me && me.workspaces) || [];
-    setText(byTest('header-workspace'), loggedIn ? (accountName() || UI.chooseAccount) : UI.noAccountShort);
-    setText(byTest('header-subject'), loggedIn ? (me.email || me.subject_id) : UI.notSignedIn);
-    setText(byTest('avatar'), loggedIn ? String(me.email || '?').slice(0, 2).toUpperCase() : '–');
+    // R204 — A FEJLEC NEM ALLITHAT OLYAT, AMIT NEM TUDUNK IGAZOLNI (MERVE).
+    // A LELET: egy elvesztett `/api/me` utan a fejlec TOVABB mutatta az ELOZO ember cimet,
+    // mikozben a munkamenet mar a MASIKE volt — a SPEC §2 pedig azt keri, hogy a szemely, a
+    // fejlec, az aktiv nezet es az ertesites UGYANAZT a kontextust tukrozze. A regi nev
+    // megtartasa itt nem ovatossag, hanem hamis allitas; a „nincs belepve” szinten az volna.
+    // Ezert a HARMADIK allapotot mondjuk ki, es a teendot is (KUKA-201).
+    if (state.ctxUnconfirmed) {
+      setText(byTest('header-workspace'), UI.contextUnconfirmedShort);
+      setText(byTest('header-subject'), UI.contextUnconfirmedShort);
+      setText(byTest('avatar'), '?');
+    } else {
+      setText(byTest('header-workspace'), loggedIn ? (accountName() || UI.chooseAccount) : UI.noAccountShort);
+      setText(byTest('header-subject'), loggedIn ? (me.email || me.subject_id) : UI.notSignedIn);
+      setText(byTest('avatar'), loggedIn ? String(me.email || '?').slice(0, 2).toUpperCase() : '–');
+    }
     // KI NEVÉBEN JÁRUNK EL, és a cím-megerősítés állapota: képernyőolvasónak mindig elérhető, a szemnek
     // a Saját profil / Belépés és biztonság oldalon (R81 §3.3). A mondat a SZERVER TÉNYEIBŐL, de a
     // NYELVCSOMAG szavaival épül (R112): a szerver kész mondata magyar volt, nyers szerepkóddal.
@@ -3664,7 +3704,33 @@ import { inviteNextKey } from './inviteText.mjs';
     state.tabs = ['overview']; state.page = 'overview';
     // KIMONDOTT KÉSLELTETÉS (F142-01): itt a visszaállás a „más ember ült le közben" ág UTÁN
     // történik — egy idegen nézőnek nem állítjuk vissza az előző ember futását (R112-I3 · KUKA-204).
-    await refreshMe({ deferTourResume: true });
+    const frissult = await refreshMe({ deferTourResume: true });
+    /**
+     * ELŐBB AZT KÉRDEZZÜK MEG, TUDJUK-E, KI ÜL A LAPNÁL (R204 — SAJÁT LELET, MÉRVE).
+     *
+     * A lenti kapu a `state.me`-ből dönt, azt viszont a frissítés korai kilépése a RÉGI emberen
+     * hagyja. Ilyenkor a kapu CARLT hasonlítja CARLHOZ, átengedi, és a siker mondata annak szól,
+     * aki épp ott ül. Ezért: ha a frissítés NEM alkalmazta a szerver igazságát, SEMMIT nem
+     * állítunk a személyről — se sikert, se személyváltást.
+     *
+     * AMIT EZ MEGTART: a szerver TÉNYE (a tagság létrejött) nem tűnik el, és nem is nevezzük
+     * meghiúsultnak — a mondat a NEM ELDÖNTHETŐ állapotot mondja ki, a teendővel (KUKA-201 · a
+     * KUKA-093 alakja a felületen: a hiányzó mérés nem zöld, de nem is piros).
+     * ÉS AMIT NEM TESZÜNK: nem rajzolunk át egy kontextust, amit nem igazoltunk (a `render()`
+     * ezen az ágon a RÉGI embert festené — a SPEC §2: „Késői válasz ne rajzoljon vissza régi
+     * személyt/adatot"), és a hordozott lezárás sem száll át.
+     */
+    if (!frissult.applied) {
+      state.tourCarry = null;
+      // A MONDAT ODA MEGY, AHOL A FELHASZNÁLÓ ÁLL: a meghívó kártya saját sora MOST látszik (a héj
+      // `global-notice`-a ezen a képernyőn nincs is a lapon — ezért nyelte el a régi alak a
+      // `notice()`-t, némán).
+      state.ctxUnconfirmed = true;
+      renderHeader();                 // CSAK a fejlec — a nezetet nem rajzoljuk at igazolas nelkul
+      formResult('invite-redeem-result', UI.inviteAcceptedUnconfirmed, 'warn');
+      notice(UI.inviteAcceptedUnconfirmed, 'warn');
+      return;
+    }
     /**
      * A SIKER ANNAK SZÓL, AKINEK A SZERVER KISZOLGÁLTA (R112 saját lelete · KUKA-204).
      *

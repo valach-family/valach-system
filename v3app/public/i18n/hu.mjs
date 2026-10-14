@@ -466,6 +466,11 @@ export const UI = Object.freeze({
   inviteFaqOpen: 'Gyakori kérdések',
   inviteTourStart: 'Mutasd meg lépésről lépésre',
   inviteAcceptedLead: 'Elfogadtad a meghívást.',
+  // R204: a szerver RÖGZÍTETTE az elfogadást, de a lap nem tudta ellenőrizni, KI ül most a
+  // gépnél (a frissítés olvasó kérése nem jutott el, vagy közben újabb frissítés indult). A
+  // mondat a NEM ELDÖNTHETŐ állapotot mondja ki, és nem állít személyre szóló sikert.
+  inviteAcceptedUnconfirmed: 'A szerver rögzítette az elfogadást, de a lap nem tudta ellenőrizni, ki ül most a gépnél. Tölts be újra a lapot — a tagság nem veszett el.',
+  contextUnconfirmedShort: 'Nem igazolt',
   // FELTÉTELES MONDAT (R112): a más fiókkal belépett néző és az ismeretlen hivatkozás a szerver szerint
   // megkülönböztethetetlen (KUKA-084) — a lap nem állíthatja, melyik eset áll fenn.
   inviteOtherPersonLead: 'Ha a meghívás másik címre szól, jelentkezz ki, és lépj be azzal a címmel, amelyre a meghívás érkezett.',
@@ -542,9 +547,9 @@ export const UI = Object.freeze({
   actingAs: 'Ki nevében jársz el',
   passwordChangePending: 'A jelszó megváltoztatása még nem érhető el, ezért nem kínálunk rá gombot.',
   // ügyleteim, kimenő
-  personalLead: 'A saját ügyeid egy helyen.',
-  personalEmptyTitle: 'Még nincs megjeleníthető ügyleted',
-  personalEmptyLead: 'A vállalkozásaid ügyeit a fejléc fiókválasztójából éred el.',
+  personalLead: 'A saját ügyeid helye. Ez a képesség még nem elérhető.',
+  personalEmptyTitle: 'Ez a lista még nem elérhető',
+  personalEmptyLead: 'A saját ügyek listáját még nem építettük meg — nem arról van szó, hogy neked nincs ügyleted. A vállalkozásaid ügyeit addig a fejléc fiókválasztójából éred el.',
   outboxLead: 'Ez mintanézet: itt jelennének meg a fiók kimenő levelei. Levélküldés jelenleg nincs; a rendszer levelei a Próbaüzenetek között látszanak.',
   outboxSampleTitle: 'Ez mintanézet',
   outboxSampleLead: 'A belépési és meghívólevelek a Próbaüzenetek panelen próbálhatók ki. Valódi levelet ez a próbafelület nem küld.',
