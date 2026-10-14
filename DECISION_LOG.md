@@ -16,6 +16,97 @@ otthona van (KUKA-018).
 
 ---
 
+## D-VS-3268 — A KÖTELEZŐ KAPU FUTTATÁSI TERVE A LÁNC-LISTÁBÓL SZÜLETIK (R206)
+
+> **Hatály:** V3 — a böngészős kapu (`tools/vs_verify_browser_gate.mjs`) és a terv-modul
+> (`tools/lib/vs_browser_gate_plan.mjs`). **Termékkód nem változott.**
+
+**Dátum:** 2026-10-14 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 R206 · **KUKA-504**
+
+**A DÖNTÉS.** A kapu azt futtatja, amit DEKLARÁL — és ha egy deklarált lánc kimarad a tervből, az
+NEVEZETT hiba, nem némaság. Az R204-ben felvett `docs:kiprobalas-kepek` lánc a listában állt, de a
+végrehajtás egy fixen beírt hívás-párból jött: a lista csak a parancs ALAKJÁT ellenőrizte. Ma a
+`chainPlan` a listából állítja elő a lépéseket (a Playwright-egyesítés megmarad, a `node` láncok
+pontosan egyszer futnak), minden lépés HÁROM sort kap (INDUL · lefutott és ZÖLD · a KIMENETE ebben
+a futásban született meg), és a kapu megméri, hogy **minden deklarált lánc tényleg elindult-e**.
+
+**AZ ELLENPRÓBA A SZŰK HÍVÁSI HATÁRON FUT, BÖNGÉSZŐ NÉLKÜL** (`npm run verify:browser-gate-plan`):
+a korábbi, fixen beírt alak piros · egy lánc szándékos hibája a verdiktbe szivárog · a KIHAGYOTT
+hívás akkor sem ad teljes zöldet, ha minden elindított lépés zöld volt · és a futtató a nem nulla
+kilépést tényleg hibának látja. **Amit ez NEM állít:** nem kiadás-engedély, és nem független
+AI-review.
+
+---
+
+## D-VS-3267 — A PRÓBA A POZITÍV ÁLLAPOTOT MÉRI, ÉS A HIÁNY MÉRT ÉRTÉK (R206)
+
+> **Hatály:** V3 — a vezérelt böngészőpróba (`tests/e2e/v3app-r204-kontextus.spec.mjs`).
+> **Termékkód nem változott.**
+
+**Dátum:** 2026-10-14 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 R206 · **KUKA-503**
+
+**A DÖNTÉS.** A saját R204-es próbám a hiányzó elem helyére magyarázó szöveget tett, az pedig
+TELJESÍTETTE a tiltó állítást — vagyis a felület eltűnése „helyes állapotnak" mérődött. Mostantól a
+mérés a hiányt NULL-ként viszi, a szabály EGY tiszta függvényben áll (`nemIgazoltHianyok`), és a
+próba meg az ELLENPRÓBA ugyanazt a függvényt hívja (`KUKA-207` · `KUKA-239`). A lap a teljes elvárt
+állapotot méri: kötelező elemek · a harmadik állapot kimondott alakja · a régi személy teljes
+eltűnése · a LÁTHATÓ folytatás · az állapot-üzenet ott, ahol a felhasználó áll · a régi művelet
+újra-beküldhetetlensége · a bemutató nevezett megállása — és a HELYREÁLLÁST is.
+
+**MÉRVE:** visszafordítható DOM-mutációval az eltüntetett állapot-üzenet és a kivett kötelező elem
+NEVEZETTEN pirosra vált, a visszaforgatás után ismét zöld. A többperces böngésző-lánc ismétlése
+nélkül.
+
+---
+
+## D-VS-3266 — AZ ELAVULT FRISSÍTÉS NEM ÉRVÉNYTELENÍTHETI AZ ÚJABBAT (R206)
+
+> **Hatály:** V3 — a próba-alkalmazás felülete (`v3app/public/app.js`). **A mag (`v3ref/`) nem
+> változott.**
+
+**Dátum:** 2026-10-14 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 R206 · **KUKA-502**
+
+**A DÖNTÉS.** A `refreshMe` két korai kilépése KÉT világállapot: a `unreachable` azt jelenti, hogy
+nem tudjuk, ki ül a gépnél; a `superseded` azt, hogy egy ÚJABB frissítés indult — amelyik akár már
+alkalmazta is a mai nézetet. A lap ezért SZÁMOLJA, hány frissítés alkalmazott (`appliedSeq`), és az
+elavult hívó ebből dönt: **ha közben egy újabb frissítés igazolt, nem teszi újra bizonytalanná a
+képet és nem írja felül a frissebb értesítést**; ha az újabb MÉG függőben van, az állapot valóban
+nem igazolt, és a függő válasz megérkezésekor MAGÁTÓL helyreáll. Nincs időzítő, nincs automatikus
+újraírás, nincs második állapotgép.
+
+**MÉRVE** két vezérelt sorrenddel (`R206-K2` · `R206-K3`). A javítás kikapcsolásával a K2 PIROS: a
+fejléc „Nem igazolt"-ra vált egy MÁR igazolt nézetben, és a „Megnyitva: …" nyugtát a nem igazolt
+elfogadás mondata írja felül.
+
+---
+
+## D-VS-3265 — A NEM IGAZOLT KONTEXTUSNAK EGY JELENTÉSE VAN, ÉS VAN MŰKÖDŐ FOLYTATÁSA (R206)
+
+> **Hatály:** V3 — a próba-alkalmazás felülete és a két héj (`v3app/public/`), a nyelvcsomagok és a
+> bemutató-megállás kulcsa. **A mag (`v3ref/`) nem változott. Jogosultsági szabály nem változott: a
+> döntés a szerveré.**
+
+**Dátum:** 2026-10-14 · **Sáv:** Claude-v3 · **Kör:** CMD-VS-300-002-002 R206 · **KUKA-501**
+
+**1. A DÖNTÉS: a harmadik állapotot EGY feloldó mondja ki.** Az R204-es alak három fejléc-mezőt írt
+át, a többi sor viszont ugyanabban a függvényben a régi emberből élt tovább — a képernyőolvasónak
+szánt „ki nevében járunk el" sor, a cím-megerősítés, a fiókválasztó listája és a profilmenü
+e-mail-címe. Mostantól minden személyhez kötött sor az `identityKnown` feloldóból dől el, a
+fiókválasztó és a profil pedig nem kínálja a régi embert/fiókot.
+
+**2. ÉS A NEMLEGES ÁLLAPOT VISZI A MŰKÖDŐ FOLYTATÁST** (`KUKA-201`). A fiókválasztó helyén megjelenik
+az **„Állapot ellenőrzése"** gomb (`ctx-recheck`), mind a két héjban, a felirata a nyelvcsomagból,
+mindhárom bekapcsolt nyelven. Sikeres frissítés után a valós személy, fiók, nézet és értesítés
+EGYÜTT áll helyre.
+
+**3. A SZERVER ÁLTAL IGAZOLT MŰVELETET NEM TAGADJUK LE, ÉS NEM IS ADJUK ÁT.** A művelet alanya és
+könyve a `ctxPending`-ben vár, és EGY feloldó (`resolveCtxPending`) dönti el, kinek szól: ugyanaz az
+ember a siker mondatát kapja, MÁS ember a személyváltást (`KUKA-204`). A régi művelet nem küldhető be
+újra (a beváltás gombja tiltott), és a bemutató eredménye sem száll át — a futás NEVEZETT indokkal
+áll meg (`TOURUI.contextUnconfirmed`), a hátralévő lépések átugrottak.
+
+---
+
 ## D-VS-3264 — A FRISSÍTÉS KIMONDJA, ALKALMAZTA-E A SZERVER IGAZSÁGÁT (R204)
 
 > **Hatály:** V3 — a próba-alkalmazás felülete (`v3app/public/`), a nyelvcsomagok, az átadási

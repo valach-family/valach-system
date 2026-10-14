@@ -18577,6 +18577,217 @@ Object.freeze({
       + 'is tartalmazza, a kapu a parancs ALAKJAT is meri, es a lanc nem-nulla kilepese PIROS. Mellette '
       + '`verify:kuka` KUK02 (a regi horgony tiltva) + KUK03 (a mai horgony es a kapu-bejegyzes megleterol).',
   }),
+  // ════════════════════════════════════════════════════════════════════════════════════════════
+  // R206 — A NEM IGAZOLT KONTEXTUS EGY JELENTÉSE, A SORRENDVÉDELEM, A PRÓBA ÉS A KAPU
+  // ════════════════════════════════════════════════════════════════════════════════════════════
+  Object.freeze({
+    id: 'KUKA-501',
+    date: '2026-10-14',
+    title: 'A HARMADIK ÁLLAPOT HÁROM FELIRATBAN ÁLLT — A TÖBBI SOR TOVÁBB MONDTA A RÉGI EMBERT',
+    what: 'Az R204-ben megépített „nem igazolt kontextus" (a harmadik állapot: se belépve, se '
+      + 'kilépve) a fejléc HÁROM mezőjét írta át — fiók · személy · monogram —, a többi sor viszont '
+      + 'UGYANABBAN a `renderHeader` függvényben a RÉGI `state.me`-ből élt tovább: a '
+      + 'képernyőolvasónak szánt „ki nevében járunk el" sor, a cím-megerősítés állapota, a '
+      + 'fiókválasztó listája (a régi fiókokkal), a profilmenü e-mail-címe, és a két lenyíló '
+      + 'MEGJELENÉSE is a puszta `loggedIn` értéktől függött. A nemleges állapot egyetlen teendője '
+      + 'pedig egy mondat volt: „tölts be újra a lapot".',
+    why_wrong: 'A lap EGYSZERRE állította, hogy nem tudjuk, ki ül a gépnél, ÉS hogy ő Carl — vagyis '
+      + 'épp azt a hamis állítást tartotta életben, amiért a harmadik állapot megszületett. Ez a '
+      + 'KUKA-208 alakja a fejlécen (a fél-megerősítés a másik felét láthatatlanná teszi) és a '
+      + 'KUKA-210 (a felirat EGY forrásból jön): három semleges felirat mellett a régi '
+      + 'személyazonosság és a régi fiókkínálat is a lapon maradt, a képernyőolvasó pedig a régi '
+      + 'embert kapta. A „tölts be újra" ráadásul a felhasználóra bízta azt, amit a lap maga is meg '
+      + 'tud kérdezni (KUKA-201: a nemleges válasz vigye a MŰKÖDŐ folytatást).',
+    replaced_by: 'EGY FELOLDÓ a fejlécben (`identityKnown = loggedIn && !ctxUnconfirmed`): minden '
+      + 'személyhez kötött sor ebből dől el — a „ki nevében" sor, a cím-megerősítés, a '
+      + 'fiókválasztó és a profil megjelenése, és a két lenyíló TARTALMA is. Így egy ÚJ '
+      + 'személy-függő sor sem születhet bélyeg nélkül (KUKA-227), mert nincs hova „elfelejteni" a '
+      + 'kérdést.',
+    replacement: 'ÉS A NEMLEGES ÁLLAPOT VISZI A MŰKÖDŐ FOLYTATÁST: a fiókválasztó HELYÉN megjelenik '
+      + 'az „Állapot ellenőrzése" gomb (`ctx-recheck`, MIND A KÉT héjban — az alkalmazásban és a '
+      + 'bemutató-lapon), a felirata a nyelvcsomagból jön, és amíg a kérdés fut, a gomb ezt ki is '
+      + 'mondja. A szerver által MÁR igazolt művelet nem tűnik el: alanya és könyve a '
+      + '`state.ctxPending`-ben áll, és EGY feloldó (`resolveCtxPending`) dönti el, kinek szól — '
+      + 'ugyanaz az ember kapja a siker mondatát, MÁS ember a személyváltást (KUKA-204).',
+    decision: 'D-VS-3265',
+    found_by: 'chatgpt-v3 (R206 SPEC §2/F206-01) — a `2c0a5e4` FORRÁSÁT olvasta, és soronként '
+      + 'kimondta a belső ellentmondást. A Claude-v3 ezt böngészőben meg is mérte: a javítás '
+      + 'kikapcsolásával a vezérelt próba NÉGY nevezett hiányt ad (köztük a „ki nevében" sorban és a '
+      + 'profilmenüben álló régi embert).',
+    lesson: 'AMIT NEM TUDUNK, AZT EGY HELYEN KELL KIMONDANI — KÜLÖNBEN A SZOMSZÉD SOR VISSZAMONDJA A '
+      + 'RÉGIT. Ha egy állapotnak három felirata van és öt másik sora a régi adatból él, az nem '
+      + 'óvatosság, hanem két igazság egy képernyőn. A megkülönböztető kérdés: MELYIK érték dönti el '
+      + 'ezt a sort — és ugyanaz dönti-e el a szomszédját is?',
+    guard_note: 'gépi jel: a `tests/e2e/v3app-r204-kontextus.spec.mjs` R204-K1/R206-K3 (a szabály EGY '
+      + 'függvényben: `nemIgazoltHianyok`), a kötelező kapuban futva; mellette `verify:i18n` (a '
+      + 'három bekapcsolt nyelv feliratai) és `verify:kuka` KUK02/KUK03.',
+    home: 'v3',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']), pattern: 'identityKnown',
+        why: 'a fejléc személyhez kötött sorai EGY feloldóból élnek' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']), pattern: 'resolveCtxPending',
+        why: 'a felfüggesztett művelet válasza EGY helyen születik' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/index.html', 'v3app/public/demo-index.html']),
+        pattern: 'ctx-recheck', why: 'a működő folytatás MIND A KÉT héjban ott van' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/i18n/hu.mjs', 'v3app/public/i18n/en.mjs', 'v3app/public/i18n/de.mjs']),
+        pattern: 'contextRecheck:', why: 'a felirat a nyelvcsomagból jön, nem beégetve' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: "show\\(byTest\\('account-switcher'\\), loggedIn\\)",
+        reason: 'a fiókválasztó megjelenése megint a puszta belépettségtől függne' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']),
+        pattern: "setText\\(byTest\\('header-acting-as'\\), loggedIn",
+        reason: 'a képernyőolvasónak szánt sor megint a régi embert mondaná' }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'KUKA-502',
+    date: '2026-10-14',
+    title: 'MINDEN NEM ALKALMAZOTT FRISSÍTÉS UGYANAZT JELENTETTE — AZ ELAVULT HÍVÓ ÉRVÉNYTELENÍTETTE AZ ÚJABBAT',
+    what: 'A `doRedeem` MINDEN `applied: false` eredményre bizonytalanra állította a kontextust, a '
+      + '`why` különbségétől függetlenül. A `refreshMe` viszont KÉT egészen más tényt ad ezen az egy '
+      + 'alakon: `unreachable` = a kiszolgálót nem értük el, `superseded` = egy ÚJABB frissítés '
+      + 'indult — amelyik akár MÁR alkalmazta is a mai nézetet.',
+    why_wrong: 'A `superseded` ágon az ELAVULT hívó egy MÁR IGAZOLT, frissebb képet tett volna újra '
+      + 'bizonytalanná, és a saját, régebbi mondatát írta volna a frissebb értesítés helyére. MÉRVE '
+      + '(R206-K2, vezérelt sorrend): a visszatartott beváltás-frissítés visszatérése után a fejléc '
+      + '„Nem igazolt"-ra váltott egy olyan nézetben, amit egy ÚJABB frissítés már igazolt, és a '
+      + '„Megnyitva: …" nyugtát a nem igazolt elfogadás mondata írta felül. Ez a KUKA-041 (a késve '
+      + 'érkező válasz nem írhat az új nézetbe) és a KUKA-211 (a válasz a MEGNYITÁSKORI nézethez '
+      + 'tartozik) alakja a frissítésen.',
+    replaced_by: 'A KÉT ESET KÉT VÁLASZ, ÉS A KÜLÖNBSÉGET MÉRJÜK, nem feltételezzük: a '
+      + '`state.appliedSeq` azt számolja, hány frissítés ALKALMAZOTT (a `seq` azt, hány INDULT). Ha '
+      + 'közben egy újabb frissítés alkalmazott (`ujabbIgazolas`), az elavult hívó nem nyúl a '
+      + 'kontextushoz és nem írja felül az értesítést; ha az újabb MÉG függőben van, az állapot '
+      + 'valóban nem igazolt — és a függő válasz megérkezésekor MAGÁTÓL helyreáll, mert a feloldó a '
+      + '`refreshMe`-ben áll (nincs időzítő, nincs automatikus újraírás, nincs második állapotgép).',
+    decision: 'D-VS-3266',
+    found_by: 'chatgpt-v3 (R206 SPEC §2/F206-02) — forrásból, a böngészős reprodukció nélkül: '
+      + '„a `refreshMe` superseded eredménye azt jelenti, hogy egy újabb frissítés elindult". A '
+      + 'Claude-v3 ezután állította elő a VEZÉRELT sorrendet (R206-K2 · K3), és a javítás '
+      + 'kikapcsolásával a próba PIROS.',
+    lesson: 'EGY VISSZATÉRÉSI ALAK, KÉT VILÁGÁLLAPOT — EZ MINDIG LELET. A „nem sikerült" és a '
+      + '„valaki más már megtette helyettem" ellentétes teendőt kíván: az első kimondja a '
+      + 'bizonytalanságot, a második HALLGAT. Ha a hívó csak azt kérdezi meg, hogy az ŐK kérése '
+      + 'teljesült-e, akkor a frissebb igazságot a saját elavult válaszával írja felül.',
+    guard_note: 'gépi jel: `tests/e2e/v3app-r204-kontextus.spec.mjs` R206-K2 (az újabb MÁR '
+      + 'alkalmazott) és R206-K3 (az újabb MÉG függőben van) — mind a kettő a kötelező '
+      + 'böngésző-kapuban fut; mellette `verify:kuka` KUK03.',
+    home: 'v3',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']), pattern: 'appliedSeq',
+        why: 'a lap SZÁMOLJA, hány frissítés alkalmazta a szerver igazságát' }),
+      Object.freeze({ paths: Object.freeze(['v3app/public/app.js']), pattern: 'ujabbIgazolas',
+        why: 'az elavult hívó megkérdezi, igazolt-e KÖZBEN egy újabb frissítés' }),
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r204-kontextus.spec.mjs']), pattern: 'R206-K2',
+        why: 'a vezérelt sorrend próbája a kötelező kapuban fut' }),
+    ]),
+    forbidden: Object.freeze([]),
+  }),
+  Object.freeze({
+    id: 'KUKA-503',
+    date: '2026-10-14',
+    title: 'A PRÓBA A HIÁNYT MAGYARÁZÓ SZÖVEGGEL PÓTOLTA — ÉS A SZÖVEG TELJESÍTETTE AZ ÁLLÍTÁST',
+    what: 'A SAJÁT vezérelt próbám (R204-K1) a mért állapotot úgy rögzítette, hogy a HIÁNYZÓ elem '
+      + 'helyére magyarázó szöveget tett: `fejlec: … : \'(nincs fejléc-elem)\'`. Az állítás pedig az '
+      + 'volt, hogy a fejléc NEM egyenlő a régi ember e-mail-címével — amit a magyarázó szöveg '
+      + 'TELJESÍT. A siker-mondatra vonatkozó állítás ráadásul csak akkor futott, ha volt LÁTHATÓ '
+      + 'értesítő elem, és a felhasználónak megígért harmadik állapotot meg a működő folytatást '
+      + 'semmi nem mérte.',
+    why_wrong: 'Így a próba a felület ELTŰNÉSÉT „helyes állapotnak" mérte: egy üres, összeomlott '
+      + 'fejléc ugyanúgy zöld lett volna, mint a megépített harmadik állapot. Ez a KUKA-207 alakja a '
+      + 'próbapadon (amit a próba nem tud MEGHÍVNI, azt bizalomból hisszük) és a KUKA-093 '
+      + 'fordítottja: nem a hiányzó mérést neveztük zöldnek, hanem a MÉRÉS HIÁNYÁT pótoltuk '
+      + 'szöveggel. A rossz mondat hiánya nem azonos a jó állapot meglétével.',
+    replaced_by: 'A mérés a hiányt NULL-ként viszi (soha nem magyarázó szövegként), a SZABÁLY pedig '
+      + 'EGY tiszta függvényben áll (`nemIgazoltHianyok`): kötelező elemek, a harmadik állapot '
+      + 'KIMONDOTT alakja, a régi személy teljes eltűnése, a LÁTHATÓ folytatás a nyelvcsomagból vett '
+      + 'felirattal, az állapot-üzenet ott, ahol a felhasználó áll, a régi művelet '
+      + 'újra-beküldhetetlensége és a bemutató nevezett megállása.',
+    replacement: 'ÉS A PRÓBA MEG AZ ELLENPRÓBA UGYANAZT A FÜGGVÉNYT HÍVJA (KUKA-239): a lap '
+      + 'visszafordítható DOM-mutációval bizonyítja, hogy az eltüntetett állapot-üzenet és a '
+      + 'kivett kötelező elem NEVEZETTEN pirosra vált — majd a mutáció visszaforgatása után ismét '
+      + 'zöld. A teljes böngésző-lánc ismétlése nélkül.',
+    decision: 'D-VS-3267',
+    found_by: 'chatgpt-v3 (R206 SPEC §2/F206-03) — a próba FORRÁSÁT olvasta, és kimondta: „ha nincs '
+      + 'fejléc-elem, a rögzítő \'(nincs fejléc-elem)\' szöveget ad, ami teljesíti a '
+      + '`not.toBe(carl.email)` állítást". A próbát a Claude-v3 írta — tehát ez a SAJÁT őröm hibája '
+      + 'volt, amit a külső fél talált meg.',
+    lesson: 'A HIÁNYT NE PÓTOLD SZÖVEGGEL — A HIÁNY MÉRT ÉRTÉK. Egy rögzítő, ami a nem létező elem '
+      + 'helyére mondatot ír, a KÖVETKEZŐ állításnak hamis bemenetet ad. És a tiltó állítás '
+      + '(„ne legyen ott a rossz mondat") önmagában SOHA nem bizonyítja, hogy a megígért állapot ott '
+      + 'van: a pozitív alakot is meg kell mérni, kötelező elemekkel és ellenpróbával.',
+    guard_note: 'gépi jel: `tests/e2e/v3app-r204-kontextus.spec.mjs` — a szabály tiszta függvényben, '
+      + 'két beépített ellenpróbával (eltüntetett állapot-üzenet · kivett kötelező elem), a kötelező '
+      + 'böngésző-kapuban futva; mellette `verify:kuka` KUK02 (a régi, magyarázó szöveg tiltva).',
+    home: 'v3',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r204-kontextus.spec.mjs']),
+        pattern: 'nemIgazoltHianyok', why: 'a szabály EGY függvényben áll, és az ellenpróba is ezt hívja' }),
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r204-kontextus.spec.mjs']),
+        pattern: 'hiányzó kötelező elem', why: 'a hiányzó felület NEVEZETT hiba, nem hallgatás' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tests/e2e/v3app-r204-kontextus.spec.mjs']),
+        pattern: 'nincs fejléc-elem',
+        reason: 'a hiányt magyarázó szöveggel pótló rögzítő visszatérése újra hamis zöldet adna' }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'KUKA-504',
+    date: '2026-10-14',
+    title: 'A KAPU LÁNC-LISTÁJA A PARANCSALAKOT ELLENŐRIZTE, DE NEM INDÍTOTTA EL A LÁNCOT',
+    what: 'Az R204-ben felvettem az átadási bemutató eszközét (`docs:kiprobalas-kepek`) a kötelező '
+      + 'böngésző-kapu `CHAINS` listájába — a VÉGREHAJTÁS viszont nem a listából jött: a kapu a '
+      + 'Playwright-láncot és utána egy FIXEN beírt `proof:demo-walk`-ot indított. A lista tehát '
+      + 'csak a parancs ALAKJÁT ellenőrizte (hogy a `package.json`-ban az áll-e, amit a kapu futtatni '
+      + 'akar), a hozzáadott láncot nem indította el.',
+    why_wrong: 'Az „bekerült a kötelező kapuba" állítás így VÉGREHAJTÁSI értelemben nem teljesült, és '
+      + 'ezt egyetlen gépi jel sem mondta ki: a kapu TELJES ZÖLDET adott egy el sem indult láncra '
+      + '(KUKA-051: ami nem fut, az nem tud pirosra válni; KUKA-206: a nem futott nem „részben"). A '
+      + 'legdrágább alak, mert a KUKA-500 tanulsága épp ez volt — és a javítás a tanulság FELÉT '
+      + 'építette meg: a deklarálást, a futtatást nem.',
+    replaced_by: 'A FUTTATÁSI TERV A LISTÁBÓL SZÜLETIK, egy külön, MEGHÍVHATÓ modulban '
+      + '(`tools/lib/vs_browser_gate_plan.mjs`): a `chainPlan` a deklarált láncokból állítja elő a '
+      + 'lépéseket (a Playwright-egyesítés megmarad, a `node` láncok pontosan egyszer futnak), a '
+      + '`planProblems` pedig KIMONDJA, ha egy deklarált lánc kimaradt a tervből. A kapu minden '
+      + 'lépésről HÁROM sort ad: INDUL · lefutott és ZÖLD · a KIMENETE ebben a futásban született meg '
+      + '(a kimenet FAJTÁJA deklarált, és a közös névképző oldja fel).',
+    replacement: 'ÉS A KAPU SAJÁT ELLENPRÓBÁJA A SZŰK HÍVÁSI HATÁRON FUT, böngésző nélkül '
+      + '(`npm run verify:browser-gate-plan`): a korábbi, fixen beírt alak NEVEZETTEN piros; egy '
+      + 'lánc szándékos hibája a verdiktbe szivárog; a KIHAGYOTT hívás akkor sem ad teljes zöldet, '
+      + 'ha minden elindított lépés zöld volt; és a futtató (`runGuarded`) a nem nulla kilépést '
+      + 'tényleg hibának látja.',
+    decision: 'D-VS-3268',
+    found_by: 'chatgpt-v3 (R206 SPEC §2/F206-04) — a kapu FORRÁSÁT olvasta a `2c0a5e4`-en, és '
+      + 'kimondta: „a lista jelenleg a parancsalakot ellenőrzi; nem indítja el a hozzáadott láncot". '
+      + 'A Claude-v3 (az R204 szerzője) ezt visszaigazolta: a végrehajtás tényleg a két beírt hívásból '
+      + 'állt.',
+    lesson: 'A DEKLARÁLÁS NEM VÉGREHAJTÁS — ÉS A LISTA, AMIBŐL NEM FUT SEMMI, CSAK EGY SZÁNDÉK. Ha egy '
+      + 'őr listát vezet és MÁSHOL indít, a kettő első csúszása néma, és épp a frissen hozzáadott '
+      + 'tételen. A megkülönböztető kérdés: ha kiveszem a lista egy sorát, MEGVÁLTOZIK-E, mi fut? Ha '
+      + 'nem, akkor a lista nem vezérel, csak dokumentál.',
+    guard_note: 'gépi jel: `npm run verify:browser-gate-plan` (a kapu ellenpróbái a szűk hívási '
+      + 'határon, böngésző nélkül) + `npm run verify:browser-gate` („MINDEN deklarált lánc '
+      + 'TÉNYLEGESEN elindult" sora és a lánc-kimenetek mérése); mellette `verify:kuka` KUK02/KUK03.',
+    home: 'v3',
+    positive: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_browser_gate.mjs']), pattern: 'chainPlan',
+        why: 'a kapu a listából állítja elő a futtatási tervet' }),
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_browser_gate.mjs']),
+        pattern: 'TÉNYLEGESEN elindult', why: 'a kapu MEGMÉRI, hogy minden deklarált lánc futott-e' }),
+      Object.freeze({ paths: Object.freeze(['tools/lib/vs_browser_gate_plan.mjs']), pattern: 'planProblems',
+        why: 'a deklarált, de nem indított lánc NEVEZETT hiba' }),
+      Object.freeze({ paths: Object.freeze(['package.json']), pattern: 'verify:browser-gate-plan',
+        why: 'a kapu ellenpróbája önálló, böngésző nélkül futó lánc' }),
+    ]),
+    forbidden: Object.freeze([
+      Object.freeze({ paths: Object.freeze(['tools/vs_verify_browser_gate.mjs']),
+        pattern: "futtat\\('npm run --silent proof:demo-walk'",
+        reason: 'a fixen beírt hívás visszatérésével a lista megint csak dokumentálna' }),
+    ]),
+  }),
 ]);
 
 const RETIRED_PATTERN_CONTRACT = Object.freeze({

@@ -86,6 +86,7 @@
     "verify:mutation-anchors": "node tools/vs_verify_mutation_anchors.mjs",
     "verify:mutation-batch": "node tools/vs_verify_mutation_batch.mjs",
     "verify:browser-gate": "node tools/vs_verify_browser_gate.mjs",
+    "verify:browser-gate-plan": "node tools/vs_verify_browser_gate.mjs --selftest",
     "proof:pg-bridge-transport": "node tools/v3_pg_bridge_transport_proof.mjs",
     "proof:pg-readiness": "node tools/v3_pg_readiness_proof.mjs",
     "proof:pg-domain-race": "node tools/v3_pg_domain_race_proof.mjs",

@@ -555,6 +555,10 @@ const GUARD_HOME = Object.freeze({
   'KUKA-483': Object.freeze({ home: 'v3', note: 'az EXS14 belső futásának elkülönítése a V3 szerszám-könyvtárában él — a jel maga a tüzelési mintázat: a tíz visszacsúsztatásos ellenpróba PONTOSAN egy-egy őrt pirosít' }),
   'KUKA-176': Object.freeze({ home: 'v3', note: 'a verdikt-szerződés és a hibás-alak ág a V3 szerszám-könyvtárában él — a jel a verify:sweep-verdict SWV07, ellenpárokkal és VALÓDI gyermek-folyamattal' }),
   'KUKA-500': Object.freeze({ home: 'v3', note: 'az atadasi bemutato eszkoze es a kotelezo bongeszo-kapu lanc-listaja is EBBEN a repoban el — a jel a verify:browser-gate, mellette a verify:kuka tilto es pozitiv mintai' }),
+  'KUKA-501': Object.freeze({ home: 'v3', note: 'a fejléc EGY feloldója (`identityKnown`) és a működő folytatás (`ctx-recheck`) ebben a repóban él — a jel a vezérelt böngészőpróba (R204-K1 · R206-K3) a kötelező kapuban, mellette a verify:i18n feliratai' }),
+  'KUKA-502': Object.freeze({ home: 'v3', note: 'az alkalmazás-számláló (`appliedSeq`) és a sorrendvédelem a V3 felületén él — a jel a vezérelt sorrend-próba (R206-K2: az újabb MÁR alkalmazott · R206-K3: az újabb MÉG függőben)' }),
+  'KUKA-503': Object.freeze({ home: 'v3', note: 'a próba szabálya (`nemIgazoltHianyok`) és a két beépített ellenpróba ebben a repóban él — a jel maga a próba, a kötelező böngésző-kapuban futva' }),
+  'KUKA-504': Object.freeze({ home: 'v3', note: 'a kapu futtatási terve (`tools/lib/vs_browser_gate_plan.mjs`) és az ellenpróbái a V3 szerszám-könyvtárában élnek — a jel a verify:browser-gate-plan (böngésző nélkül) és a verify:browser-gate futás-sorai' }),
 });
 
 function homeOf(id) { return (GUARD_HOME[id] || null); }
